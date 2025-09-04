@@ -1,55 +1,132 @@
-# Prerequisites
-*.d
+# ==============================
+# Operating System Generated Files
+# ==============================
+# 所有操作系统生成的无关文件
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
 
-# Object files
-*.o
-*.ko
-*.obj
-*.elf
+# ==============================
+# Keil µVision Specific
+# ==============================
+# 最重要的：忽略编译输出目录，通常叫 Listings, Objects, 或 Output
+[Listings]/
+[Objects]/
+Output/
+*/[Listings]/
+*/[Objects]/
+*/Output/
 
-# Linker output
-*.ilk
+# 忽略链接器、调试器生成的文件
+*.lnp
+*.lst
 *.map
-*.exp
+*.dep
 
-# Precompiled Headers
-*.gch
-*.pch
+# 忽略构建过程文件
+*.build_log.htm
+*.iex
 
-# Libraries
-*.lib
+# 忽略用户工作区/调试会话文件（非常重要！包含绝对路径，每台机器都不同）
+*.uvgui.*
+*.uvguix.*
+*.uvopt
+*.uvoptx
+*.uvproj.user
+*.uvprojx.user
+
+# ==============================
+# Visual Studio Code (VSCode) Specific
+# ==============================
+# 除非你想与团队共享VSCode设置，否则忽略整个文件夹
+.vscode/
+!.vscode/settings.json    # 如果想共享基础设置，可以取消注释这行
+!.vscode/tasks.json       # 如果想共享任务配置，可以取消注释这行
+!.vscode/launch.json      # 如果想共享调试配置，可以取消注释这行
+!.vscode/extensions.json  # 如果想共享推荐的扩展，可以取消注释这行
+
+# 忽略VSCode的本地历史文件
+.history/
+
+# ==============================
+# CLion (JetBrains) Specific
+# ==============================
+# 忽略CLion的整个用户特定目录
+.idea/
+# 但通常建议共享 .idea 中的项目结构文件，除非有敏感信息。
+# 更安全的做法是只忽略workspace文件和一些缓存
+# *.iws
+# .idea/workspace.xml
+# .idea/tasks.xml
+# .idea/dictionaries
+.idea/shelf/
+.idea/.name
+
+# 忽略CLion生成的CMake配置和构建目录
+cmake-build-*/
+cmake-build-*-*
+# 如果你使用自定义的构建目录名，请在这里添加，例如：
+# Build/
+# Debug/
+# Release/
+
+# ==============================
+# General Build Outputs & Dependencies
+# ==============================
+# 忽略编译产生的对象文件和库
+*.o
+*.obj
+*.ko
 *.a
-*.la
-*.lo
-
-# Shared objects (inc. Windows DLLs)
-*.dll
+*.lib
 *.so
-*.so.*
 *.dylib
+*.dll
 
-# Executables
+# 忽略可执行文件
 *.exe
 *.out
 *.app
-*.i*86
-*.x86_64
+*.bin
 *.hex
 
-# Debug files
-*.dSYM/
+# 忽略预处理文件、汇编文件
+*.i
+*.s
 *.su
-*.idb
-*.pdb
 
-# Kernel Module Compile Results
-*.mod*
-*.cmd
-.tmp_versions/
-modules.order
-Module.symvers
-Mkfile.old
-dkms.conf
+# 忽略依赖文件（例如由gcc -MM生成）
+*.d
 
-# debug information files
-*.dwo
+# 忽略Core dump文件
+# core
+# *.core
+
+# ==============================
+# Other Common Ignores
+# ==============================
+# 忽略日志文件
+*.log
+
+# 忽略临时文件
+*.tmp
+*.temp
+*~
+*.swp
+*.swo
+
+# 忽略压缩包
+*.zip
+*.tar.gz
+*.7z
+
+# 忽略任何本地环境配置文件（非常重要！）
+.env
+.env.local
+.env.*.local
+
