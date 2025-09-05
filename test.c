@@ -2,6 +2,6 @@
 
 int main()
 {
-    printf("999");
+    printf("999:::");
     return 0;
 }
