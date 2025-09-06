@@ -31,7 +31,7 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <stdbool.h>
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -59,23 +59,26 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define KEY2_Pin GPIO_PIN_13
 #define KEY2_GPIO_Port GPIOC
-#define KEY2_EXTI_IRQn EXTI15_10_IRQn
 #define LED0_Pin GPIO_PIN_2
 #define LED0_GPIO_Port GPIOC
 #define LED1_Pin GPIO_PIN_3
 #define LED1_GPIO_Port GPIOC
 #define KEY1_Pin GPIO_PIN_0
 #define KEY1_GPIO_Port GPIOA
-#define KEY1_EXTI_IRQn EXTI0_IRQn
 
 /* USER CODE BEGIN Private defines */
+
+typedef struct
+{
+  bool key_state;
+  bool key_last_state;
+}BUTTON_STATE;
+
 typedef enum
 {
   LED0_BLINK = 1 << 0,
   LED1_BLINK = 1 << 1,
   LED_FLOW = 1 << 2,
-  KEY1_PRUSS = 1 << 3,
-  KEY2_PRUSS = 1 << 4
 }LED_PATTERN_t;
 /* USER CODE END Private defines */
 
