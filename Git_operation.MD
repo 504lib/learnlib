@@ -19,12 +19,19 @@
 + 确保配置了`ssh`的密钥，并提供给`github`
 + 确保 VScode 中登录 GitHub 账号
 
-![插入图片：VSCode Git侧边栏截图，显示已登录状态](.\ZK_Lib\Photo\login_done.png)
+![插入图片：VSCode Git侧边栏截图，显示已登录状态](https://github.com/504lib/learnlib/blob/main/ZK_Lib/Photo/login_done.png?raw=true)
 
-第一步：创建功能分支
-永远不要在 main 或 develop 分支上直接进行开发。
+---
 
-确保你位于主分支的最新状态：
+### 第一步：创建功能分支
+
+> [!warning]
+>
+> **永远不要在 `main` 分支上直接进行开发!!!!**
+
+1. 确保你位于主分支的最新状态，请保持 `main` 常态化 `pull`
+
+
 
 bash
 git checkout main
