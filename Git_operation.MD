@@ -27,11 +27,11 @@
 
 1. 确保你位于主分支的最新状态：
 
-   ![pull]()
+   ![pull](https://github.com/504lib/learnlib/blob/main/ZK_Lib/Photo/pull.png?raw=true)
 
 2. 创建并切换到一个新的功能分支：
 
-​	![插入图片：VSCode 左下角创建新分支的动画]()
+​	![插入图片：VSCode 左下角创建新分支的动画](https://github.com/504lib/learnlib/blob/main/ZK_Lib/Photo/create_branch.gif?raw=true)
 
 ---
 
@@ -42,7 +42,7 @@
 
 3. 点击文件旁边的 + 号，或右键选择“暂存更改”
 
-![插入图片：VSCode 暂存更改的界面]()
+![插入图片：VSCode 暂存更改的界面](https://github.com/504lib/learnlib/blob/main/ZK_Lib/Photo/save_descrip.png?raw=true)
 
 > [!tip]
 >
@@ -69,7 +69,7 @@
 
 4. 提交更改：点击 `提交和推送`
 
-   ![提交推送]()
+   ![提交推送](https://github.com/504lib/learnlib/blob/main/ZK_Lib/Photo/commit_push.png?raw=true)
 
 ---
 
@@ -77,15 +77,11 @@
 
 1. 前往`github`去进行`PR`操作
 
-![插入图片：创建PR]()
+![插入图片：创建PR](https://github.com/504lib/learnlib/blob/main/ZK_Lib/Photo/PR.png?raw=true)
 
 2. 创建`PR`
 
-   ![创建PR]()
-
-3. 描述信息，点击 "Create" 创建 PR
-
-   ![Create PR]()
+   ![创建PR](https://github.com/504lib/learnlib/blob/main/ZK_Lib/Photo/Create_PR.png?raw=true)
 
 ---
 
@@ -104,12 +100,13 @@
 1. 同步本地仓库并删除本地分支
    切换回主分支并获取最新更新：
 
-   ![]()
+   ![](https://github.com/504lib/learnlib/blob/main/ZK_Lib/Photo/delete_brach.png?raw=true)
+   ![](https://github.com/504lib/learnlib/blob/main/ZK_Lib/Photo/delete_brach2.png?raw=true)
 
 2. 重新`fetch`
 
-   ![]()
+   ![](https://github.com/504lib/learnlib/blob/main/ZK_Lib/Photo/fetch.png?raw=true)
 
 3. 同步`main`分支
 
-   ![]()
+   ![pull](https://github.com/504lib/learnlib/blob/main/ZK_Lib/Photo/pull.png?raw=true)
