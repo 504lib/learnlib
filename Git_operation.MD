@@ -17,11 +17,7 @@
 
 + 确保克隆了`learnlib`远程库
 + 确保配置了`ssh`的密钥，并提供给`github`
-+ 确保 VScode 中登录 GitHub 账号
-
-![login](https://github.com/504lib/learnlib/blob/main/ZK_Lib/Photo/login_done.png?raw=true)
-
----
++ 确保 VScode 中登录 GitHub 账
 
 ## 第一步：创建功能分支
 
