@@ -39,6 +39,10 @@ Output/
 *.uvoptx
 *.uvproj.user
 *.uvprojx.user
+*.uvprojx
+*.axf
+*.htm
+
 
 # ==============================
 # Visual Studio Code (VSCode) Specific
