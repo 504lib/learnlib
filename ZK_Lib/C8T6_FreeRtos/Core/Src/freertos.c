@@ -27,6 +27,7 @@
 /* USER CODE BEGIN Includes */
 #include "u8g2.h"
 #include "u8g2_user.h"
+#include "menu.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -48,6 +49,16 @@
 /* USER CODE BEGIN Variables */
 u8g2_t u8g2;
 uint8_t progress = 0;
+uint8_t index = 0;
+
+
+menu_item_t* root = NULL;
+menu_item_t* sub1 = NULL;
+menu_item_t* sub2 = NULL;
+menu_item_t* sub3 = NULL;
+menu_item_t* sub4 = NULL;
+
+menu_data_t menu_data = {0};
 /* USER CODE END Variables */
 /* Definitions for U8G2_TASK */
 osThreadId_t U8G2_TASKHandle;
@@ -56,6 +67,18 @@ const osThreadAttr_t U8G2_TASK_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
+/* Definitions for LED_TASK */
+osThreadId_t LED_TASKHandle;
+const osThreadAttr_t LED_TASK_attributes = {
+  .name = "LED_TASK",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
+/* Definitions for KEY_EVENT */
+osEventFlagsId_t KEY_EVENTHandle;
+const osEventFlagsAttr_t KEY_EVENT_attributes = {
+  .name = "KEY_EVENT"
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -63,6 +86,7 @@ const osThreadAttr_t U8G2_TASK_attributes = {
 /* USER CODE END FunctionPrototypes */
 
 void U8g2_Task(void *argument);
+void LED_Task(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -96,9 +120,16 @@ void MX_FREERTOS_Init(void) {
   /* creation of U8G2_TASK */
   U8G2_TASKHandle = osThreadNew(U8g2_Task, NULL, &U8G2_TASK_attributes);
 
+  /* creation of LED_TASK */
+  LED_TASKHandle = osThreadNew(LED_Task, NULL, &LED_TASK_attributes);
+
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
+
+  /* Create the event(s) */
+  /* creation of KEY_EVENT */
+  KEY_EVENTHandle = osEventFlagsNew(&KEY_EVENT_attributes);
 
   /* USER CODE BEGIN RTOS_EVENTS */
   /* add events, ... */
@@ -118,20 +149,59 @@ void U8g2_Task(void *argument)
   /* USER CODE BEGIN U8g2_Task */
   u8g2Init(&u8g2);
   u8g2_FirstPage(&u8g2);
+  root = create_submenu_item("main_menu");
+  sub1 = create_submenu_item("sub_menu_1");
+  sub2 = create_submenu_item("sub_menu_2");
+  sub3 = create_submenu_item("sub_menu_3");
+  sub4 = create_submenu_item("sub_menu_4");
+  Link_Parent_Child(root, sub1);
+  Link_next_sibling(sub1, sub2);
+  Link_next_sibling(sub2, sub3);
+  Link_next_sibling(sub3, sub4);
+  menu_data.current_menu = root;
+  // menu_data.selected_item = root->first_child;
   /* Infinite loop */
   for(;;)
   {
-    updateProgressBar(&progress); // 更新进度�?
     u8g2_FirstPage(&u8g2);
     do {
-        u8g2_SetFont(&u8g2, u8g2_font_6x10_tf);
-        u8g2_DrawStr(&u8g2, 0, 10, "Loading...");
-        drawProgressBar(&u8g2,progress); // 绘制进度�?
-        // u8g2_DrawStr(&u8g2, 0, 20, "Loading...");
+      show_menu(&u8g2,&menu_data,3);
     } while (u8g2_NextPage(&u8g2));
-      // osDelay(1);
+    osDelay(1);
   }
   /* USER CODE END U8g2_Task */
+}
+
+/* USER CODE BEGIN Header_LED_Task */
+/**
+* @brief Function implementing the LED_TASK thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_LED_Task */
+void LED_Task(void *argument)
+{
+  /* USER CODE BEGIN LED_Task */
+  uint32_t flags;
+  /* Infinite loop */
+  for(;;)
+  {
+    flags = osEventFlagsWait(KEY_EVENTHandle,KEY_DOWN_EVENT|KEY_UP_EVENT,osFlagsWaitAny,osWaitForever);
+    if(flags & KEY_UP_EVENT)
+    {
+      navigate_up(&menu_data);
+      HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+      // osDelay(100);
+    }
+    if(flags & KEY_DOWN_EVENT)
+    {
+      navigate_down(&menu_data);
+      HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+      // osDelay(500);
+    }
+    // osDelay(1);
+  }
+  /* USER CODE END LED_Task */
 }
 
 /* Private application code --------------------------------------------------*/

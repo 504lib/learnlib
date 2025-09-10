@@ -65,9 +65,16 @@ void Error_Handler(void);
 #define DC_OLED_GPIO_Port GPIOA
 #define RES_OLED_Pin GPIO_PIN_4
 #define RES_OLED_GPIO_Port GPIOA
+#define KEY_UP_Pin GPIO_PIN_0
+#define KEY_UP_GPIO_Port GPIOB
+#define KEY_UP_EXTI_IRQn EXTI0_IRQn
+#define KEY_DOWN_Pin GPIO_PIN_1
+#define KEY_DOWN_GPIO_Port GPIOB
+#define KEY_DOWN_EXTI_IRQn EXTI1_IRQn
 
 /* USER CODE BEGIN Private defines */
-
+#define KEY_UP_EVENT    (1U << 0)
+#define KEY_DOWN_EVENT  (1U << 1)
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
