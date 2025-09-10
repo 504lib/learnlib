@@ -86,6 +86,10 @@ void drawProgressBar(u8g2_t *u8g2,uint8_t progress)
     // 绘制进度条框架
     u8g2_DrawFrame(u8g2, 10, 25, 100, 10);
     
+    if(progress >= 100)
+    {
+        progress = 100;
+    }
     // 绘制进度填充
     u8g2_DrawBox(u8g2, 10, 25, progress, 10);
     
@@ -95,7 +99,7 @@ void drawProgressBar(u8g2_t *u8g2,uint8_t progress)
     u8g2_DrawStr(u8g2, 50, 20, buffer);
 }
 
-void updateProgressBar(uint8_t* progress) 
+void updateProgressBar(uint8_t* progress,uint8_t step,uint8_t goal_progress) 
 {
     static uint32_t lastUpdateTime = 0;
     uint32_t currentTime = osKernelGetTickCount();
@@ -104,14 +108,16 @@ void updateProgressBar(uint8_t* progress)
     if (currentTime - lastUpdateTime >= 1) 
     {
         lastUpdateTime = currentTime;
-        
-        if (*progress < 100) 
+
+        if (*progress < goal_progress) 
         {
-            (*progress)++;
+            (*progress) += step;
         }
         else
         {
-          *progress = 0;
+          *progress = goal_progress;
         }
     }
 }
+
+// void 

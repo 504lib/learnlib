@@ -25,6 +25,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "freertos.h"
 #include "oled.h"
 #include "string.h"
 #include "u8g2.h"
@@ -47,7 +48,7 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-
+extern osEventFlagsId_t KEY_EVENTHandle;
 /* USER CODE BEGIN PV */
 //uint8_t progress = 0;
 //uint32_t lastUpdateTime = 0;
@@ -167,7 +168,26 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+  if(GPIO_Pin == KEY_UP_Pin)
+  {
+    // Handle KEY_UP press event
+    osEventFlagsClear(KEY_EVENTHandle, KEY_UP_EVENT | KEY_DOWN_EVENT);
+    osEventFlagsSet(KEY_EVENTHandle, KEY_UP_EVENT);
+    // HAL_GPIO_TogglePin(LED_GPIO_Port,LED_Pin);
+    // HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+  }
+  else if(GPIO_Pin == KEY_DOWN_Pin)
+  {
+    // Handle KEY_DOWN press event
+    osEventFlagsClear(KEY_EVENTHandle, KEY_UP_EVENT | KEY_DOWN_EVENT);
+    osEventFlagsSet(KEY_EVENTHandle, KEY_DOWN_EVENT);
+    // HAL_GPIO_TogglePin(LED_GPIO_Port,LED_Pin);
+    // HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
 
+  }
+}
 /* USER CODE END 4 */
 
 /**
