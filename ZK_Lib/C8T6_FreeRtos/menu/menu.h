@@ -22,12 +22,10 @@ typedef enum {
 
 typedef struct menu_item_s menu_item_t;
 
-typedef struct {
-    menu_item_t* current_menu;    // 当前显示的菜单
-    menu_item_t* selected_item;   // 当前选中的菜单项
-    menu_item_t* first_visible;   // 当前显示的第一个菜单项
-    uint8_t visible_count;        // 可见菜单项数量
-} menu_data_t;
+typedef struct menu_data_t menu_data_t;
+
+
+menu_data_t* menu_data_init(menu_item_t* root);
 
 menu_item_t* create_submenu_item(const char* text);
 

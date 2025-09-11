@@ -47,7 +47,26 @@ struct menu_item_s {
     void (*on_change)(menu_item_t* item);   // 值改变时调用
 };
 
+struct menu_data_t{
+    menu_item_t* current_menu;    // 当前显示的菜单
+    menu_item_t* selected_item;   // 当前选中的菜单项
+    menu_item_t* first_visible;   // 当前显示的第一个菜单项
+    uint8_t visible_count;        // 可见菜单项数量
+};
+
+
 menu_item_t Menu_Node[MENU_NODE] = {0};
+
+menu_data_t menu_data = {0};
+
+menu_data_t* menu_data_init(menu_item_t* root)
+{
+    menu_data.current_menu = root;
+    menu_data.selected_item = root->first_child;
+    menu_data.first_visible = root->first_child;
+    menu_data.visible_count = 0;
+    return &menu_data;
+}
 
 menu_item_t* create_submenu_item(const char* text)
 {
@@ -59,6 +78,19 @@ menu_item_t* create_submenu_item(const char* text)
 //    memset(item, 0, sizeof(menu_item_t));
     item->text = text;
     item->type = MENU_TYPE_SUB_MENU;
+    return item;
+}
+
+menu_item_t* crate_function_item(const char* text, void (*action_cb)(void))
+{
+    if (menu_node_count >= MENU_NODE) {
+        return NULL; // 超过最大节点数
+    }
+    
+    menu_item_t* item = &Menu_Node[menu_node_count++];
+    item->text = text;
+    item->type = MENU_TYPE_FUNCTION;
+    item->data.action_cb = action_cb;
     return item;
 }
 

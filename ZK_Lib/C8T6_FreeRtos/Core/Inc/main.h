@@ -71,10 +71,19 @@ void Error_Handler(void);
 #define KEY_DOWN_Pin GPIO_PIN_1
 #define KEY_DOWN_GPIO_Port GPIOB
 #define KEY_DOWN_EXTI_IRQn EXTI1_IRQn
+#define KEY_ENTER_Pin GPIO_PIN_10
+#define KEY_ENTER_GPIO_Port GPIOB
+#define KEY_ENTER_EXTI_IRQn EXTI15_10_IRQn
+#define KEY_CANCEL_Pin GPIO_PIN_11
+#define KEY_CANCEL_GPIO_Port GPIOB
+#define KEY_CANCEL_EXTI_IRQn EXTI15_10_IRQn
 
 /* USER CODE BEGIN Private defines */
 #define KEY_UP_EVENT    (1U << 0)
 #define KEY_DOWN_EVENT  (1U << 1)
+#define KEY_ENTER_EVENT  (1U << 2)
+#define KEY_CANCEL_EVENT  (1U << 3)
+
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
