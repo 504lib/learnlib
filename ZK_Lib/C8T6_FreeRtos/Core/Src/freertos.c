@@ -57,6 +57,7 @@ menu_item_t* sub1 = NULL;
 menu_item_t* sub2 = NULL;
 menu_item_t* sub3 = NULL;
 menu_item_t* sub4 = NULL;
+menu_item_t* sub5 = NULL;
 
 menu_data_t menu_data = {0};
 /* USER CODE END Variables */
@@ -154,10 +155,12 @@ void U8g2_Task(void *argument)
   sub2 = create_submenu_item("sub_menu_2");
   sub3 = create_submenu_item("sub_menu_3");
   sub4 = create_submenu_item("sub_menu_4");
+  sub5 = create_submenu_item("sub_menu_5");
   Link_Parent_Child(root, sub1);
   Link_next_sibling(sub1, sub2);
   Link_next_sibling(sub2, sub3);
   Link_next_sibling(sub3, sub4);
+  Link_next_sibling(sub4, sub5);
   menu_data.current_menu = root;
   // menu_data.selected_item = root->first_child;
   /* Infinite loop */
