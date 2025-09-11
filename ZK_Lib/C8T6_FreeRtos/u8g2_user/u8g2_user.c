@@ -120,4 +120,7 @@ void updateProgressBar(uint8_t* progress,uint8_t step,uint8_t goal_progress)
     }
 }
 
-// void 
+ void test()
+ {
+	 HAL_GPIO_TogglePin(LED_GPIO_Port,LED_Pin);
+ }

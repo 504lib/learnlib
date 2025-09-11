@@ -140,12 +140,6 @@ void MX_FREERTOS_Init(void) {
 
 }
 
-void test()
-{
-    osEventFlagsClear(KEY_EVENTHandle, KEY_UP_EVENT | KEY_DOWN_EVENT | KEY_ENTER_EVENT | KEY_CANCEL_EVENT | KEY_FUNCTION_EVENT);
-    osEventFlagsSet(KEY_EVENTHandle, KEY_FUNCTION_EVENT);
-}
-
 /* USER CODE BEGIN Header_U8g2_Task */
 /**
   * @brief  Function implementing the U8G2_TASK thread.

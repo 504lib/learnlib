@@ -13,3 +13,4 @@ uint8_t u8x8_byte_4wire_hw_spi(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void 
 void u8g2Init(u8g2_t* u8g2);
 void updateProgressBar(uint8_t* progress,uint8_t step,uint8_t goal_progress);
 void drawProgressBar(u8g2_t *u8g2,uint8_t progress);
+void test(void);
