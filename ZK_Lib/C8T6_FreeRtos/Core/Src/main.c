@@ -44,11 +44,11 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+extern osEventFlagsId_t KEY_EVENTHandle;
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-extern osEventFlagsId_t KEY_EVENTHandle;
+
 /* USER CODE BEGIN PV */
 //uint8_t progress = 0;
 //uint32_t lastUpdateTime = 0;
