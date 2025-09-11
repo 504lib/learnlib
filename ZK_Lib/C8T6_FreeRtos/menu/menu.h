@@ -28,6 +28,7 @@ typedef struct menu_data_t menu_data_t;
 menu_data_t* menu_data_init(menu_item_t* root);
 
 menu_item_t* create_submenu_item(const char* text);
+menu_item_t* create_function_item(const char* text, void (*action_cb)(void));
 
 void navigate_up(menu_data_t* menu_data);
 void navigate_down(menu_data_t* menu_data);

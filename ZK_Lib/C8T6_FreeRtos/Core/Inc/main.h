@@ -83,6 +83,7 @@ void Error_Handler(void);
 #define KEY_DOWN_EVENT  (1U << 1)
 #define KEY_ENTER_EVENT  (1U << 2)
 #define KEY_CANCEL_EVENT  (1U << 3)
+#define KEY_FUNCTION_EVENT  (1U << 4)
 
 /* USER CODE END Private defines */
 

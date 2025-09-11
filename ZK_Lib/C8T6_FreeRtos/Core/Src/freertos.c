@@ -140,6 +140,12 @@ void MX_FREERTOS_Init(void) {
 
 }
 
+void test()
+{
+    osEventFlagsClear(KEY_EVENTHandle, KEY_UP_EVENT | KEY_DOWN_EVENT | KEY_ENTER_EVENT | KEY_CANCEL_EVENT | KEY_FUNCTION_EVENT);
+    osEventFlagsSet(KEY_EVENTHandle, KEY_FUNCTION_EVENT);
+}
+
 /* USER CODE BEGIN Header_U8g2_Task */
 /**
   * @brief  Function implementing the U8G2_TASK thread.
@@ -158,7 +164,7 @@ void U8g2_Task(void *argument)
   sub3 = create_submenu_item("sub_menu_3");
   sub4 = create_submenu_item("sub_menu_4");
   sub5 = create_submenu_item("sub_menu_5");
-  sub1_sub1 = create_submenu_item("sub_menu_1_1");
+  sub1_sub1 = create_function_item("sub_menu_1_1", test);
   sub1_sub2 = create_submenu_item("sub_menu_1_2");
   Link_Parent_Child(root, sub1);
   Link_next_sibling(sub1, sub2);
@@ -192,10 +198,11 @@ void LED_Task(void *argument)
 {
   /* USER CODE BEGIN LED_Task */
   uint32_t flags;
+  uint8_t Blink_Flag = 0;
   /* Infinite loop */
   for(;;)
   {
-    flags = osEventFlagsWait(KEY_EVENTHandle,KEY_DOWN_EVENT|KEY_UP_EVENT|KEY_ENTER_EVENT|KEY_CANCEL_EVENT,osFlagsWaitAny,osWaitForever);
+    flags = osEventFlagsWait(KEY_EVENTHandle,KEY_DOWN_EVENT|KEY_UP_EVENT|KEY_ENTER_EVENT|KEY_CANCEL_EVENT|KEY_FUNCTION_EVENT,osFlagsWaitAny,osWaitForever);
     if(flags & KEY_UP_EVENT)
     {
       navigate_up(menu_data_ptr);
@@ -209,12 +216,25 @@ void LED_Task(void *argument)
     if(flags & KEY_ENTER_EVENT)
     {
       navigate_enter(menu_data_ptr);
-      HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+      // HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
     }
     if(flags & KEY_CANCEL_EVENT)
     {
       navigate_back(menu_data_ptr);
       HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+    }
+    if(flags & KEY_FUNCTION_EVENT)
+    {
+      // Handle function event
+      Blink_Flag = !Blink_Flag;
+      if(Blink_Flag)
+      {
+        HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+      }
+      else
+      {
+        HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+      }
     }
   }
   /* USER CODE END LED_Task */

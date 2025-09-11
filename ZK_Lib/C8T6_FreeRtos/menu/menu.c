@@ -81,7 +81,7 @@ menu_item_t* create_submenu_item(const char* text)
     return item;
 }
 
-menu_item_t* crate_function_item(const char* text, void (*action_cb)(void))
+menu_item_t* create_function_item(const char* text, void (*action_cb)(void))
 {
     if (menu_node_count >= MENU_NODE) {
         return NULL; // 超过最大节点数
