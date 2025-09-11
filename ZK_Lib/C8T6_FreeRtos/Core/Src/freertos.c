@@ -58,8 +58,10 @@ menu_item_t* sub2 = NULL;
 menu_item_t* sub3 = NULL;
 menu_item_t* sub4 = NULL;
 menu_item_t* sub5 = NULL;
+menu_item_t* sub1_sub1 = NULL;
+menu_item_t* sub1_sub2 = NULL;
 
-menu_data_t menu_data = {0};
+menu_data_t* menu_data_ptr;
 /* USER CODE END Variables */
 /* Definitions for U8G2_TASK */
 osThreadId_t U8G2_TASKHandle;
@@ -138,6 +140,12 @@ void MX_FREERTOS_Init(void) {
 
 }
 
+void test()
+{
+    osEventFlagsClear(KEY_EVENTHandle, KEY_UP_EVENT | KEY_DOWN_EVENT | KEY_ENTER_EVENT | KEY_CANCEL_EVENT | KEY_FUNCTION_EVENT);
+    osEventFlagsSet(KEY_EVENTHandle, KEY_FUNCTION_EVENT);
+}
+
 /* USER CODE BEGIN Header_U8g2_Task */
 /**
   * @brief  Function implementing the U8G2_TASK thread.
@@ -156,19 +164,23 @@ void U8g2_Task(void *argument)
   sub3 = create_submenu_item("sub_menu_3");
   sub4 = create_submenu_item("sub_menu_4");
   sub5 = create_submenu_item("sub_menu_5");
+  sub1_sub1 = create_function_item("sub_menu_1_1", test);
+  sub1_sub2 = create_submenu_item("sub_menu_1_2");
   Link_Parent_Child(root, sub1);
   Link_next_sibling(sub1, sub2);
   Link_next_sibling(sub2, sub3);
   Link_next_sibling(sub3, sub4);
   Link_next_sibling(sub4, sub5);
-  menu_data.current_menu = root;
+  Link_Parent_Child(sub1, sub1_sub1);
+  Link_next_sibling(sub1_sub1, sub1_sub2);
+  menu_data_ptr = menu_data_init(root);
   // menu_data.selected_item = root->first_child;
   /* Infinite loop */
   for(;;)
   {
     u8g2_FirstPage(&u8g2);
     do {
-      show_menu(&u8g2,&menu_data,3);
+      show_menu(&u8g2,menu_data_ptr,3);
     } while (u8g2_NextPage(&u8g2));
     osDelay(1);
   }
@@ -186,23 +198,44 @@ void LED_Task(void *argument)
 {
   /* USER CODE BEGIN LED_Task */
   uint32_t flags;
+  uint8_t Blink_Flag = 0;
   /* Infinite loop */
   for(;;)
   {
-    flags = osEventFlagsWait(KEY_EVENTHandle,KEY_DOWN_EVENT|KEY_UP_EVENT,osFlagsWaitAny,osWaitForever);
+    flags = osEventFlagsWait(KEY_EVENTHandle,KEY_DOWN_EVENT|KEY_UP_EVENT|KEY_ENTER_EVENT|KEY_CANCEL_EVENT|KEY_FUNCTION_EVENT,osFlagsWaitAny,osWaitForever);
     if(flags & KEY_UP_EVENT)
     {
-      navigate_up(&menu_data);
+      navigate_up(menu_data_ptr);
       HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
-      // osDelay(100);
     }
     if(flags & KEY_DOWN_EVENT)
     {
-      navigate_down(&menu_data);
+      navigate_down(menu_data_ptr);
       HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
-      // osDelay(500);
     }
-    // osDelay(1);
+    if(flags & KEY_ENTER_EVENT)
+    {
+      navigate_enter(menu_data_ptr);
+      // HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+    }
+    if(flags & KEY_CANCEL_EVENT)
+    {
+      navigate_back(menu_data_ptr);
+      HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+    }
+    if(flags & KEY_FUNCTION_EVENT)
+    {
+      // Handle function event
+      Blink_Flag = !Blink_Flag;
+      if(Blink_Flag)
+      {
+        HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+      }
+      else
+      {
+        HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+      }
+    }
   }
   /* USER CODE END LED_Task */
 }

@@ -172,21 +172,26 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   if(GPIO_Pin == KEY_UP_Pin)
   {
-    // Handle KEY_UP press event
-    osEventFlagsClear(KEY_EVENTHandle, KEY_UP_EVENT | KEY_DOWN_EVENT);
+    osEventFlagsClear(KEY_EVENTHandle, KEY_UP_EVENT | KEY_DOWN_EVENT | KEY_ENTER_EVENT | KEY_CANCEL_EVENT);
     osEventFlagsSet(KEY_EVENTHandle, KEY_UP_EVENT);
-    // HAL_GPIO_TogglePin(LED_GPIO_Port,LED_Pin);
-    // HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
   }
   else if(GPIO_Pin == KEY_DOWN_Pin)
   {
     // Handle KEY_DOWN press event
-    osEventFlagsClear(KEY_EVENTHandle, KEY_UP_EVENT | KEY_DOWN_EVENT);
+    osEventFlagsClear(KEY_EVENTHandle, KEY_UP_EVENT | KEY_DOWN_EVENT | KEY_ENTER_EVENT | KEY_CANCEL_EVENT);
     osEventFlagsSet(KEY_EVENTHandle, KEY_DOWN_EVENT);
-    // HAL_GPIO_TogglePin(LED_GPIO_Port,LED_Pin);
-    // HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
-
   }
+  else if (GPIO_Pin == KEY_ENTER_Pin)
+  {
+    osEventFlagsClear(KEY_EVENTHandle, KEY_UP_EVENT | KEY_DOWN_EVENT | KEY_ENTER_EVENT | KEY_CANCEL_EVENT);
+    osEventFlagsSet(KEY_EVENTHandle, KEY_ENTER_EVENT);
+  }
+  else if (GPIO_Pin == KEY_CANCEL_Pin)
+  {
+    osEventFlagsClear(KEY_EVENTHandle, KEY_UP_EVENT | KEY_DOWN_EVENT | KEY_ENTER_EVENT | KEY_CANCEL_EVENT);
+    osEventFlagsSet(KEY_EVENTHandle, KEY_CANCEL_EVENT);
+  }
+  
 }
 /* USER CODE END 4 */
 
