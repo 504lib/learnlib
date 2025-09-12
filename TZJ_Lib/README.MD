@@ -1,1 +1,6 @@
-# 个人仓库须知sadf
+#include<stdio.h>
+int main
+{
+    int
+
+}
