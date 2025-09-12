@@ -290,6 +290,23 @@ void navigate_up(menu_data_t* menu_data)
 {
     if (!menu_data->selected_item) return;
     
+    if(menu_data->isSelectedParam)
+    {
+        if(menu_data->selected_item->type == MENU_TYPE_PARAM_INT)
+        {
+            // 增加参数值
+            int* value_ptr = menu_data->selected_item->data.param_int.value_ptr;
+            if(value_ptr)
+            {
+                *value_ptr += menu_data->selected_item->data.param_int.step;
+                if(*value_ptr > menu_data->selected_item->data.param_int.max)
+                {
+                    *value_ptr = menu_data->selected_item->data.param_int.max;
+                }
+                return;
+            }
+        }
+    }
     // 移动到上一个兄弟节点
     if (menu_data->selected_item->prev_sibling) 
     {
@@ -307,6 +324,25 @@ void navigate_down(menu_data_t* menu_data)
 {
     if (!menu_data->selected_item) return;
     
+    if(menu_data->isSelectedParam)
+    {
+        if(menu_data->selected_item->type == MENU_TYPE_PARAM_INT)
+        {
+            // 增加参数值
+            int* value_ptr = menu_data->selected_item->data.param_int.value_ptr;
+            if(value_ptr)
+            {
+                *value_ptr -= menu_data->selected_item->data.param_int.step;
+                if(*value_ptr < menu_data->selected_item->data.param_int.min)
+                {
+                    *value_ptr = menu_data->selected_item->data.param_int.min;
+                }
+                return;
+            }
+        }
+    }
+
+
     // 移动到下一个兄弟节点
     if (menu_data->selected_item->next_sibling) 
     {

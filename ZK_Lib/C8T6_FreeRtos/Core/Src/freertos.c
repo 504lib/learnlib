@@ -147,7 +147,18 @@ void MX_FREERTOS_Init(void) {
 
 }
 
+
 /* USER CODE BEGIN Header_U8g2_Task */
+static int test_var = 0;
+
+void test()
+{
+  char buffer[50];
+  sprintf(buffer,"%d\n",test_var);
+  HAL_UART_Transmit(&huart1,(uint8_t *)buffer,strlen(buffer),1000);
+}
+
+
 /**
   * @brief  Function implementing the U8G2_TASK thread.
   * @param  argument: Not used
@@ -157,7 +168,6 @@ void MX_FREERTOS_Init(void) {
 void U8g2_Task(void *argument)
 {
   /* USER CODE BEGIN U8g2_Task */
-  static int test_var = 0;
   u8g2Init(&u8g2);
   u8g2_FirstPage(&u8g2);
   root = create_submenu_item("main_menu");
