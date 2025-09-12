@@ -43,7 +43,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-  int LASTKEY0state = 0;
+int LASTKEY0state = 0;
 
 /* USER CODE END PV */
 
