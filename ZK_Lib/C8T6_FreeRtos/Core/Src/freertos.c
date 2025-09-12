@@ -157,6 +157,7 @@ void MX_FREERTOS_Init(void) {
 void U8g2_Task(void *argument)
 {
   /* USER CODE BEGIN U8g2_Task */
+  static int test_var = 0;
   u8g2Init(&u8g2);
   u8g2_FirstPage(&u8g2);
   root = create_submenu_item("main_menu");
@@ -166,7 +167,7 @@ void U8g2_Task(void *argument)
   sub4 = create_submenu_item("sub_menu_4");
   sub5 = create_submenu_item("sub_menu_5");
   sub1_sub1 = create_function_item("sub_menu_1_1", test);
-  sub1_sub2 = create_submenu_item("sub_menu_1_2");
+  sub1_sub2 = create_param_int_item("sub_menu_1_2", &test_var, 0, 100, 1);
   Link_Parent_Child(root, sub1);
   Link_next_sibling(sub1, sub2);
   Link_next_sibling(sub2, sub3);

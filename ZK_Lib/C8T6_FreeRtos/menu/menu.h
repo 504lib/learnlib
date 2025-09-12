@@ -3,8 +3,9 @@
 #include "main.h"
 #include "FreeRTOS.h"
 #include "u8g2.h"
-#include "stdbool.h"
+#include <stdbool.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include "cmsis_os2.h"
 
 #define MENU_NODE 20
@@ -29,6 +30,7 @@ menu_data_t* menu_data_init(menu_item_t* root);
 
 menu_item_t* create_submenu_item(const char* text);
 menu_item_t* create_function_item(const char* text, void (*action_cb)(void));
+menu_item_t* create_param_int_item(const char* text, int* value_ptr, int min, int max, int step);
 
 void navigate_up(menu_data_t* menu_data);
 void navigate_down(menu_data_t* menu_data);
