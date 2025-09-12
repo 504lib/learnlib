@@ -92,16 +92,38 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
+  uint8_t pre = 1,cur = 1;
+	uint8_t ledState = 0;	
+	while (1)
   {
+		pre = cur;
 		if(HAL_GPIO_ReadPin(IN_GPIO_Port, IN_Pin)==GPIO_PIN_SET)
 		{
-			HAL_GPIO_WritePin( OUT_GPIO_Port, OUT_Pin, GPIO_PIN_SET);
-		
+			cur = 1;
 		}
 		else
-		
-		HAL_GPIO_WritePin( OUT_GPIO_Port, OUT_Pin, GPIO_PIN_RESET);
+		{
+		cur = 0;
+		}
+		if(pre!=cur)
+		{  HAL_Delay(10);
+			if(cur == 0){}
+				else
+				{
+					if(ledState == 0)
+					{HAL_GPIO_WritePin(OUT_GPIO_Port, OUT_Pin, GPIO_PIN_RESET);
+						ledState = 1;
+					}
+					else
+					{HAL_GPIO_WritePin(OUT_GPIO_Port, OUT_Pin, GPIO_PIN_SET);
+						ledState = 0;
+					}
+				}
+				
+		}
+			
+			
+			
 		
     /* USER CODE END WHILE */
 
@@ -167,7 +189,7 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : OUT_Pin */
   GPIO_InitStruct.Pin = OUT_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(OUT_GPIO_Port, &GPIO_InitStruct);

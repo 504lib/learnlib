@@ -59,7 +59,7 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define OUT_Pin GPIO_PIN_13
 #define OUT_GPIO_Port GPIOC
-#define IN_Pin GPIO_PIN_9
+#define IN_Pin GPIO_PIN_0
 #define IN_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
