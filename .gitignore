@@ -39,7 +39,7 @@ Output/
 *.uvoptx
 *.uvproj.user
 *.uvprojx.user
-*.uvprojx
+# *.uvprojx
 *.axf
 *.htm
 *.crf
