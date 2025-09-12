@@ -77,6 +77,11 @@ const osThreadAttr_t LED_TASK_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
+/* Definitions for UART_TXMute */
+osMutexId_t UART_TXMuteHandle;
+const osMutexAttr_t UART_TXMute_attributes = {
+  .name = "UART_TXMute"
+};
 /* Definitions for KEY_EVENT */
 osEventFlagsId_t KEY_EVENTHandle;
 const osEventFlagsAttr_t KEY_EVENT_attributes = {
@@ -102,6 +107,9 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
 
   /* USER CODE END Init */
+  /* Create the mutex(es) */
+  /* creation of UART_TXMute */
+  UART_TXMuteHandle = osMutexNew(&UART_TXMute_attributes);
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
@@ -130,7 +138,6 @@ void MX_FREERTOS_Init(void) {
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
 
-  /* Create the event(s) */
   /* creation of KEY_EVENT */
   KEY_EVENTHandle = osEventFlagsNew(&KEY_EVENT_attributes);
 
@@ -140,7 +147,18 @@ void MX_FREERTOS_Init(void) {
 
 }
 
+
 /* USER CODE BEGIN Header_U8g2_Task */
+static int test_var = 0;
+
+void test()
+{
+  char buffer[50];
+  sprintf(buffer,"%d\n",test_var);
+  HAL_UART_Transmit(&huart1,(uint8_t *)buffer,strlen(buffer),1000);
+}
+
+
 /**
   * @brief  Function implementing the U8G2_TASK thread.
   * @param  argument: Not used
@@ -159,7 +177,7 @@ void U8g2_Task(void *argument)
   sub4 = create_submenu_item("sub_menu_4");
   sub5 = create_submenu_item("sub_menu_5");
   sub1_sub1 = create_function_item("sub_menu_1_1", test);
-  sub1_sub2 = create_submenu_item("sub_menu_1_2");
+  sub1_sub2 = create_param_int_item("sub_menu_1_2", &test_var, 0, 100, 1);
   Link_Parent_Child(root, sub1);
   Link_next_sibling(sub1, sub2);
   Link_next_sibling(sub2, sub3);
