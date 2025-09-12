@@ -122,5 +122,8 @@ void updateProgressBar(uint8_t* progress,uint8_t step,uint8_t goal_progress)
 
  void test()
  {
-	 HAL_GPIO_TogglePin(LED_GPIO_Port,LED_Pin);
+    static uint32_t count = 0;
+	 char buffer[50];
+	 sprintf(buffer, "test function %d\r\n", count++);
+	 HAL_UART_Transmit(&huart1, (uint8_t *)buffer, strlen(buffer), 1000);
  }

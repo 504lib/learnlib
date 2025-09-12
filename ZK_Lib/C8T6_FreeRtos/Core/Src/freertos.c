@@ -77,6 +77,11 @@ const osThreadAttr_t LED_TASK_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
+/* Definitions for UART_TXMute */
+osMutexId_t UART_TXMuteHandle;
+const osMutexAttr_t UART_TXMute_attributes = {
+  .name = "UART_TXMute"
+};
 /* Definitions for KEY_EVENT */
 osEventFlagsId_t KEY_EVENTHandle;
 const osEventFlagsAttr_t KEY_EVENT_attributes = {
@@ -102,6 +107,9 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
 
   /* USER CODE END Init */
+  /* Create the mutex(es) */
+  /* creation of UART_TXMute */
+  UART_TXMuteHandle = osMutexNew(&UART_TXMute_attributes);
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
@@ -130,7 +138,6 @@ void MX_FREERTOS_Init(void) {
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
 
-  /* Create the event(s) */
   /* creation of KEY_EVENT */
   KEY_EVENTHandle = osEventFlagsNew(&KEY_EVENT_attributes);
 
