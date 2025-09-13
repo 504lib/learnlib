@@ -50,7 +50,7 @@
 u8g2_t u8g2;
 int index = 0;
 const char* String_Option[] = {"begin","test1","test2","test3","end"};
-
+bool toggle = false;
 
 menu_item_t* root = NULL;
 menu_item_t* sub1 = NULL;
@@ -175,7 +175,7 @@ void U8g2_Task(void *argument)
   root = create_submenu_item("main_menu");
   sub1 = create_submenu_item("param_int");
   sub2 = create_submenu_item("param_enum");
-  sub3 = create_submenu_item("sub_menu_3");
+  sub3 = create_toggle_item("sub_menu_3",&toggle);
   sub4 = create_submenu_item("sub_menu_4");
   sub5 = create_submenu_item("sub_menu_5");
   sub1_sub1 = create_function_item("SendUART_INT", test);

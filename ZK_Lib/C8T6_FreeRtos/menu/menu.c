@@ -156,6 +156,38 @@ static void adjust_type_visible(u8g2_t* u8g2,menu_data_t* menu_data,uint16_t x, 
                 u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
         }
         break;
+    case MENU_TYPE_TOGGLE:
+        sprintf(buffer, "%s",(*(item->data.toggle.value_ptr) ? "true" : "false"));
+        str_width = u8g2_GetStrWidth(u8g2, buffer);
+        // u8g2_DrawStr(u8g2, x, y, buffer);
+        if(isSelected)
+        {
+            if(menu_data->isSelectedParam)
+            {
+                // 进入参数编辑状态，显示不同的样式
+                u8g2_DrawBox(u8g2, 120 - str_width, y - 10, str_width, 15);
+                u8g2_DrawStr(u8g2, x, y, item->text);
+                u8g2_SetDrawColor(u8g2, 0);
+                u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
+                u8g2_SetDrawColor(u8g2, 1);
+            }
+            else
+            {
+                // 普通选中状态
+                u8g2_DrawBox(u8g2, 0, y - 10, 128, 15);
+                u8g2_SetDrawColor(u8g2, 0);
+                u8g2_DrawStr(u8g2, x, y, item->text);
+                u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
+                u8g2_SetDrawColor(u8g2, 1);
+            }
+        } 
+        else 
+        {
+                u8g2_DrawStr(u8g2, x, y, item->text);
+                u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
+        }
+        break;
+
     default:
         break;
     }
@@ -230,6 +262,21 @@ menu_item_t* create_param_enum_item(const char* text,int* value_ptr,const char**
     item->data.param_enum.value_ptr = value_ptr;
     item->data.param_enum.options = options;
     item->data.param_enum.option_count = options_nums;
+    return item;
+
+}
+
+menu_item_t* create_toggle_item(const char* text,bool* value_ptr)
+{
+    if(menu_node_count >= MENU_NODE)
+    {
+        return NULL;
+    }
+
+    menu_item_t* item = &Menu_Node[menu_node_count++];
+    item->text = text;
+    item->type = MENU_TYPE_TOGGLE;
+    item->data.toggle.value_ptr = value_ptr;
     return item;
 
 }
@@ -310,16 +357,10 @@ void show_menu(u8g2_t* u8g2, menu_data_t* menu_data, uint8_t max_display_count) 
     {
         if (item == menu_data->selected_item) 
         {
-            // 高亮选中的项
-            // u8g2_DrawBox(u8g2, 0, y - 10, 128, 15);
-            // u8g2_SetDrawColor(u8g2, 0);
             adjust_type_visible(u8g2,menu_data,0,y, item,true);
-            // u8g2_DrawStr(u8g2, 0, y, item->text);
-            // u8g2_SetDrawColor(u8g2, 1);
         } 
         else 
         {
-            // u8g2_DrawStr(u8g2, 0, y, item->text);
             adjust_type_visible(u8g2,menu_data,0, y, item,false);
         }
     
@@ -369,6 +410,11 @@ void navigate_up(menu_data_t* menu_data)
                 return;
             }
         }
+        else if(menu_data->selected_item->type == MENU_TYPE_TOGGLE)
+        {
+            return;
+        }
+
     }
     // 移动到上一个兄弟节点
     if (menu_data->selected_item->prev_sibling) 
@@ -419,6 +465,12 @@ void navigate_down(menu_data_t* menu_data)
                 return;
             }
         }
+        else if(menu_data->selected_item->type == MENU_TYPE_TOGGLE)
+        {
+            return;
+        }
+
+
     }
 
 
@@ -444,7 +496,6 @@ void navigate_down(menu_data_t* menu_data)
 void navigate_enter(menu_data_t* menu_data) 
 {
     if (!menu_data->selected_item) return;
-    
     // 如果是子菜单，进入子菜单
     if (menu_data->selected_item->type == MENU_TYPE_SUB_MENU && menu_data->selected_item->first_child) 
     {
@@ -466,11 +517,24 @@ void navigate_enter(menu_data_t* menu_data)
     {
         menu_data->isSelectedParam = true;
     }
+    else if (menu_data->selected_item->type == MENU_TYPE_TOGGLE)
+    {
+        if (menu_data->isSelectedParam)
+        {
+            *(menu_data->selected_item->data.toggle.value_ptr) ^= 1;
+        }
+        else
+        {
+            menu_data->isSelectedParam = true;
+        }
+        
+    }
+
 }
 
 void navigate_back(menu_data_t* menu_data) 
 {
-    if (!menu_data->current_menu || !menu_data->current_menu->parent) return;
+    if (!menu_data->current_menu) return;
     
     // 返回到父菜单
     if(menu_data->isSelectedParam)
@@ -479,7 +543,10 @@ void navigate_back(menu_data_t* menu_data)
         menu_data->isSelectedParam = false;
         return;
     }
-    menu_data->current_menu = menu_data->current_menu->parent;
-    menu_data->selected_item = menu_data->current_menu->first_child;
-    menu_data->first_visible = menu_data->selected_item;
+    if(menu_data->current_menu->parent)
+    {
+        menu_data->current_menu = menu_data->current_menu->parent;
+        menu_data->selected_item = menu_data->current_menu->first_child;
+        menu_data->first_visible = menu_data->selected_item;
+    }
 }

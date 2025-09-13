@@ -32,6 +32,7 @@ menu_item_t* create_submenu_item(const char* text);
 menu_item_t* create_function_item(const char* text, void (*action_cb)(void));
 menu_item_t* create_param_int_item(const char* text, int* value_ptr, int min, int max, int step);
 menu_item_t* create_param_enum_item(const char* text,int* value_ptr,const char** options,int options_nums);
+menu_item_t* create_toggle_item(const char* text,bool* value_ptr);
 
 void navigate_up(menu_data_t* menu_data);
 void navigate_down(menu_data_t* menu_data);
