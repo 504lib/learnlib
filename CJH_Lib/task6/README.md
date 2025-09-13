@@ -17,9 +17,8 @@
 |GPIO|名称|功能|
 | - | - | - |
 | PC2 | LED0 | LED0的亮灭 |
-| PC3 | LED1 | LED1的亮灭 |
 | PA0 | KEY0 | 控制LED0闪烁的周期增加 |
-| PC13 | KEY1 | 控制LED1闪烁的周期减小 |
+| PC13 | KEY1 | 控制LED0闪烁的周期减小 |
 | PA13 | SYS_JIMS-SWDIO | 串行线调试 |
 | PA14 | SYS_JIMS-SWCLK | 串行线调试 |
 | PD0 | RCC_OSC_IN | 时钟配置 |
