@@ -63,6 +63,7 @@ menu_data_t menu_data = {0};
 static void adjust_type_visible(u8g2_t* u8g2,menu_data_t* menu_data,uint16_t x, uint16_t y, menu_item_t* item,bool isSelected)
 {
 	char buffer[20];
+    uint16_t str_width = 0;
     u8g2_SetFont(u8g2, u8g2_font_6x10_tf);
     uint16_t item_text_width = u8g2_GetStrWidth(u8g2, item->text);
     switch (item->type)
@@ -95,7 +96,38 @@ static void adjust_type_visible(u8g2_t* u8g2,menu_data_t* menu_data,uint16_t x, 
         break;
     case MENU_TYPE_PARAM_INT:
         sprintf(buffer, "%d",*(item->data.param_int.value_ptr));
-        uint16_t str_width = u8g2_GetStrWidth(u8g2, buffer);
+        str_width = u8g2_GetStrWidth(u8g2, buffer);
+        // u8g2_DrawStr(u8g2, x, y, buffer);
+        if(isSelected)
+        {
+            if(menu_data->isSelectedParam)
+            {
+                // 进入参数编辑状态，显示不同的样式
+                u8g2_DrawBox(u8g2, 120 - str_width, y - 10, str_width, 15);
+                u8g2_DrawStr(u8g2, x, y, item->text);
+                u8g2_SetDrawColor(u8g2, 0);
+                u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
+                u8g2_SetDrawColor(u8g2, 1);
+            }
+            else
+            {
+                // 普通选中状态
+                u8g2_DrawBox(u8g2, 0, y - 10, 128, 15);
+                u8g2_SetDrawColor(u8g2, 0);
+                u8g2_DrawStr(u8g2, x, y, item->text);
+                u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
+                u8g2_SetDrawColor(u8g2, 1);
+            }
+        } 
+        else 
+        {
+                u8g2_DrawStr(u8g2, x, y, item->text);
+                u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
+        }
+        break;
+    case MENU_TYPE_PARAM_ENUM:
+        sprintf(buffer, "%s",item->data.param_enum.options[*(item->data.param_enum.value_ptr)]);
+        str_width = u8g2_GetStrWidth(u8g2, buffer);
         // u8g2_DrawStr(u8g2, x, y, buffer);
         if(isSelected)
         {
@@ -185,6 +217,22 @@ menu_item_t* create_param_int_item(const char* text, int* value_ptr, int min, in
     return item;
 }
 
+menu_item_t* create_param_enum_item(const char* text,int* value_ptr,const char** options,int options_nums)
+{
+    if(menu_node_count >= MENU_NODE)
+    {
+        return NULL;
+    }
+
+    menu_item_t* item = &Menu_Node[menu_node_count++];
+    item->text = text;
+    item->type = MENU_TYPE_PARAM_ENUM;
+    item->data.param_enum.value_ptr = value_ptr;
+    item->data.param_enum.options = options;
+    item->data.param_enum.option_count = options_nums;
+    return item;
+
+}
 
 void Link_Parent_Child(menu_item_t* parent, menu_item_t* child)
 {
@@ -290,18 +338,33 @@ void navigate_up(menu_data_t* menu_data)
 {
     if (!menu_data->selected_item) return;
     
+    int* value_ptr = NULL;
+
     if(menu_data->isSelectedParam)
     {
         if(menu_data->selected_item->type == MENU_TYPE_PARAM_INT)
         {
             // 增加参数值
-            int* value_ptr = menu_data->selected_item->data.param_int.value_ptr;
+            value_ptr = menu_data->selected_item->data.param_int.value_ptr;
             if(value_ptr)
             {
                 *value_ptr += menu_data->selected_item->data.param_int.step;
                 if(*value_ptr > menu_data->selected_item->data.param_int.max)
                 {
                     *value_ptr = menu_data->selected_item->data.param_int.max;
+                }
+                return;
+            }
+        }
+        else if (menu_data->selected_item->type == MENU_TYPE_PARAM_ENUM)
+        {
+            value_ptr = menu_data->selected_item->data.param_enum.value_ptr;
+            if(value_ptr)
+            {
+                *value_ptr += 1;
+                if(*value_ptr >= menu_data->selected_item->data.param_enum.option_count)
+                {
+                    *value_ptr = menu_data->selected_item->data.param_enum.option_count - 1;
                 }
                 return;
             }
@@ -324,18 +387,34 @@ void navigate_down(menu_data_t* menu_data)
 {
     if (!menu_data->selected_item) return;
     
+    int* value_ptr = NULL;
+
     if(menu_data->isSelectedParam)
     {
         if(menu_data->selected_item->type == MENU_TYPE_PARAM_INT)
         {
             // 增加参数值
-            int* value_ptr = menu_data->selected_item->data.param_int.value_ptr;
+            value_ptr = menu_data->selected_item->data.param_int.value_ptr;
             if(value_ptr)
             {
                 *value_ptr -= menu_data->selected_item->data.param_int.step;
                 if(*value_ptr < menu_data->selected_item->data.param_int.min)
                 {
                     *value_ptr = menu_data->selected_item->data.param_int.min;
+                }
+                return;
+            }
+        }
+        else if(menu_data->selected_item->type == MENU_TYPE_PARAM_ENUM)
+        {
+            // 增加参数值
+            value_ptr = menu_data->selected_item->data.param_enum.value_ptr;
+            if(value_ptr)
+            {
+                *value_ptr -= 1;
+                if(*value_ptr < 0)
+                {
+                    *value_ptr = 0;
                 }
                 return;
             }
@@ -381,6 +460,10 @@ void navigate_enter(menu_data_t* menu_data)
     else if (menu_data->selected_item->type == MENU_TYPE_PARAM_INT) 
     {
         // 切换参数编辑状态
+        menu_data->isSelectedParam = true;
+    }
+    else if (menu_data->selected_item->type == MENU_TYPE_PARAM_ENUM)
+    {
         menu_data->isSelectedParam = true;
     }
 }
