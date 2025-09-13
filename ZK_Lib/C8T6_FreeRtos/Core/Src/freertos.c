@@ -48,8 +48,8 @@
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
 u8g2_t u8g2;
-uint8_t progress = 0;
-uint8_t index = 0;
+int index = 0;
+const char* String_Option[] = {"begin","test1","test2","test3","end"};
 
 
 menu_item_t* root = NULL;
@@ -60,6 +60,8 @@ menu_item_t* sub4 = NULL;
 menu_item_t* sub5 = NULL;
 menu_item_t* sub1_sub1 = NULL;
 menu_item_t* sub1_sub2 = NULL;
+menu_item_t* sub2_sub1 = NULL;
+menu_item_t* sub2_sub2 = NULL;
 
 menu_data_t* menu_data_ptr;
 /* USER CODE END Variables */
@@ -171,13 +173,14 @@ void U8g2_Task(void *argument)
   u8g2Init(&u8g2);
   u8g2_FirstPage(&u8g2);
   root = create_submenu_item("main_menu");
-  sub1 = create_submenu_item("sub_menu_1");
-  sub2 = create_submenu_item("sub_menu_2");
+  sub1 = create_submenu_item("param_int");
+  sub2 = create_submenu_item("param_enum");
   sub3 = create_submenu_item("sub_menu_3");
   sub4 = create_submenu_item("sub_menu_4");
   sub5 = create_submenu_item("sub_menu_5");
-  sub1_sub1 = create_function_item("sub_menu_1_1", test);
-  sub1_sub2 = create_param_int_item("sub_menu_1_2", &test_var, 0, 100, 1);
+  sub1_sub1 = create_function_item("SendUART_INT", test);
+  sub1_sub2 = create_param_int_item("Change_int", &test_var, 0, 100, 1);
+  sub2_sub1 = create_param_enum_item("Change_param",&index,String_Option,5);
   Link_Parent_Child(root, sub1);
   Link_next_sibling(sub1, sub2);
   Link_next_sibling(sub2, sub3);
@@ -185,6 +188,7 @@ void U8g2_Task(void *argument)
   Link_next_sibling(sub4, sub5);
   Link_Parent_Child(sub1, sub1_sub1);
   Link_next_sibling(sub1_sub1, sub1_sub2);
+  Link_Parent_Child(sub2, sub2_sub1);
   menu_data_ptr = menu_data_init(root);
   // menu_data.selected_item = root->first_child;
   /* Infinite loop */
