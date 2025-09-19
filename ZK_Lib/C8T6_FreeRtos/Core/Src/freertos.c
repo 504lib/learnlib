@@ -28,6 +28,7 @@
 #include "u8g2.h"
 #include "u8g2_user.h"
 #include "menu.h"
+#include "protocol.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -155,9 +156,14 @@ static int test_var = 0;
 
 void test()
 {
-  char buffer[50];
-  sprintf(buffer,"%d\n",test_var);
-  HAL_UART_Transmit(&huart1,(uint8_t *)buffer,strlen(buffer),1000);
+  UART_protocol UART_protocol_structure = {
+    .Headerframe1 = 0xAA,
+    .Headerframe2 = 0x55,
+    .Tailframe1 = 0x0D,
+    .Tailframe2 = 0x0A
+  };
+  // UART_Protocol_FLOAT(UART_protocol_structure,3.3);
+  UART_Protocol_INT(UART_protocol_structure,test_var);
 }
 
 
