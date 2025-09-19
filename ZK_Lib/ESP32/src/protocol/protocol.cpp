@@ -6,7 +6,7 @@ protocol::protocol(uint8_t header1, uint8_t header2, uint8_t tail1, uint8_t tail
     Serial.begin(115200);
 }
 
-void protocol::Send_Uart_Frame(int num)
+void protocol::Send_Uart_Frame(int32_t num)
 {
     union dataunion
     {
