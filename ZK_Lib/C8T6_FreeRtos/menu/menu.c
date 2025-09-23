@@ -1,8 +1,18 @@
+/**
+ * @file menu.c
+ * @author whyP762 (3046961251@qq.com)
+ * @brief 基于u8g2的菜单结构
+ * @version 0.1
+ * @date 2025-09-20
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
+
 #include "menu.h"
 
+//记录当前的节点数量
 static int menu_node_count = 0;
-
-
 
 struct menu_item_s {
     // 基本属性
@@ -55,48 +65,92 @@ struct menu_data_t{
     uint8_t visible_count;        // 可见菜单项数量
 };
 
+//静态内存节点池
+static menu_item_t Menu_Node[MENU_NODE] = {0};
 
-menu_item_t Menu_Node[MENU_NODE] = {0};
+/// @brief 全局唯一静态数据结构体
+static menu_data_t menu_data = {0};
 
-menu_data_t menu_data = {0};
-
+/**
+ * @brief 选定框执行策略函数
+ * 
+ * @param u8g2 u8g2统一句柄
+ * @param menu_data 数据结构体指针
+ * @param x 选定框的x
+ * @param y 选定框的y
+ * @param item 所选节点
+ * @param isSelected 是否执行了选中策略
+ */
 static void adjust_type_visible(u8g2_t* u8g2,menu_data_t* menu_data,uint16_t x, uint16_t y, menu_item_t* item,bool isSelected)
 {
-	char buffer[20];
-    uint16_t str_width = 0;
-    u8g2_SetFont(u8g2, u8g2_font_6x10_tf);
+	char buffer[20];//暂时的缓冲区
+    uint16_t str_width = 0;//当前子选项字符长度的大小变量
+    u8g2_SetFont(u8g2, u8g2_font_6x10_tf);//字体
     uint16_t item_text_width = u8g2_GetStrWidth(u8g2, item->text);
     switch (item->type)
     {
-    case MENU_TYPE_SUB_MENU:
-        if(isSelected)
+    case MENU_TYPE_SUB_MENU://菜单选项
+        if(isSelected)//选中
+        {
+            //必须先画框再写字，不然渲染有错误
+            u8g2_DrawBox(u8g2, 0, y - 10, 128, 15);
+            u8g2_SetDrawColor(u8g2, 0);
+            u8g2_DrawStr(u8g2, x, y, item->text);
+            u8g2_SetDrawColor(u8g2, 1);
+        } 
+        else //未选中
+        {
+            u8g2_DrawStr(u8g2, x, y, item->text);
+        }
+        break;
+    case MENU_TYPE_FUNCTION://函数选项
+        if(isSelected)//选中
         {
             u8g2_DrawBox(u8g2, 0, y - 10, 128, 15);
             u8g2_SetDrawColor(u8g2, 0);
             u8g2_DrawStr(u8g2, x, y, item->text);
             u8g2_SetDrawColor(u8g2, 1);
         } 
-        else 
+        else //未选中
         {
             u8g2_DrawStr(u8g2, x, y, item->text);
         }
         break;
-    case MENU_TYPE_FUNCTION:
-        if(isSelected)
+    case MENU_TYPE_PARAM_INT://整形枚举选项
+        sprintf(buffer, "%d",*(item->data.param_int.value_ptr));//格式化字符串数据
+        str_width = u8g2_GetStrWidth(u8g2, buffer);//计算字符串数据所占的像素数
+        if(isSelected)//选中
         {
-            u8g2_DrawBox(u8g2, 0, y - 10, 128, 15);
-            u8g2_SetDrawColor(u8g2, 0);
-            u8g2_DrawStr(u8g2, x, y, item->text);
-            u8g2_SetDrawColor(u8g2, 1);
+            if(menu_data->isSelectedParam)//选中并执行选参
+            {
+                // 进入参数编辑状态，显示不同的样式
+                //OLED屏幕宽度约为128，但是我用的120是比较观察和好看
+                //首先要让选中框聚焦于数字枚举的内容，所以要在120-字符串宽度的位置开始渲染，渲染宽度就为字符串的宽度
+                u8g2_DrawBox(u8g2, 120 - str_width, y - 10, str_width, 15);
+                u8g2_DrawStr(u8g2, x, y, item->text);
+                u8g2_SetDrawColor(u8g2, 0);
+                u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
+                u8g2_SetDrawColor(u8g2, 1);
+            }
+            else//未选中
+            {
+                // 普通选中状态
+                u8g2_DrawBox(u8g2, 0, y - 10, 128, 15);
+                u8g2_SetDrawColor(u8g2, 0);
+                u8g2_DrawStr(u8g2, x, y, item->text);
+                u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
+                u8g2_SetDrawColor(u8g2, 1);
+            }
         } 
-        else 
+        else //未选中
         {
-            u8g2_DrawStr(u8g2, x, y, item->text);
+                u8g2_DrawStr(u8g2, x, y, item->text);
+                u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
         }
         break;
-    case MENU_TYPE_PARAM_INT:
-        sprintf(buffer, "%d",*(item->data.param_int.value_ptr));
-        str_width = u8g2_GetStrWidth(u8g2, buffer);
+    case MENU_TYPE_PARAM_ENUM://字符串枚举
+        sprintf(buffer, "%s",item->data.param_enum.options[*(item->data.param_enum.value_ptr)]);//格式化索引所在的字符串
+        str_width = u8g2_GetStrWidth(u8g2, buffer);//计算长度
         // u8g2_DrawStr(u8g2, x, y, buffer);
         if(isSelected)
         {
@@ -125,39 +179,8 @@ static void adjust_type_visible(u8g2_t* u8g2,menu_data_t* menu_data,uint16_t x, 
                 u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
         }
         break;
-    case MENU_TYPE_PARAM_ENUM:
-        sprintf(buffer, "%s",item->data.param_enum.options[*(item->data.param_enum.value_ptr)]);
-        str_width = u8g2_GetStrWidth(u8g2, buffer);
-        // u8g2_DrawStr(u8g2, x, y, buffer);
-        if(isSelected)
-        {
-            if(menu_data->isSelectedParam)
-            {
-                // 进入参数编辑状态，显示不同的样式
-                u8g2_DrawBox(u8g2, 120 - str_width, y - 10, str_width, 15);
-                u8g2_DrawStr(u8g2, x, y, item->text);
-                u8g2_SetDrawColor(u8g2, 0);
-                u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
-                u8g2_SetDrawColor(u8g2, 1);
-            }
-            else
-            {
-                // 普通选中状态
-                u8g2_DrawBox(u8g2, 0, y - 10, 128, 15);
-                u8g2_SetDrawColor(u8g2, 0);
-                u8g2_DrawStr(u8g2, x, y, item->text);
-                u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
-                u8g2_SetDrawColor(u8g2, 1);
-            }
-        } 
-        else 
-        {
-                u8g2_DrawStr(u8g2, x, y, item->text);
-                u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
-        }
-        break;
-    case MENU_TYPE_TOGGLE:
-        sprintf(buffer, "%s",(*(item->data.toggle.value_ptr) ? "true" : "false"));
+    case MENU_TYPE_TOGGLE://开关菜单
+        sprintf(buffer, "%s",(*(item->data.toggle.value_ptr) ? "true" : "false"));//根据数值直接渲染字符串还
         str_width = u8g2_GetStrWidth(u8g2, buffer);
         // u8g2_DrawStr(u8g2, x, y, buffer);
         if(isSelected)
@@ -193,39 +216,57 @@ static void adjust_type_visible(u8g2_t* u8g2,menu_data_t* menu_data,uint16_t x, 
     }
 }
 
+/**
+ * @brief 菜单初始化
+ * @attention 一定要先执行节点的父子兄弟联系后，才可以初始化，否则会出现节点初始化错误的情况
+ * @param root 根节点，作为第一个节点
+ * @return menu_data_t* 返回数据结构体指针
+ */
 menu_data_t* menu_data_init(menu_item_t* root)
 {
     if (root == NULL) 
     {
         return NULL;
     }
-    menu_data.isSelectedParam = false;
-    menu_data.current_menu = root;
-    menu_data.selected_item = root->first_child;
-    menu_data.first_visible = root->first_child;
-    menu_data.visible_count = 0;
+    menu_data.isSelectedParam = false;//选中参数类型判断
+    menu_data.current_menu = root;//当前所在的节点
+    menu_data.selected_item = root->first_child;//默认选中第一个孩子
+    menu_data.first_visible = root->first_child;//默认让第一个孩子在首置位显示
+    menu_data.visible_count = 0;//默认屏幕可见的子菜单数为0
     return &menu_data;
 }
 
+/**
+ * @brief Create a submenu item object
+ * 
+ * @param text 菜单名称
+ * @return menu_item_t* 节点指针 
+ */
 menu_item_t* create_submenu_item(const char* text)
 {
     if (menu_node_count >= MENU_NODE) {
         return NULL; // 超过最大节点数
     }
-    
+    //分配节点
     menu_item_t* item = &Menu_Node[menu_node_count++];
-//    memset(item, 0, sizeof(menu_item_t));
     item->text = text;
     item->type = MENU_TYPE_SUB_MENU;
     return item;
 }
 
+/**
+ * @brief Create a function item object
+ * 
+ * @param text 菜单名称
+ * @param action_cb 回调函数，当执行enter操作触发
+ * @return menu_item_t* 节点指针
+ */
 menu_item_t* create_function_item(const char* text, void (*action_cb)(void))
 {
     if (menu_node_count >= MENU_NODE) {
         return NULL; // 超过最大节点数
     }
-    
+    //分配节点
     menu_item_t* item = &Menu_Node[menu_node_count++];
     item->text = text;
     item->type = MENU_TYPE_FUNCTION;
@@ -233,12 +274,22 @@ menu_item_t* create_function_item(const char* text, void (*action_cb)(void))
     return item;
 }
 
-menu_item_t* create_param_int_item(const char* text, int* value_ptr, int min, int max, int step)
+/**
+ * @brief Create a param int item object
+ * 
+ * @param text 菜单名称
+ * @param value_ptr 整形数值的地址
+ * @param min 数值最小值
+ * @param max 数值最大值
+ * @param step 步进值，上/下所增/减的数值
+ * @return menu_item_t* 节点指针
+ */
+menu_item_t* create_param_int_item(const char* text, int32_t* value_ptr, int min, int max, int step)
 {
     if (menu_node_count >= MENU_NODE) {
         return NULL; // 超过最大节点数
     }
-    
+    //分配内存
     menu_item_t* item = &Menu_Node[menu_node_count++];
     item->text = text;
     item->type = MENU_TYPE_PARAM_INT;
@@ -249,13 +300,22 @@ menu_item_t* create_param_int_item(const char* text, int* value_ptr, int min, in
     return item;
 }
 
-menu_item_t* create_param_enum_item(const char* text,int* value_ptr,const char** options,int options_nums)
+/**
+ * @brief Create a param enum item object
+ * 
+ * @param text 菜单文本
+ * @param value_ptr 索引地址
+ * @param options 字符串数组指针
+ * @param options_nums 选项的数量
+ * @return menu_item_t* 
+ */
+menu_item_t* create_param_enum_item(const char* text,int32_t* value_ptr,const char** options,int options_nums)
 {
     if(menu_node_count >= MENU_NODE)
     {
         return NULL;
     }
-
+    //分配内存
     menu_item_t* item = &Menu_Node[menu_node_count++];
     item->text = text;
     item->type = MENU_TYPE_PARAM_ENUM;
@@ -266,13 +326,21 @@ menu_item_t* create_param_enum_item(const char* text,int* value_ptr,const char**
 
 }
 
+
+/**
+ * @brief Create a toggle item object
+ * 
+ * @param text 菜单文本
+ * @param value_ptr 开关值指针
+ * @return menu_item_t* 节点指针
+ */
 menu_item_t* create_toggle_item(const char* text,bool* value_ptr)
 {
     if(menu_node_count >= MENU_NODE)
     {
         return NULL;
     }
-
+    //分配内存
     menu_item_t* item = &Menu_Node[menu_node_count++];
     item->text = text;
     item->type = MENU_TYPE_TOGGLE;
@@ -281,6 +349,12 @@ menu_item_t* create_toggle_item(const char* text,bool* value_ptr)
 
 }
 
+/**
+ * @brief 连接父子节点函数
+ * @attention 若父节点无子节点连接，直接作为第一子节点。若有子节点，作为最后子节点
+ * @param parent 父节点
+ * @param child 子节点
+ */
 void Link_Parent_Child(menu_item_t* parent, menu_item_t* child)
 {
     if (parent == NULL || child == NULL) 
@@ -289,12 +363,12 @@ void Link_Parent_Child(menu_item_t* parent, menu_item_t* child)
     }
     child->parent = parent;
     parent->sub_menu_count++;
-    if (parent->first_child == NULL) 
+    if (parent->first_child == NULL) //无子节点，直接首尾指针都指向这个子节点
     {
         parent->first_child = child;
         parent->last_child = child;
     } 
-    else 
+    else //否则进行最后节点指针调换
     {
         parent->last_child->next_sibling = child;
         child->prev_sibling = parent->last_child;
@@ -302,6 +376,12 @@ void Link_Parent_Child(menu_item_t* parent, menu_item_t* child)
     }
 }
 
+/**
+ * @brief 连接兄弟节点
+ * @attention next节点的父节点会直接跟随当前节点的父节点
+ * @param current 当前节点
+ * @param next 要与之连接的节点
+ */
 void Link_next_sibling(menu_item_t* current,menu_item_t* next)
 {
     if (current == NULL || next == NULL) 
@@ -321,12 +401,19 @@ void Link_next_sibling(menu_item_t* current,menu_item_t* next)
     }
 }
 
+/**
+ * @brief 菜单展示函数
+ * @attention 关键函数，菜单的显示基于当前函数
+ * @param u8g2 u8g2句柄
+ * @param menu_data 数据结构体句柄
+ * @param max_display_count 屏幕可展示最多的节点数量
+ */
 void show_menu(u8g2_t* u8g2, menu_data_t* menu_data, uint8_t max_display_count) {
-    osKernelLock();
-    
-    if (!menu_data->current_menu || !menu_data->current_menu->first_child) 
+    _disable_interrupt_func;//原子操作启动
+
+    if (!menu_data->current_menu || !menu_data->current_menu->first_child) //如果当前菜单和子节点一个没有，直接返回
     {
-        osKernelUnlock();
+        _enable_interrupt_func;
         return;
     }
     
@@ -341,7 +428,7 @@ void show_menu(u8g2_t* u8g2, menu_data_t* menu_data, uint8_t max_display_count) 
     {
         menu_data->first_visible = menu_data->current_menu->first_child;
     }
-    
+    //清除缓冲区，让屏幕重新绘制
     u8g2_ClearBuffer(u8g2);
     u8g2_SetFont(u8g2, u8g2_font_6x10_tf);
 
@@ -371,53 +458,58 @@ void show_menu(u8g2_t* u8g2, menu_data_t* menu_data, uint8_t max_display_count) 
     }
     
     menu_data->visible_count = count;
-    u8g2_SendBuffer(u8g2);
-    osKernelUnlock();
+    u8g2_SendBuffer(u8g2);//绘制菜单
+    _enable_interrupt_func;//结束原子操作
 }
 
+/**
+ * @brief 向上浏览操作
+ * 
+ * @param menu_data 菜单数据句柄
+ */
 void navigate_up(menu_data_t* menu_data) 
 {
     if (!menu_data->selected_item) return;
     
-    int* value_ptr = NULL;
+    int32_t* value_ptr = NULL;
 
-    if(menu_data->isSelectedParam)
+    if(menu_data->isSelectedParam)//枚举菜单被选中后，执行数值映射
     {
-        if(menu_data->selected_item->type == MENU_TYPE_PARAM_INT)
+        if(menu_data->selected_item->type == MENU_TYPE_PARAM_INT)//整形菜单
         {
             // 增加参数值
             value_ptr = menu_data->selected_item->data.param_int.value_ptr;
             if(value_ptr)
             {
-                *value_ptr += menu_data->selected_item->data.param_int.step;
-                if(*value_ptr > menu_data->selected_item->data.param_int.max)
+                *value_ptr += menu_data->selected_item->data.param_int.step;//步进值递增
+                if(*value_ptr > menu_data->selected_item->data.param_int.max)//上限
                 {
                     *value_ptr = menu_data->selected_item->data.param_int.max;
                 }
                 return;
             }
         }
-        else if (menu_data->selected_item->type == MENU_TYPE_PARAM_ENUM)
+        else if (menu_data->selected_item->type == MENU_TYPE_PARAM_ENUM)//字符串枚举菜单
         {
             value_ptr = menu_data->selected_item->data.param_enum.value_ptr;
             if(value_ptr)
             {
                 *value_ptr += 1;
-                if(*value_ptr >= menu_data->selected_item->data.param_enum.option_count)
+                if(*value_ptr >= menu_data->selected_item->data.param_enum.option_count)//上限
                 {
                     *value_ptr = menu_data->selected_item->data.param_enum.option_count - 1;
                 }
                 return;
             }
         }
-        else if(menu_data->selected_item->type == MENU_TYPE_TOGGLE)
+        else if(menu_data->selected_item->type == MENU_TYPE_TOGGLE)//开关节点
         {
-            return;
+            return;//不操作，因为改变数值不由它处理
         }
 
     }
     // 移动到上一个兄弟节点
-    if (menu_data->selected_item->prev_sibling) 
+    if (menu_data->selected_item->prev_sibling) //前提一定有上兄弟节点才能浏览
     {
         menu_data->selected_item = menu_data->selected_item->prev_sibling;
         
@@ -429,43 +521,48 @@ void navigate_up(menu_data_t* menu_data)
     }
 }
 
+/**
+ * @brief 向下浏览操作
+ * 
+ * @param menu_data 菜单数据句柄
+ */
 void navigate_down(menu_data_t* menu_data) 
 {
     if (!menu_data->selected_item) return;
     
-    int* value_ptr = NULL;
+    int32_t* value_ptr = NULL;
 
-    if(menu_data->isSelectedParam)
+    if(menu_data->isSelectedParam)//枚举菜单被选中后，执行数值映射
     {
-        if(menu_data->selected_item->type == MENU_TYPE_PARAM_INT)
+        if(menu_data->selected_item->type == MENU_TYPE_PARAM_INT)//整形菜单
         {
             // 增加参数值
             value_ptr = menu_data->selected_item->data.param_int.value_ptr;
             if(value_ptr)
             {
-                *value_ptr -= menu_data->selected_item->data.param_int.step;
-                if(*value_ptr < menu_data->selected_item->data.param_int.min)
+                *value_ptr -= menu_data->selected_item->data.param_int.step;//步进值递增
+                if(*value_ptr < menu_data->selected_item->data.param_int.min)//下限
                 {
                     *value_ptr = menu_data->selected_item->data.param_int.min;
                 }
                 return;
             }
         }
-        else if(menu_data->selected_item->type == MENU_TYPE_PARAM_ENUM)
+        else if(menu_data->selected_item->type == MENU_TYPE_PARAM_ENUM)//字符串枚举菜单
         {
             // 增加参数值
             value_ptr = menu_data->selected_item->data.param_enum.value_ptr;
             if(value_ptr)
             {
                 *value_ptr -= 1;
-                if(*value_ptr < 0)
+                if(*value_ptr < 0)//下限
                 {
                     *value_ptr = 0;
                 }
                 return;
             }
         }
-        else if(menu_data->selected_item->type == MENU_TYPE_TOGGLE)
+        else if(menu_data->selected_item->type == MENU_TYPE_TOGGLE)//开关菜单
         {
             return;
         }
@@ -493,31 +590,36 @@ void navigate_down(menu_data_t* menu_data)
     }
 }
 
+/**
+ * @brief enter操作
+ * 
+ * @param menu_data 菜单数据句柄
+ */
 void navigate_enter(menu_data_t* menu_data) 
 {
     if (!menu_data->selected_item) return;
     // 如果是子菜单，进入子菜单
-    if (menu_data->selected_item->type == MENU_TYPE_SUB_MENU && menu_data->selected_item->first_child) 
+    if (menu_data->selected_item->type == MENU_TYPE_SUB_MENU && menu_data->selected_item->first_child) //进入子节点
     {
         menu_data->current_menu = menu_data->selected_item;
         menu_data->selected_item = menu_data->current_menu->first_child;
         menu_data->first_visible = menu_data->selected_item;
     }
     // 如果是功能项，执行功能
-    else if (menu_data->selected_item->type == MENU_TYPE_FUNCTION && menu_data->selected_item->data.action_cb) 
+    else if (menu_data->selected_item->type == MENU_TYPE_FUNCTION && menu_data->selected_item->data.action_cb) //回调函数节点
     {
         menu_data->selected_item->data.action_cb();
     }
-    else if (menu_data->selected_item->type == MENU_TYPE_PARAM_INT) 
+    else if (menu_data->selected_item->type == MENU_TYPE_PARAM_INT) //整形枚举菜单
     {
         // 切换参数编辑状态
         menu_data->isSelectedParam = true;
     }
-    else if (menu_data->selected_item->type == MENU_TYPE_PARAM_ENUM)
+    else if (menu_data->selected_item->type == MENU_TYPE_PARAM_ENUM)//字符串枚举菜单
     {
         menu_data->isSelectedParam = true;
     }
-    else if (menu_data->selected_item->type == MENU_TYPE_TOGGLE)
+    else if (menu_data->selected_item->type == MENU_TYPE_TOGGLE)//开关菜单节点
     {
         if (menu_data->isSelectedParam)
         {
@@ -532,6 +634,11 @@ void navigate_enter(menu_data_t* menu_data)
 
 }
 
+/**
+ * @brief 返回函数
+ * 
+ * @param menu_data 菜单数据节点
+ */
 void navigate_back(menu_data_t* menu_data) 
 {
     if (!menu_data->current_menu) return;
