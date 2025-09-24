@@ -4,6 +4,7 @@ protocol::protocol(uint8_t header1, uint8_t header2, uint8_t tail1, uint8_t tail
     : Headerframe1(header1), Headerframe2(header2), Tailframe1(tail1), Tailframe2(tail2)
 {
     Serial.begin(115200);
+    Serial1.begin(115200, SERIAL_8N1, 16, 17);
      // RX1=16, TX1=17
 }
 
@@ -37,7 +38,7 @@ void protocol::Send_Uart_Frame(int32_t num)
     frame[10] = Tailframe1;
     frame[11] = Tailframe2;
 
-    Serial.write(frame,sizeof(frame));
+    Serial1.write(frame,sizeof(frame));
 }
 
 void protocol::Send_Uart_Frame(float num)
@@ -70,7 +71,7 @@ void protocol::Send_Uart_Frame(float num)
     frame[10] = Tailframe1;
     frame[11] = Tailframe2;
 
-    Serial.write(frame,sizeof(frame));
+    Serial1.write(frame,sizeof(frame));
 
 }
 
@@ -100,7 +101,7 @@ void protocol::Send_Uart_Frame_ACK()
     frame[6] = Tailframe1;
     frame[7] = Tailframe2;
 
-    Serial.write(frame,sizeof(frame));
+    Serial1.write(frame,sizeof(frame));
 }
 
 void protocol::Receive_Uart_Frame(uint8_t data)

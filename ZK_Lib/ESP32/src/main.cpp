@@ -3,28 +3,33 @@
 
 #define LED_Pin GPIO_NUM_48
 
+static int count = 0;
+static float fcount = 0.0;
+
+bool Flag_INT = false;
+bool Flag_FLOAT = false;
+bool Flag_ACK = false;
+
 protocol uart_protocol(0xAA,0x55,0x0D,0x0A);
 
 void IRAM_ATTR handleInterrupt1() {
-  static int count = 0;
-  uart_protocol.Send_Uart_Frame(count++);  
+  Flag_INT = true;
 }
 
 void IRAM_ATTR handleInterrupt2() {
-  static float fcount = 0.0;
-  fcount += 1.1;
-  uart_protocol.Send_Uart_Frame(fcount);  
+  
+  Flag_FLOAT = true;
 }
 
 
 void IRAM_ATTR handleInterrupt3() {
-  uart_protocol.Send_Uart_Frame_ACK();  
+  Flag_ACK = true;
 }
 
 
 void setup() 
 {
-  Serial1.begin(115200, SERIAL_8N1, 16, 17);
+  
   pinMode(LED_Pin,OUTPUT);
   pinMode(11, INPUT); // 设置为输入
   pinMode(12, INPUT); // 设置为输入
@@ -38,11 +43,24 @@ void loop()
 {
   if(Serial1.available())
   {
-    uart_protocol.Receive_Uart_Frame(Serial1.read());
-    // Serial.write(Serial1.read());
+    // uart_protocol.Receive_Uart_Frame(Serial1.read());
+    Serial.write(Serial1.read());
   }
-  // else
-  // {
-  //   Serial.println("test");
-  // }
+  if (Flag_INT)
+  {
+    uart_protocol.Send_Uart_Frame(count++);
+    Flag_INT = false;
+  }
+  if (Flag_FLOAT)
+  {
+    uart_protocol.Send_Uart_Frame(fcount);
+    fcount += 0.1;
+    Flag_FLOAT = false;
+  }
+  if (Flag_ACK)
+  {
+    uart_protocol.Send_Uart_Frame_ACK();
+    Flag_ACK = false;
+  }
+  
 }

@@ -51,8 +51,8 @@ extern osEventFlagsId_t KEY_EVENTHandle;
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-//uint8_t progress = 0;
-//uint32_t lastUpdateTime = 0;
+uint8_t temp[16] = {0};
+extern DMA_HandleTypeDef hdma_usart1_rx;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -99,11 +99,8 @@ int main(void)
   MX_SPI1_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-//  OLED_Init();
-//  OLED_Clear();
-//  OLED_DisplayTurn(0);
-//  OLED_ColorTurn(0);
-  
+
+	HAL_UARTEx_ReceiveToIdle_DMA(&huart1,temp,sizeof(temp));  
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -195,6 +192,19 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   }
   
 }
+
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
+{
+  if (huart->Instance == USART1)
+  {
+	  HAL_UART_Transmit_DMA(&huart1,temp,Size);
+	  HAL_UARTEx_ReceiveToIdle_DMA(&huart1,temp,sizeof(temp));
+	  __HAL_DMA_DISABLE_IT(&hdma_usart1_rx,DMA_IT_HT);
+  }
+  
+
+}
+
 /* USER CODE END 4 */
 
 /**
