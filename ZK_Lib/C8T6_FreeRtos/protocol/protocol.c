@@ -1,5 +1,14 @@
 #include "protocol.h"
 
+typedef struct
+{
+    INT_Callback int_callback;
+    FLOAT_Callback float_callback;
+    ACK_Callback ack_callback;
+}callback_functions;
+
+callback_functions callbacks = {0};
+
 static uint16_t calculateChecksum(const uint8_t* data, size_t length)
 {
     uint16_t sum = 0;
@@ -7,6 +16,68 @@ static uint16_t calculateChecksum(const uint8_t* data, size_t length)
         sum += data[i];
     }
     return sum;
+}
+
+static void handle_INT(int32_t value)
+{
+    if (callbacks.int_callback) 
+    {
+        callbacks.int_callback(value);
+        return;
+    }
+    else
+    {
+        char buffer[16];
+        sprintf(buffer, "INT: %ld", value);
+        HAL_UART_Transmit(&huart1, (uint8_t *)buffer, strlen(buffer), HAL_MAX_DELAY);
+        // HAL_UART_Transmit(&huart1, (uint8_t *)&value, sizeof(value), HAL_MAX_DELAY);
+    }
+}
+
+static void handle_FLOAT(float value)
+{
+    if (callbacks.int_callback) 
+    {
+        callbacks.int_callback(value);
+        return;
+    }
+    else
+    {
+        char buffer[16];
+        sprintf(buffer, "FLOAT: %.2f", value);
+        HAL_UART_Transmit(&huart1, (uint8_t *)buffer, strlen(buffer), HAL_MAX_DELAY);
+        // HAL_UART_Transmit(&huart1, (uint8_t *)&value, sizeof(value), HAL_MAX_DELAY);
+    }
+}
+
+static void handle_ACK(void)
+{
+    if (callbacks.ack_callback) 
+    {
+        callbacks.ack_callback();
+        return;
+    }
+    else
+    {
+        char buffer[16];
+        sprintf(buffer, "ACK");
+        HAL_UART_Transmit(&huart1, (uint8_t *)buffer, strlen(buffer), HAL_MAX_DELAY);
+    }
+}
+
+void set_INT_Callback(INT_Callback cb)
+{
+    callbacks.int_callback = cb;
+}
+
+void set_FLOAT_Callback(FLOAT_Callback cb)
+{
+    callbacks.float_callback = cb;
+}
+
+void set_ACK_Callback(ACK_Callback cb)
+{
+    callbacks.ack_callback = cb;
 }
 
 
@@ -96,94 +167,59 @@ void UART_Protocol_ACK(UART_protocol UART_protocol_structure)
     HAL_UART_Transmit(&huart1,frame,sizeof(frame),HAL_MAX_DELAY);
 }
 
-void Receive_Uart_Frame(UART_protocol UART_protocol_structure,uint8_t data)
+void Receive_Uart_Frame(UART_protocol UART_protocol_structure, UartFrame frame)
 {
-    static enum { WAIT_HEADER1, WAIT_HEADER2, WAIT_TYPE, WAIT_LEN, WAIT_DATA, WAIT_CHECK1, WAIT_CHECK2, WAIT_TAIL1, WAIT_TAIL2 } state = WAIT_HEADER1;
-    static uint8_t frame_type = 0;
-    static uint8_t frame_len = 0;
-    static uint8_t data_buf[8] = {0};
-    static uint8_t data_index = 0;
-    static uint16_t checksum = 0;
-    static uint8_t check1 = 0, check2 = 0;
+    // 最小帧长度检查
+    if(frame.len < 8) return; // 最小帧长度（头2+类型1+长度1+校验2+尾2）
 
-    switch(state)
+    uint8_t *data = frame.data;
+
+    // 检查头
+    if(data[0] != UART_protocol_structure.Headerframe1 ||
+       data[1] != UART_protocol_structure.Headerframe2)
+        return;
+
+    uint8_t frame_type = data[2];
+    uint8_t frame_len  = data[3];
+
+    // 检查长度是否合理
+    if(frame.len != (frame_len + 8)) return;
+
+    // 数据区
+    uint8_t *payload = &data[4];
+
+    // 校验
+    uint16_t recv_check = (data[frame_len + 4] << 8) | data[frame_len + 5];
+    uint16_t calc_check = calculateChecksum(&data[2], 2 + frame_len);
+    if(recv_check != calc_check) return;
+
+    // 检查尾
+    if(data[frame_len + 6] != UART_protocol_structure.Tailframe1 ||
+       data[frame_len + 7] != UART_protocol_structure.Tailframe2)
+        return;
+
+    // 解析数据
+    if(frame_type == INT && frame_len == 4)
     {
-        case WAIT_HEADER1:
-            if(data == UART_protocol_structure.Headerframe1) state = WAIT_HEADER2;
-            break;
-        case WAIT_HEADER2:
-            if(data == UART_protocol_structure.Headerframe2) state = WAIT_TYPE;
-            else state = WAIT_HEADER1;
-            break;
-        case WAIT_TYPE:
-            frame_type = data;
-            state = WAIT_LEN;
-            break;
-        case WAIT_LEN:
-            frame_len = data;
-            data_index = 0;
-            if(frame_len > sizeof(data_buf)) frame_len = sizeof(data_buf); // 防止溢出
-            state = frame_len ? WAIT_DATA : WAIT_CHECK1;
-            break;
-        case WAIT_DATA:
-            data_buf[data_index++] = data;
-            if(data_index >= frame_len) state = WAIT_CHECK1;
-            break;
-        case WAIT_CHECK1:
-            check1 = data;
-            state = WAIT_CHECK2;
-            break;
-        case WAIT_CHECK2:
-            check2 = data;
-            state = WAIT_TAIL1;
-            break;
-        case WAIT_TAIL1:
-            if(data == UART_protocol_structure.Tailframe1) state = WAIT_TAIL2;
-            else state = WAIT_HEADER1;
-            break;
-        case WAIT_TAIL2:
-            if(data == UART_protocol_structure.Tailframe2)
-            {
-                // 校验
-                uint8_t check_buf[10];
-                check_buf[0] = frame_type;
-                check_buf[1] = frame_len;
-                memcpy(&check_buf[2], data_buf, frame_len);
-                uint16_t calc_check = calculateChecksum(check_buf, 2 + frame_len);
-                uint16_t recv_check = (check1 << 8) | check2;
-                if(calc_check == recv_check)
-                {
-                    if(frame_type == INT && frame_len == 4)
-                    {
-                        int32_t value = (data_buf[0] << 24) | (data_buf[1] << 16) | (data_buf[2] << 8) | data_buf[3];
-                        // 处理接收到的整数值
-                    }
-                    else if(frame_type == FLOAT && frame_len == 4)
-                    {
-                        union {
-                            float f;
-                            uint8_t b[4];
-                        } u;
-                        u.b[0] = data_buf[3];
-                        u.b[1] = data_buf[2];
-                        u.b[2] = data_buf[1];
-                        u.b[3] = data_buf[0];
-                        float value = u.f;
-                        // 处理接收到的浮点值
-                    }
-                    else if(frame_type == ACK && frame_len == 0)
-                    {
-                        // 处理接收到的ACK
-                        
-                    }
-                }
-                else
-                {
-                    
-                }
-            }
-            // 无论校验是否通过，都回到初始状态
-            state = WAIT_HEADER1;
-            break;
+        int32_t value = (payload[0] << 24) | (payload[1] << 16) | (payload[2] << 8) | payload[3];
+        handle_INT(value);
     }
+    else if(frame_type == FLOAT && frame_len == 4)
+    {
+        union {
+            float f;
+            uint8_t b[4];
+        } u;
+        u.b[0] = payload[3];
+        u.b[1] = payload[2];
+        u.b[2] = payload[1];
+        u.b[3] = payload[0];
+        handle_FLOAT(u.f);
+    }
+    else if(frame_type == ACK && frame_len == 0)
+    {
+        handle_ACK();
+    }
+    // 其他类型可扩展
 }
+

@@ -96,7 +96,7 @@ void protocol::Send_Uart_Frame_ACK()
 
     uint16_t check = calculateChecksum(&frame[2],2);
     frame[4] = (check >> 8) & 0xff;
-    frame[5] = check && 0xff;
+    frame[5] = check & 0xff;
 
     frame[6] = Tailframe1;
     frame[7] = Tailframe2;

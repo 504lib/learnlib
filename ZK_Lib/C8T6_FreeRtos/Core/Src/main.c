@@ -46,6 +46,7 @@
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 extern osEventFlagsId_t KEY_EVENTHandle;
+extern osMessageQueueId_t UART_QUEUEHandle;
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -197,7 +198,15 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
   if (huart->Instance == USART1)
   {
-	  HAL_UART_Transmit_DMA(&huart1,temp,Size);
+    UartFrame frame;
+    frame.len = Size;
+    frame.data = malloc(Size); // 或 pvPortMalloc(Size);
+    // HAL_UART_Transmit_DMA(&huart1, temp, Size); // 回传收到的数据
+	  if(frame.data != NULL)
+    {
+        memcpy(frame.data, temp, Size);
+        osMessageQueuePut(UART_QUEUEHandle, &frame, 0, 0);
+    }
 	  HAL_UARTEx_ReceiveToIdle_DMA(&huart1,temp,sizeof(temp));
 	  __HAL_DMA_DISABLE_IT(&hdma_usart1_rx,DMA_IT_HT);
   }

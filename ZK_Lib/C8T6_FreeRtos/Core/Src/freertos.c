@@ -82,6 +82,18 @@ const osThreadAttr_t LED_TASK_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
+/* Definitions for UART_TASK */
+osThreadId_t UART_TASKHandle;
+const osThreadAttr_t UART_TASK_attributes = {
+  .name = "UART_TASK",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
+/* Definitions for UART_QUEUE */
+osMessageQueueId_t UART_QUEUEHandle;
+const osMessageQueueAttr_t UART_QUEUE_attributes = {
+  .name = "UART_QUEUE"
+};
 /* Definitions for UART_TXMute */
 osMutexId_t UART_TXMuteHandle;
 const osMutexAttr_t UART_TXMute_attributes = {
@@ -100,6 +112,7 @@ const osEventFlagsAttr_t KEY_EVENT_attributes = {
 
 void U8g2_Task(void *argument);
 void LED_Task(void *argument);
+void uart_task(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -128,6 +141,10 @@ void MX_FREERTOS_Init(void) {
   /* start timers, add new ones, ... */
   /* USER CODE END RTOS_TIMERS */
 
+  /* Create the queue(s) */
+  /* creation of UART_QUEUE */
+  UART_QUEUEHandle = osMessageQueueNew (16, sizeof(UartFrame), &UART_QUEUE_attributes);
+
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
   /* USER CODE END RTOS_QUEUES */
@@ -138,6 +155,9 @@ void MX_FREERTOS_Init(void) {
 
   /* creation of LED_TASK */
   LED_TASKHandle = osThreadNew(LED_Task, NULL, &LED_TASK_attributes);
+
+  /* creation of UART_TASK */
+  UART_TASKHandle = osThreadNew(uart_task, NULL, &UART_TASK_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -151,7 +171,6 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE END RTOS_EVENTS */
 
 }
-
 
 /* USER CODE BEGIN Header_U8g2_Task */
 static int test_var = 0;
@@ -287,6 +306,37 @@ void LED_Task(void *argument)
     }
   }
   /* USER CODE END LED_Task */
+}
+
+/* USER CODE BEGIN Header_uart_task */
+/**
+* @brief Function implementing the UART_TASK thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_uart_task */
+void uart_task(void *argument)
+{
+  /* USER CODE BEGIN uart_task */
+  UART_protocol UART_protocol_structure = {
+    .Headerframe1 = 0xAA,
+    .Headerframe2 = 0x55,
+    .Tailframe1 = 0x0D,
+    .Tailframe2 = 0x0A
+  };  
+  /* Infinite loop */
+  for(;;)
+  {
+    UartFrame frame;
+    if (osMessageQueueGet(UART_QUEUEHandle, &frame, NULL, osWaitForever) == osOK)
+    {
+      Receive_Uart_Frame(UART_protocol_structure,frame);
+       // HAL_UART_Transmit(&huart1, &received_byte, 1, HAL_MAX_DELAY);
+      free(frame.data); // FreeRTOS
+    }
+    // osDelay(1);
+  }
+  /* USER CODE END uart_task */
 }
 
 /* Private application code --------------------------------------------------*/
