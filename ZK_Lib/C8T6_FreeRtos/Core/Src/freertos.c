@@ -61,6 +61,8 @@ menu_item_t* sub4 = NULL;
 menu_item_t* sub5 = NULL;
 menu_item_t* sub1_sub1 = NULL;
 menu_item_t* sub1_sub2 = NULL;
+menu_item_t* sub1_sub3 = NULL;
+menu_item_t* sub1_sub4 = NULL;
 menu_item_t* sub2_sub1 = NULL;
 menu_item_t* sub2_sub2 = NULL;
 
@@ -166,6 +168,27 @@ void test()
   UART_Protocol_INT(UART_protocol_structure,test_var);
 }
 
+void test2()
+{
+  UART_protocol UART_protocol_structure = {
+    .Headerframe1 = 0xAA,
+    .Headerframe2 = 0x55,
+    .Tailframe1 = 0x0D,
+    .Tailframe2 = 0x0A
+  };
+  UART_Protocol_FLOAT(UART_protocol_structure,3.3);
+}
+
+void test3()
+{
+  UART_protocol UART_protocol_structure = {
+    .Headerframe1 = 0xAA,
+    .Headerframe2 = 0x55,
+    .Tailframe1 = 0x0D,
+    .Tailframe2 = 0x0A
+  };
+  UART_Protocol_ACK(UART_protocol_structure);
+}
 
 /**
   * @brief  Function implementing the U8G2_TASK thread.
@@ -186,6 +209,8 @@ void U8g2_Task(void *argument)
   sub5 = create_submenu_item("sub_menu_5");
   sub1_sub1 = create_function_item("SendUART_INT", test);
   sub1_sub2 = create_param_int_item("Change_int", &test_var, 0, 100, 1);
+  sub1_sub3 = create_function_item("SendUART_FLOAT", test2);
+  sub1_sub4 = create_function_item("SendUART_ACK", test3);
   sub2_sub1 = create_param_enum_item("Change_param",&index,String_Option,5);
   Link_Parent_Child(root, sub1);
   Link_next_sibling(sub1, sub2);
@@ -194,6 +219,8 @@ void U8g2_Task(void *argument)
   Link_next_sibling(sub4, sub5);
   Link_Parent_Child(sub1, sub1_sub1);
   Link_next_sibling(sub1_sub1, sub1_sub2);
+  Link_next_sibling(sub1_sub2, sub1_sub3);
+  Link_next_sibling(sub1_sub3, sub1_sub4);
   Link_Parent_Child(sub2, sub2_sub1);
   menu_data_ptr = menu_data_init(root);
   // menu_data.selected_item = root->first_child;

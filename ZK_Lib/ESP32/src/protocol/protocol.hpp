@@ -23,4 +23,5 @@ public:
     void Send_Uart_Frame(int num);
     void Send_Uart_Frame(float num);
     void Send_Uart_Frame_ACK();
+    void Receive_Uart_Frame(uint8_t data);
 };

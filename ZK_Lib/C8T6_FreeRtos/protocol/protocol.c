@@ -58,7 +58,7 @@ void UART_Protocol_FLOAT(UART_protocol UART_protocol_structure,float value)
     frame[0] = UART_protocol_structure.Headerframe1;
     frame[1] = UART_protocol_structure.Headerframe2;
 
-    frame[2] = INT;
+    frame[2] = FLOAT;
     frame[3] = 4;
 
     frame[4] = data.value_arr[3];
@@ -88,7 +88,7 @@ void UART_Protocol_ACK(UART_protocol UART_protocol_structure)
 
     uint16_t check = calculateChecksum(&frame[2],2);
     frame[4] = (check >> 8) & 0xff;
-    frame[5] = check && 0xff;
+    frame[5] = check & 0xff;
 
     frame[6] = UART_protocol_structure.Tailframe1;
     frame[7] = UART_protocol_structure.Tailframe2;
