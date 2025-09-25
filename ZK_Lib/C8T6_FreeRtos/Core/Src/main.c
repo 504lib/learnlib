@@ -47,6 +47,7 @@
 /* USER CODE BEGIN PM */
 extern osEventFlagsId_t KEY_EVENTHandle;
 extern osMessageQueueId_t UART_QUEUEHandle;
+extern osEventFlagsId_t UART_EVENTHandle;
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -196,17 +197,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
+  UartFrame* frame = Get_Uart_Frame_Buffer();
   if (huart->Instance == USART1)
   {
-    UartFrame frame;
-    frame.len = Size;
-    frame.data = malloc(Size); // 或 pvPortMalloc(Size);
-    // HAL_UART_Transmit_DMA(&huart1, temp, Size); // 回传收到的数据
-	  if(frame.data != NULL)
-    {
-        memcpy(frame.data, temp, Size);
-        osMessageQueuePut(UART_QUEUEHandle, &frame, 0, 0);
-    }
+    osEventFlagsSet(UART_EVENTHandle,UART_RECEIVE_EVENT );
+    // HAL_UART_Transmit_DMA(&huart1,temp,Size);
+    Uart_Buffer_Put_frame(frame, temp, Size);
 	  HAL_UARTEx_ReceiveToIdle_DMA(&huart1,temp,sizeof(temp));
 	  __HAL_DMA_DISABLE_IT(&hdma_usart1_rx,DMA_IT_HT);
   }
@@ -255,7 +251,6 @@ void Error_Handler(void)
 #ifdef  USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
-  *         where the assert_param error has occurred.
   * @param  file: pointer to the source file name
   * @param  line: assert_param error line source number
   * @retval None

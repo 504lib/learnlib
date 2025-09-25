@@ -87,6 +87,7 @@ void Error_Handler(void);
 #define KEY_CANCEL_EVENT  (1U << 3)
 #define KEY_FUNCTION_EVENT  (1U << 4)
 
+#define UART_RECEIVE_EVENT  (1U << 0)
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

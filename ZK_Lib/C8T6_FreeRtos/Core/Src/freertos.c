@@ -89,11 +89,6 @@ const osThreadAttr_t UART_TASK_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
-/* Definitions for UART_QUEUE */
-osMessageQueueId_t UART_QUEUEHandle;
-const osMessageQueueAttr_t UART_QUEUE_attributes = {
-  .name = "UART_QUEUE"
-};
 /* Definitions for UART_TXMute */
 osMutexId_t UART_TXMuteHandle;
 const osMutexAttr_t UART_TXMute_attributes = {
@@ -103,6 +98,11 @@ const osMutexAttr_t UART_TXMute_attributes = {
 osEventFlagsId_t KEY_EVENTHandle;
 const osEventFlagsAttr_t KEY_EVENT_attributes = {
   .name = "KEY_EVENT"
+};
+/* Definitions for UART_EVENT */
+osEventFlagsId_t UART_EVENTHandle;
+const osEventFlagsAttr_t UART_EVENT_attributes = {
+  .name = "UART_EVENT"
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -141,10 +141,6 @@ void MX_FREERTOS_Init(void) {
   /* start timers, add new ones, ... */
   /* USER CODE END RTOS_TIMERS */
 
-  /* Create the queue(s) */
-  /* creation of UART_QUEUE */
-  UART_QUEUEHandle = osMessageQueueNew (16, sizeof(UartFrame), &UART_QUEUE_attributes);
-
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
   /* USER CODE END RTOS_QUEUES */
@@ -165,6 +161,9 @@ void MX_FREERTOS_Init(void) {
 
   /* creation of KEY_EVENT */
   KEY_EVENTHandle = osEventFlagsNew(&KEY_EVENT_attributes);
+
+  /* creation of UART_EVENT */
+  UART_EVENTHandle = osEventFlagsNew(&UART_EVENT_attributes);
 
   /* USER CODE BEGIN RTOS_EVENTS */
   /* add events, ... */
@@ -323,18 +322,23 @@ void uart_task(void *argument)
     .Headerframe2 = 0x55,
     .Tailframe1 = 0x0D,
     .Tailframe2 = 0x0A
-  };  
+  }; 
+  uint8_t data[32] = {0};
+  UartFrame* frame_buffer = Get_Uart_Frame_Buffer();
+  uint32_t flags; 
   /* Infinite loop */
   for(;;)
   {
-    UartFrame frame;
-    if (osMessageQueueGet(UART_QUEUEHandle, &frame, NULL, osWaitForever) == osOK)
+    flags = osEventFlagsWait(UART_EVENTHandle,UART_RECEIVE_EVENT,osFlagsWaitAny,osWaitForever);
+    if(flags & UART_RECEIVE_EVENT)
     {
-      Receive_Uart_Frame(UART_protocol_structure,frame);
-       // HAL_UART_Transmit(&huart1, &received_byte, 1, HAL_MAX_DELAY);
-      free(frame.data); // FreeRTOS
+      memset(data,0,sizeof(data));
+      uint16_t size = frame_buffer->Size;
+      Uart_Buffer_Get_frame(frame_buffer,data);
+//      HAL_UART_Transmit_DMA(&huart1,data,size);
+      // HAL_UART_Transmit(&huart1,data,size,HAL_MAX_DELAY);
+      Receive_Uart_Frame(UART_protocol_structure,data,size);
     }
-    // osDelay(1);
   }
   /* USER CODE END uart_task */
 }

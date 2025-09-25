@@ -49,17 +49,20 @@ void loop()
   if (Flag_INT)
   {
     uart_protocol.Send_Uart_Frame(count++);
+    // Serial.println(count++);
     Flag_INT = false;
   }
   if (Flag_FLOAT)
   {
     uart_protocol.Send_Uart_Frame(fcount);
-    fcount += 0.1;
+   fcount += 0.1;
+    // Serial.println(fcount, 1);
     Flag_FLOAT = false;
   }
   if (Flag_ACK)
   {
     uart_protocol.Send_Uart_Frame_ACK();
+    // Serial.println("ACK");
     Flag_ACK = false;
   }
   
