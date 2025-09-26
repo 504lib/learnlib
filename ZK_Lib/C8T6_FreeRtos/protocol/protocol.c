@@ -34,7 +34,7 @@ static void handle_INT(int32_t value)
     else
     {
         static char buffer[16];
-        sprintf(buffer, "INT: %ld", value);
+        sprintf(buffer, "INT: %ld\n", value);
         HAL_UART_Transmit_DMA(&huart1, (uint8_t *)buffer, strlen(buffer)); 
         // HAL_UART_Transmit(&huart1, (uint8_t *)&value, sizeof(value), HAL_MAX_DELAY);
     }
@@ -50,7 +50,7 @@ static void handle_FLOAT(float value)
     else
     {
         static char buffer[16];
-        sprintf(buffer, "FLOAT: %.2f", value);
+        sprintf(buffer, "FLOAT: %.2f\n", value);
         HAL_UART_Transmit_DMA(&huart1, (uint8_t *)buffer, strlen(buffer));
     }
 }
@@ -65,7 +65,7 @@ static void handle_ACK(void)
     else
     {
         static char buffer[16];
-        sprintf(buffer, "ACK");
+        sprintf(buffer, "ACK\n");
         HAL_UART_Transmit_DMA(&huart1, (uint8_t *)buffer, strlen(buffer));
     }
 }
@@ -235,12 +235,13 @@ void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uin
     if(data[0] != UART_protocol_structure.Headerframe1 ||
        data[1] != UART_protocol_structure.Headerframe2)
         return;
-    
+    LOG_DEBUG("Header matched.");
     uint8_t frame_type = data[2];
     uint8_t frame_len  = data[3];
 
     // 检查长度是否合理
     if(size != (frame_len + 8)) return;
+    LOG_DEBUG("length matched.");
     // 数据区
     uint8_t *payload = &data[4];
 
@@ -248,12 +249,13 @@ void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uin
     uint16_t recv_check = (data[frame_len + 4] << 8) | data[frame_len + 5];
     uint16_t calc_check = calculateChecksum(&data[2], 2 + frame_len);
     if(recv_check != calc_check) return;
-
+    LOG_DEBUG("checksum matched.");
     // 检查尾
     if(data[frame_len + 6] != UART_protocol_structure.Tailframe1 ||
        data[frame_len + 7] != UART_protocol_structure.Tailframe2)
         return;
-
+    LOG_DEBUG("tail matched.");
+    // LOG_INFO("A valid frame received: type=%d, len=%d", frame_type, frame_len);
     // 解析数据
     if(frame_type == INT && frame_len == 4)
     {

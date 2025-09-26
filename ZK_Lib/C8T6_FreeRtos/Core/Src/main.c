@@ -100,8 +100,8 @@ int main(void)
   MX_DMA_Init();
   MX_SPI1_Init();
   MX_USART1_UART_Init();
+  
   /* USER CODE BEGIN 2 */
-
 	HAL_UARTEx_ReceiveToIdle_DMA(&huart1,temp,sizeof(temp));  
   /* USER CODE END 2 */
 
@@ -200,14 +200,33 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
   UartFrame* frame = Get_Uart_Frame_Buffer();
   if (huart->Instance == USART1)
   {
+    // LOG_INFO("A new data frame has come, size=%d", Size);
     osEventFlagsSet(UART_EVENTHandle,UART_RECEIVE_EVENT );
     // HAL_UART_Transmit_DMA(&huart1,temp,Size);
-    Uart_Buffer_Put_frame(frame, temp, Size);
 	  HAL_UARTEx_ReceiveToIdle_DMA(&huart1,temp,sizeof(temp));
+    Uart_Buffer_Put_frame(frame, temp, Size);
 	  __HAL_DMA_DISABLE_IT(&hdma_usart1_rx,DMA_IT_HT);
   }
   
 
+}
+
+void HAL_UART_ErrorCallback(UART_HandleTypeDef* huart) {
+    if (huart->Instance == USART1) {
+        LOG_FATAL("UART error: 0x%08lX", huart->ErrorCode);
+        
+        // 清除错误并重新初始化
+        huart->ErrorCode = HAL_UART_ERROR_NONE;
+        
+        // 如果是溢出错误，需要额外处理
+        
+        // 重新启动接收
+      MX_DMA_Init();
+        if (__HAL_UART_GET_FLAG(huart, UART_FLAG_ORE)) {
+            __HAL_UART_CLEAR_OREFLAG(huart);
+        }
+        HAL_UART_Receive_DMA(huart,temp,sizeof(temp));
+    }
 }
 
 /* USER CODE END 4 */
@@ -251,6 +270,7 @@ void Error_Handler(void)
 #ifdef  USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
+  *         where the assert_param error has occurred.
   * @param  file: pointer to the source file name
   * @param  line: assert_param error line source number
   * @retval None

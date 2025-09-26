@@ -3,7 +3,7 @@
 #include "main.h"
 #include "usart.h"
 #include "stdbool.h"
-
+#include "Log.h"
 typedef struct {
     uint8_t buffer[32]; // 缓冲区大小，比如64或128
     volatile uint16_t head;      // 写指针

@@ -286,7 +286,7 @@ menu_item_t* create_function_item(const char* text, void (*action_cb)(void))
  */
 menu_item_t* create_param_int_item(const char* text, int32_t* value_ptr, int min, int max, int step)
 {
-    if (menu_node_count >= MENU_NODE) {
+    if (menu_node_count >= MENU_NODE || value_ptr == NULL) {
         return NULL; // 超过最大节点数
     }
     //分配内存
@@ -311,7 +311,7 @@ menu_item_t* create_param_int_item(const char* text, int32_t* value_ptr, int min
  */
 menu_item_t* create_param_enum_item(const char* text,int32_t* value_ptr,const char** options,int options_nums)
 {
-    if(menu_node_count >= MENU_NODE)
+    if(menu_node_count >= MENU_NODE || value_ptr == NULL || options == NULL || options_nums < 0)
     {
         return NULL;
     }

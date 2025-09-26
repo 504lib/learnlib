@@ -29,6 +29,7 @@
 #include "u8g2_user.h"
 #include "menu.h"
 #include "protocol.h"
+#include "Log.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -48,6 +49,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
+extern uint8_t temp[16];
 u8g2_t u8g2;
 int index = 0;
 const char* String_Option[] = {"begin","test1","test2","test3","end"};
@@ -87,7 +89,7 @@ osThreadId_t UART_TASKHandle;
 const osThreadAttr_t UART_TASK_attributes = {
   .name = "UART_TASK",
   .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityLow,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for UART_TXMute */
 osMutexId_t UART_TXMuteHandle;
@@ -172,8 +174,33 @@ void MX_FREERTOS_Init(void) {
 }
 
 /* USER CODE BEGIN Header_U8g2_Task */
-static int test_var = 0;
 
+
+static int test_var = 0;
+// 诊断函数
+// 完全避免使用任何格式化函数
+void debug_uart_status(void) {
+    static uint32_t last_debug = 0;
+    
+    if (HAL_GetTick() - last_debug > 5000) { // 每5秒输出一次状态
+        LOG_DEBUG("=== UART Status Debug ===");
+        LOG_DEBUG("UART State: %lu", huart1.gState);
+        LOG_DEBUG("Error Code: 0x%08lX", huart1.ErrorCode);
+        
+        // 检查各种标志
+        LOG_DEBUG("ORE Flag: %d", __HAL_UART_GET_FLAG(&huart1, UART_FLAG_ORE));
+        LOG_DEBUG("FE Flag: %d", __HAL_UART_GET_FLAG(&huart1, UART_FLAG_FE));
+        LOG_DEBUG("NE Flag: %d", __HAL_UART_GET_FLAG(&huart1, UART_FLAG_NE));
+        LOG_DEBUG("PE Flag: %d", __HAL_UART_GET_FLAG(&huart1, UART_FLAG_PE));
+        
+        // DMA状态
+        if (huart1.hdmarx) {
+            LOG_DEBUG("DMA CNDTR: %lu", huart1.hdmarx->Instance->CNDTR);
+        }
+        
+        last_debug = HAL_GetTick();
+    }
+}
 void test()
 {
   UART_protocol UART_protocol_structure = {
@@ -245,6 +272,7 @@ void U8g2_Task(void *argument)
   /* Infinite loop */
   for(;;)
   {
+    debug_uart_status();
     u8g2_FirstPage(&u8g2);
     do {
       show_menu(&u8g2,menu_data_ptr,3);
@@ -329,15 +357,28 @@ void uart_task(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    flags = osEventFlagsWait(UART_EVENTHandle,UART_RECEIVE_EVENT,osFlagsWaitAny,osWaitForever);
+    flags = osEventFlagsWait(UART_EVENTHandle,UART_RECEIVE_EVENT,osFlagsWaitAny,100);
     if(flags & UART_RECEIVE_EVENT)
     {
+      // LOG_INFO("a new dataframe has come...");
       memset(data,0,sizeof(data));
       uint16_t size = frame_buffer->Size;
       Uart_Buffer_Get_frame(frame_buffer,data);
 //      HAL_UART_Transmit_DMA(&huart1,data,size);
       // HAL_UART_Transmit(&huart1,data,size,HAL_MAX_DELAY);
       Receive_Uart_Frame(UART_protocol_structure,data,size);
+    }
+    else
+    {
+      // 超时，检查ORE标志
+      if (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_ORE)) 
+      {
+          LOG_WARN("ORE detected in task, recovering...");
+          __HAL_UART_CLEAR_OREFLAG(&huart1);
+          // 重新启动DMA接收
+          HAL_UARTEx_ReceiveToIdle_DMA(&huart1, temp, sizeof(temp));
+          // __HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);
+      }
     }
   }
   /* USER CODE END uart_task */
