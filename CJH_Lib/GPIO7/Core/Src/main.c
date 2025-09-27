@@ -89,74 +89,61 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */ 
-uint8_t led0Blinking = 0;  // LED0ÉÁË¸±êÖ¾
-uint8_t led1Blinking = 0;  // LED1ÉÁË¸±êÖ¾
-uint32_t led0LastToggle = 0;
-uint32_t led1LastToggle = 0;
+  uint32_t last_0 = 0;
+  uint32_t last_1 = 0;  
+  uint8_t led0Blinking = 0;  // LED0ÉÁË¸±êÖ¾
+  uint8_t led1Blinking = 0;  // LED1ÉÁË¸±êÖ¾
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 while (1)
-{
-    uint32_t currentTime = HAL_GetTick();
-    int currentState0 = HAL_GPIO_ReadPin(KEY0_GPIO_Port, KEY0_Pin);
-    int currentState1 = HAL_GPIO_ReadPin(KEY1_GPIO_Port, KEY1_Pin);
+  {
+	  uint32_t cur_0 = HAL_GetTick();
+	  uint32_t cur_1 = HAL_GetTick();
+	  int currentState0 = HAL_GPIO_ReadPin(KEY0_GPIO_Port,KEY0_Pin );
+	  int currentState1 = HAL_GPIO_ReadPin(KEY1_GPIO_Port,KEY1_Pin );
 
-    // KEY0 °´ÏÂ¼ì²â - ÏÂ½µÑØ¼ì²â
-    if (currentState0 == 0 && LASTKEY0state0 == 1)
-    {
-        led0Blinking = 1;  // ¿ªÊ¼ÉÁË¸
-        led0LastToggle = currentTime;
-        HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, GPIO_PIN_RESET); 
-		// KEY0°´ÏÂÊ±¹Ø±ÕLED1
-		led1Blinking = 0;  // Í£Ö¹LED1ÉÁË¸
-		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET); 
-    }
-    
-    // KEY0 ÊÍ·Å¼ì²â - ÉÏÉýÑØ¼ì²â
-    if (currentState0 == 1 && LASTKEY0state0 == 0)
-    {
-        led0Blinking = 0;  // Í£Ö¹ÉÁË¸
-        HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, GPIO_PIN_SET); 
-    }
-    
-    // KEY1 °´ÏÂ¼ì²â - ÏÂ½µÑØ¼ì²â
-    if (currentState1 == 0 && LASTKEY0state1 == 1)
-    {
-        led1Blinking = 1;  // ¿ªÊ¼ÉÁË¸
-        led1LastToggle = currentTime;
-        HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
-		// KEY1°´ÏÂÊ±¹Ø±ÕLED0
-		led0Blinking = 0;  // Í£Ö¹LED0ÉÁË¸
-		HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, GPIO_PIN_SET);
-    }
-    
-    // KEY1 ÊÍ·Å¼ì²â - ÉÏÉýÑØ¼ì²â
-    if (currentState1 == 1 && LASTKEY0state1 == 0)
-    {
-        led1Blinking = 0;  // Í£Ö¹ÉÁË¸
-        HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
-    }
-    
-    // LED0 ÉÁË¸¿ØÖÆ
-    if (led0Blinking && (currentTime - led0LastToggle >= delay_0))
-    {
-        HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
-        led0LastToggle = currentTime;
-    }
-    
-    // LED1 ÉÁË¸¿ØÖÆ
-    if (led1Blinking && (currentTime - led1LastToggle >= delay_1))
-    {
-        HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-        led1LastToggle = currentTime;
-    }
-    LASTKEY0state0 = currentState0;
-    LASTKEY0state1 = currentState1;
+	if(currentState0 != LASTKEY0state0 )
+	{
+		LASTKEY0state0 = currentState0;		
+		if(currentState0 == 0)
+		{
+			led0Blinking = 1;
+			led1Blinking = 0;
+			HAL_GPIO_WritePin(LED1_GPIO_Port,LED1_Pin,GPIO_PIN_SET);
+		}
+	}
+	if(led0Blinking == 1)
+	{
+		if(cur_0 - last_0 >= delay_0)
+		{
+			last_0 = cur_0;
+			HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
+		}
+    }	
+	if(currentState1 != LASTKEY0state1 )
+	{
+		LASTKEY0state1 = currentState1;
+		if(currentState1 == 0)
+		{
+			led0Blinking = 0;
+			led1Blinking = 1;
+			HAL_GPIO_WritePin(LED0_GPIO_Port,LED0_Pin,GPIO_PIN_SET);			
+		}
+	}
+		if(led1Blinking == 1)
+		{	
+			if(cur_1 - last_1 >= delay_1)
+			{
+				last_1 = cur_1;
+				HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+			}
+		}			
     /* USER CODE END WHILE */
+
     /* USER CODE BEGIN 3 */
-}
+  }
   /* USER CODE END 3 */
 }
 
