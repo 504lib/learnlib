@@ -41,6 +41,7 @@ typedef enum {
     MENU_TYPE_PARAM_INT,  // 整型参数
     MENU_TYPE_PARAM_ENUM, // 枚举型参数
     MENU_TYPE_TOGGLE,     // 开关选项
+    MENU_TYPE_MAIN,         // 主界面
     MENU_TYPE_DISPLAY     // 仅显示信息
 } menu_item_type_t;
 
@@ -56,6 +57,7 @@ menu_item_t* create_submenu_item(const char* text);//子菜单
 menu_item_t* create_function_item(const char* text, void (*action_cb)(void));//回调菜单
 menu_item_t* create_param_int_item(const char* text, int32_t* value_ptr, int min, int max, int step);//整形枚举菜单
 menu_item_t* create_param_enum_item(const char* text,int32_t* value_ptr,const char** options,int options_nums);//字符串枚举菜单
+menu_item_t* create_main_item(const char* text,menu_item_t* root,void (*main_display_cb)(u8g2_t* u8g2, menu_data_t* menu_data));
 menu_item_t* create_toggle_item(const char* text,bool* value_ptr);//开关菜单
 
 /* ********************* 按键映射 ****************************** */

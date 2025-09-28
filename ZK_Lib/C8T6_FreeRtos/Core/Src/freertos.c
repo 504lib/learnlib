@@ -67,6 +67,7 @@ menu_item_t* sub1_sub3 = NULL;
 menu_item_t* sub1_sub4 = NULL;
 menu_item_t* sub2_sub1 = NULL;
 menu_item_t* sub2_sub2 = NULL;
+menu_item_t* main_display = NULL;
 
 menu_data_t* menu_data_ptr;
 /* USER CODE END Variables */
@@ -212,7 +213,28 @@ void test3()
   };
   UART_Protocol_ACK(UART_protocol_structure);
 }
+void main_display_cb(u8g2_t* u8g2, menu_data_t* menu_data)
+{
+  uint32_t tick = osKernelGetTickCount();
+  uint8_t seconds = (tick / 1000) % 60;
+  uint8_t minutes = (tick / 60000) % 60;
+  uint8_t hours = (tick / 3600000) % 24;
+  u8g2_SetFont(u8g2,u8g2_font_12x6LED_mn);
+  char buf[20];
+  snprintf(buf, sizeof(buf), "%0.2d:%0.2d:%0.2d", hours, minutes, seconds);
+  u8g2_DrawStr(u8g2, 64, 20, buf);
+  u8g2_DrawLine(u8g2,60,0,60,64);
+  u8g2_SetFont(u8g2,u8g2_font_6x10_tf);
+  u8g2_DrawStr(u8g2, 70, 40, "WIFI");
+  snprintf(buf,sizeof(buf),"int:%d",test_var);
+  u8g2_DrawStr(u8g2,0,10,buf);
 
+  snprintf(buf,sizeof(buf),"mode:%s",String_Option[index]);
+  u8g2_DrawStr(u8g2,0,20,buf);
+
+  snprintf(buf,sizeof(buf),"bool:%s",toggle ? "true" : "false");
+  u8g2_DrawStr(u8g2,0,30,buf);
+} 
 /**
   * @brief  Function implementing the U8G2_TASK thread.
   * @param  argument: Not used
@@ -236,6 +258,7 @@ void U8g2_Task(void *argument)
   sub1_sub3 = create_function_item("SendUART_FLOAT", test2);
   sub1_sub4 = create_function_item("SendUART_ACK", test3);
   sub2_sub1 = create_param_enum_item("Change_param",&index,String_Option,5);
+  main_display = create_main_item("main",root, main_display_cb);
   Link_Parent_Child(root, sub1);
   Link_next_sibling(sub1, sub2);
   Link_next_sibling(sub2, sub3);
@@ -246,7 +269,7 @@ void U8g2_Task(void *argument)
   Link_next_sibling(sub1_sub2, sub1_sub3);
   Link_next_sibling(sub1_sub3, sub1_sub4);
   Link_Parent_Child(sub2, sub2_sub1);
-  menu_data_ptr = menu_data_init(root);
+  menu_data_ptr = menu_data_init(main_display);
   LOG_INFO("menu Nodes is has been inited ...");
   LOG_INFO("u8g2 task has been init...");
   // menu_data.selected_item = root->first_child;

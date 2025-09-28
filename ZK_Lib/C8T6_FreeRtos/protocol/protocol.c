@@ -33,10 +33,13 @@ static void handle_INT(int32_t value)
     }
     else
     {
-        static char buffer[16];
-        sprintf(buffer, "INT: %ld\n", value);
-        HAL_UART_Transmit_DMA(&huart1, (uint8_t *)buffer, strlen(buffer)); 
-        // HAL_UART_Transmit(&huart1, (uint8_t *)&value, sizeof(value), HAL_MAX_DELAY);
+        UART_protocol UART_protocol_structure = {
+        .Headerframe1 = 0xAA,
+        .Headerframe2 = 0x55,
+        .Tailframe1 = 0x0D,
+        .Tailframe2 = 0x0A
+        };
+        UART_Protocol_INT(UART_protocol_structure,value);
     }
 }
 
@@ -49,9 +52,13 @@ static void handle_FLOAT(float value)
     }
     else
     {
-        static char buffer[16];
-        sprintf(buffer, "FLOAT: %.2f\n", value);
-        HAL_UART_Transmit_DMA(&huart1, (uint8_t *)buffer, strlen(buffer));
+        UART_protocol UART_protocol_structure = {
+        .Headerframe1 = 0xAA,
+        .Headerframe2 = 0x55,
+        .Tailframe1 = 0x0D,
+        .Tailframe2 = 0x0A
+        };
+        UART_Protocol_FLOAT(UART_protocol_structure,value);
     }
 }
 
@@ -64,9 +71,13 @@ static void handle_ACK(void)
     }
     else
     {
-        static char buffer[16];
-        sprintf(buffer, "ACK\n");
-        HAL_UART_Transmit_DMA(&huart1, (uint8_t *)buffer, strlen(buffer));
+        UART_protocol UART_protocol_structure = {
+        .Headerframe1 = 0xAA,
+        .Headerframe2 = 0x55,
+        .Tailframe1 = 0x0D,
+        .Tailframe2 = 0x0A
+        };
+        UART_Protocol_ACK(UART_protocol_structure);
     }
 }
 

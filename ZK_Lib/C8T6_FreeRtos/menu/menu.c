@@ -49,8 +49,13 @@ struct menu_item_s {
         struct {
             bool* value_ptr;     // 开关状态指针
         } toggle;
+        struct {
+           uint32_t tick; 
+           void (*main_display_cb)(u8g2_t* u8g2, menu_data_t* menu_data);
+        }main;
+        
     } data;
-    
+
     // 可选的回调函数
     void (*on_enter)(menu_item_t* item);    // 进入该项时调用
     void (*on_leave)(menu_item_t* item);    // 离开该项时调用
@@ -349,6 +354,22 @@ menu_item_t* create_toggle_item(const char* text,bool* value_ptr)
 
 }
 
+menu_item_t* create_main_item(const char* text,menu_item_t* root,void (*main_display_cb)(u8g2_t* u8g2, menu_data_t* menu_data))
+{
+    if (menu_node_count >= MENU_NODE) {
+        return NULL; // 超过最大节点数
+    }
+    //分配节点
+    menu_item_t* item = &Menu_Node[menu_node_count++];
+    item->text = text;
+    item->type = MENU_TYPE_MAIN;
+    item->first_child = root;
+    item->first_child->parent = item;
+    item->data.main.tick = 0;
+    item->data.main.main_display_cb = main_display_cb;
+    return item;
+}
+
 /**
  * @brief 连接父子节点函数
  * @attention 若父节点无子节点连接，直接作为第一子节点。若有子节点，作为最后子节点
@@ -410,7 +431,24 @@ void Link_next_sibling(menu_item_t* current,menu_item_t* next)
  */
 void show_menu(u8g2_t* u8g2, menu_data_t* menu_data, uint8_t max_display_count) {
     _disable_interrupt_func;//原子操作启动
-
+    if(menu_data->current_menu && menu_data->current_menu->type == MENU_TYPE_MAIN)
+    {
+        //清除缓冲区，让屏幕重新绘制
+        u8g2_ClearBuffer(u8g2);
+        u8g2_SetFont(u8g2, u8g2_font_6x10_tf);
+        if(menu_data->current_menu->data.main.main_display_cb)
+        {
+            menu_data->current_menu->data.main.main_display_cb(u8g2,menu_data);
+        }
+        else
+        {
+            u8g2_DrawStr(u8g2, 0, 32, "No main_display_cb");
+        }
+        //显示当前菜单标题
+        u8g2_SendBuffer(u8g2);//绘制菜单
+        _enable_interrupt_func;//结束原子操作
+        return;
+    }
     if (!menu_data->current_menu || !menu_data->current_menu->first_child) //如果当前菜单和子节点一个没有，直接返回
     {
         _enable_interrupt_func;
@@ -439,6 +477,7 @@ void show_menu(u8g2_t* u8g2, menu_data_t* menu_data, uint8_t max_display_count) 
     menu_item_t* item = menu_data->first_visible;
     uint8_t count = 0;
     int y = 20;
+   
     
     while (item && count < max_display_count) 
     {
@@ -470,7 +509,6 @@ void show_menu(u8g2_t* u8g2, menu_data_t* menu_data, uint8_t max_display_count) 
 void navigate_up(menu_data_t* menu_data) 
 {
     if (!menu_data->selected_item) return;
-    
     int32_t* value_ptr = NULL;
 
     if(menu_data->isSelectedParam)//枚举菜单被选中后，执行数值映射
@@ -597,7 +635,7 @@ void navigate_down(menu_data_t* menu_data)
  */
 void navigate_enter(menu_data_t* menu_data) 
 {
-    if (!menu_data->selected_item) return;
+    if (!menu_data->selected_item && menu_data->current_menu->type == MENU_TYPE_MAIN) return;
     // 如果是子菜单，进入子菜单
     if (menu_data->selected_item->type == MENU_TYPE_SUB_MENU && menu_data->selected_item->first_child) //进入子节点
     {
@@ -630,6 +668,12 @@ void navigate_enter(menu_data_t* menu_data)
             menu_data->isSelectedParam = true;
         }
         
+    }
+    else if (menu_data->current_menu->type == MENU_TYPE_MAIN && menu_data->current_menu->first_child)
+    {
+        menu_data->current_menu = menu_data->current_menu->first_child;
+        menu_data->selected_item = menu_data->current_menu->first_child;
+        menu_data->first_visible = menu_data->selected_item;
     }
 
 }
