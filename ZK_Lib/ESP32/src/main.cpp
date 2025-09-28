@@ -43,8 +43,8 @@ void loop()
 {
   if(Serial1.available())
   {
-    // uart_protocol.Receive_Uart_Frame(Serial1.read());
-    Serial.write(Serial1.read());
+    uart_protocol.Receive_Uart_Frame(Serial1.read());
+    // Serial.write(Serial1.read());
   }
   if (Flag_INT)
   {

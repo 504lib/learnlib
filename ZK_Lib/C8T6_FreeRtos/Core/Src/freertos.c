@@ -178,29 +178,7 @@ void MX_FREERTOS_Init(void) {
 
 static int test_var = 0;
 // 诊断函数
-// 完全避免使用任何格式化函数
-void debug_uart_status(void) {
-    static uint32_t last_debug = 0;
-    
-    if (HAL_GetTick() - last_debug > 5000) { // 每5秒输出一次状态
-        LOG_DEBUG("=== UART Status Debug ===");
-        LOG_DEBUG("UART State: %lu", huart1.gState);
-        LOG_DEBUG("Error Code: 0x%08lX", huart1.ErrorCode);
-        
-        // 检查各种标志
-        LOG_DEBUG("ORE Flag: %d", __HAL_UART_GET_FLAG(&huart1, UART_FLAG_ORE));
-        LOG_DEBUG("FE Flag: %d", __HAL_UART_GET_FLAG(&huart1, UART_FLAG_FE));
-        LOG_DEBUG("NE Flag: %d", __HAL_UART_GET_FLAG(&huart1, UART_FLAG_NE));
-        LOG_DEBUG("PE Flag: %d", __HAL_UART_GET_FLAG(&huart1, UART_FLAG_PE));
-        
-        // DMA状态
-        if (huart1.hdmarx) {
-            LOG_DEBUG("DMA CNDTR: %lu", huart1.hdmarx->Instance->CNDTR);
-        }
-        
-        last_debug = HAL_GetTick();
-    }
-}
+// 完全避免使用任何格式化函�?
 void test()
 {
   UART_protocol UART_protocol_structure = {
@@ -245,6 +223,7 @@ void U8g2_Task(void *argument)
 {
   /* USER CODE BEGIN U8g2_Task */
   u8g2Init(&u8g2);
+  LOG_INFO("u8g2 init has been finished...");
   u8g2_FirstPage(&u8g2);
   root = create_submenu_item("main_menu");
   sub1 = create_submenu_item("param_int");
@@ -268,11 +247,12 @@ void U8g2_Task(void *argument)
   Link_next_sibling(sub1_sub3, sub1_sub4);
   Link_Parent_Child(sub2, sub2_sub1);
   menu_data_ptr = menu_data_init(root);
+  LOG_INFO("menu Nodes is has been inited ...");
+  LOG_INFO("u8g2 task has been init...");
   // menu_data.selected_item = root->first_child;
   /* Infinite loop */
   for(;;)
   {
-    debug_uart_status();
     u8g2_FirstPage(&u8g2);
     do {
       show_menu(&u8g2,menu_data_ptr,3);
@@ -294,32 +274,50 @@ void LED_Task(void *argument)
   /* USER CODE BEGIN LED_Task */
   uint32_t flags;
   uint8_t Blink_Flag = 0;
+  uint32_t tick = 0;
+  LOG_INFO("LED task has been init ...");
+  // LOG_INFO("LED task started.");
   /* Infinite loop */
   for(;;)
   {
     flags = osEventFlagsWait(KEY_EVENTHandle,KEY_DOWN_EVENT|KEY_UP_EVENT|KEY_ENTER_EVENT|KEY_CANCEL_EVENT|KEY_FUNCTION_EVENT,osFlagsWaitAny,osWaitForever);
     if(flags & KEY_UP_EVENT)
     {
+      if(osKernelGetTickCount() - tick < 200) continue;
+      LOG_DEBUG("KEY_UP arise ...");
       navigate_up(menu_data_ptr);
-      HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+      tick = osKernelGetTickCount();
+      // HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
     }
     if(flags & KEY_DOWN_EVENT)
     {
+
+      if(osKernelGetTickCount() - tick < 200) continue;
+      LOG_DEBUG("KEY_DOWN arise ...");
       navigate_down(menu_data_ptr);
-      HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+      tick = osKernelGetTickCount();
+      // HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
     }
     if(flags & KEY_ENTER_EVENT)
     {
+      if(osKernelGetTickCount() - tick < 200) continue;
+      LOG_DEBUG("KEY_ENTER arise ...");
       navigate_enter(menu_data_ptr);
+      tick = osKernelGetTickCount();
       // HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
     }
     if(flags & KEY_CANCEL_EVENT)
     {
+      if(osKernelGetTickCount() - tick < 200) continue;
+      LOG_DEBUG("KEY_CANCEL arise ...");
       navigate_back(menu_data_ptr);
-      HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+      tick = osKernelGetTickCount();
+      // HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
     }
     if(flags & KEY_FUNCTION_EVENT)
     {
+      if(osKernelGetTickCount() - tick < 200) continue;
+      // LOG_INFO("KEY_UP arise ...");
       // Handle function event
       Blink_Flag = !Blink_Flag;
       if(Blink_Flag)
@@ -330,6 +328,7 @@ void LED_Task(void *argument)
       {
         HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
       }
+      tick = osKernelGetTickCount();
     }
   }
   /* USER CODE END LED_Task */
@@ -353,14 +352,15 @@ void uart_task(void *argument)
   }; 
   uint8_t data[32] = {0};
   UartFrame* frame_buffer = Get_Uart_Frame_Buffer();
-  uint32_t flags; 
+  uint32_t flags;
+  LOG_INFO("UART_RX task has been init ...");
   /* Infinite loop */
   for(;;)
   {
     flags = osEventFlagsWait(UART_EVENTHandle,UART_RECEIVE_EVENT,osFlagsWaitAny,100);
     if(flags & UART_RECEIVE_EVENT)
     {
-      // LOG_INFO("a new dataframe has come...");
+      LOG_INFO("data frame is has came ... , Size = %d",frame_buffer->Size);
       memset(data,0,sizeof(data));
       uint16_t size = frame_buffer->Size;
       Uart_Buffer_Get_frame(frame_buffer,data);

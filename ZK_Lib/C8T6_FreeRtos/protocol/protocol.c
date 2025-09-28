@@ -148,29 +148,38 @@ void UART_Protocol_INT(UART_protocol UART_protocol_structure,int32_t value)
         uint8_t value_arr[4];
     }dataunion;
 
+    LOG_DEBUG("untion object has been built ...");
+
     dataunion data;
     data.value = value;
     uint8_t frame[12];
 
+    LOG_DEBUG("data frame data variable has been built ...");
     frame[0] = UART_protocol_structure.Headerframe1;
     frame[1] = UART_protocol_structure.Headerframe2;
 
+    LOG_DEBUG("header has been placed ...");
     frame[2] = INT;
     frame[3] = 4;
 
+    LOG_DEBUG("type has been placed ... , type = INT");
     frame[4] = data.value_arr[3];
     frame[5] = data.value_arr[2];
     frame[6] = data.value_arr[1];
     frame[7] = data.value_arr[0];
 
+    LOG_DEBUG("data has been placed ...");
     uint16_t check = calculateChecksum(&frame[2],6);
     frame[8] = (check >> 8) & 0xff;
     frame[9] = check & 0xff;
 
+    LOG_DEBUG("checksum has been placed ... , checksum = 0x%04x",check);
     frame[10] = UART_protocol_structure.Tailframe1;
     frame[11] = UART_protocol_structure.Tailframe2;
 
+    LOG_DEBUG("Tailer has been placed ...");
     HAL_UART_Transmit(&huart1,frame,sizeof(frame),HAL_MAX_DELAY);
+    LOG_INFO("INT frame has sent,checksum = 0x%04x",check);
 }
 
 void UART_Protocol_FLOAT(UART_protocol UART_protocol_structure,float value)
@@ -181,66 +190,89 @@ void UART_Protocol_FLOAT(UART_protocol UART_protocol_structure,float value)
         uint8_t value_arr[4];
     }dataunion;
 
+    LOG_DEBUG("untion object has been built ...");
     dataunion data;
     data.value = value;
     uint8_t frame[12];
 
+    LOG_DEBUG("data frame data variable has been built ...");
     frame[0] = UART_protocol_structure.Headerframe1;
     frame[1] = UART_protocol_structure.Headerframe2;
 
+    LOG_DEBUG("header has been placed ...");
     frame[2] = FLOAT;
     frame[3] = 4;
 
+    LOG_DEBUG("type has been placed ... , type = FLOAT");
     frame[4] = data.value_arr[3];
     frame[5] = data.value_arr[2];
     frame[6] = data.value_arr[1];
     frame[7] = data.value_arr[0];
 
+    LOG_DEBUG("data has been placed ...");
     uint16_t check = calculateChecksum(&frame[2],6);
     frame[8] = (check >> 8) & 0xff;
     frame[9] = check & 0xff;
 
+    LOG_DEBUG("checksum has been placed ... , checksum = 0x%04x",check);
     frame[10] = UART_protocol_structure.Tailframe1;
     frame[11] = UART_protocol_structure.Tailframe2;
 
+    LOG_DEBUG("Tailer has been placed ...");
     HAL_UART_Transmit(&huart1,frame,sizeof(frame),HAL_MAX_DELAY);
+    LOG_INFO("FLOAT frame has sent,checksum = 0x%04x",check);
 }
 
 void UART_Protocol_ACK(UART_protocol UART_protocol_structure)
 {
     uint8_t frame[8];
 
+    LOG_DEBUG("data frame data variable has been built ...");
     frame[0] = UART_protocol_structure.Headerframe1;
     frame[1] = UART_protocol_structure.Headerframe2;
 
+    LOG_DEBUG("header has been placed ...");
     frame[2] = ACK;
     frame[3] = 0;
 
+    LOG_DEBUG("type has been placed ... , type = ACK");
     uint16_t check = calculateChecksum(&frame[2],2);
     frame[4] = (check >> 8) & 0xff;
     frame[5] = check & 0xff;
 
+    LOG_DEBUG("checksum has been placed ... , checksum = 0x%04x",check);
     frame[6] = UART_protocol_structure.Tailframe1;
     frame[7] = UART_protocol_structure.Tailframe2;
 
+    LOG_DEBUG("Tailer has been placed ...");
     HAL_UART_Transmit(&huart1,frame,sizeof(frame),HAL_MAX_DELAY);
+    LOG_INFO("ACK frame has sent,checksum = 0x%04x",check);
 }
 
 void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uint16_t size)
 {
     // 最小帧长度检查
-    if(size < 8) return; // 最小帧长度（头2+类型1+长度1+校验2+尾2）
-
+    if(size < 8)
+    {
+        LOG_INFO("Frame too short, size=%d", size);
+    }
     // 检查头
     if(data[0] != UART_protocol_structure.Headerframe1 ||
        data[1] != UART_protocol_structure.Headerframe2)
+    {
+        LOG_DEBUG("Header mismatch: 0x%02X 0x%02X", data[0], data[1]);
         return;
+    }
     LOG_DEBUG("Header matched.");
     uint8_t frame_type = data[2];
     uint8_t frame_len  = data[3];
 
     // 检查长度是否合理
-    if(size != (frame_len + 8)) return;
+    if(size != (frame_len + 8))
+    {
+        LOG_DEBUG("Length mismatch: expected %d, got %d", frame_len + 8, size);
+        return;
+    } 
     LOG_DEBUG("length matched.");
     // 数据区
     uint8_t *payload = &data[4];
@@ -248,14 +280,21 @@ void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uin
     // 校验
     uint16_t recv_check = (data[frame_len + 4] << 8) | data[frame_len + 5];
     uint16_t calc_check = calculateChecksum(&data[2], 2 + frame_len);
-    if(recv_check != calc_check) return;
+    if(recv_check != calc_check)
+    {
+        LOG_DEBUG("Checksum error: expected 0x%04X, got 0x%04X", calc_check, recv_check);
+        return;
+    } 
     LOG_DEBUG("checksum matched.");
     // 检查尾
     if(data[frame_len + 6] != UART_protocol_structure.Tailframe1 ||
        data[frame_len + 7] != UART_protocol_structure.Tailframe2)
+    {
+        LOG_DEBUG("Tail mismatch: 0x%02X 0x%02X", data[frame_len + 6], data[frame_len + 7]);
         return;
+    }
     LOG_DEBUG("tail matched.");
-    // LOG_INFO("A valid frame received: type=%d, len=%d", frame_type, frame_len);
+    LOG_INFO("the frame is valid: type=%d, len=%d", frame_type, frame_len);
     // 解析数据
     if(frame_type == INT && frame_len == 4)
     {

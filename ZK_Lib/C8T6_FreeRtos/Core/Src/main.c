@@ -100,11 +100,11 @@ int main(void)
   MX_DMA_Init();
   MX_SPI1_Init();
   MX_USART1_UART_Init();
-  
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 	HAL_UARTEx_ReceiveToIdle_DMA(&huart1,temp,sizeof(temp));  
   /* USER CODE END 2 */
-
+  LOG_INFO("Idle UART_INTERRUPT has been init,buffer size:%d",sizeof(temp));
   /* Init scheduler */
   osKernelInitialize();
 
@@ -212,20 +212,21 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 }
 
 void HAL_UART_ErrorCallback(UART_HandleTypeDef* huart) {
-    if (huart->Instance == USART1) {
+    if (huart->Instance == USART1) 
+    {
         LOG_FATAL("UART error: 0x%08lX", huart->ErrorCode);
         
         // 清除错误并重新初始化
         huart->ErrorCode = HAL_UART_ERROR_NONE;
         
-        // 如果是溢出错误，需要额外处理
-        
-        // 重新启动接收
-      MX_DMA_Init();
-        if (__HAL_UART_GET_FLAG(huart, UART_FLAG_ORE)) {
-            __HAL_UART_CLEAR_OREFLAG(huart);
-        }
-        HAL_UART_Receive_DMA(huart,temp,sizeof(temp));
+      if (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_ORE)) 
+      {
+          LOG_WARN("ORE detected in task, recovering...");
+          __HAL_UART_CLEAR_OREFLAG(&huart1);
+          // 重新启动DMA接收
+          HAL_UARTEx_ReceiveToIdle_DMA(&huart1, temp, sizeof(temp));
+          // __HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);
+      }
     }
 }
 
