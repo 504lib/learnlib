@@ -53,7 +53,7 @@ typedef struct menu_data_t menu_data_t;
 menu_data_t* menu_data_init(menu_item_t* root);
 
 /* **************** 菜单类型 *************************** */
-menu_item_t* create_submenu_item(const char* text);//子菜单
+menu_item_t* create_submenu_item(const char* text,void (*on_enter)(menu_item_t* item),void (*on_leave)(menu_item_t* item));//子菜单
 menu_item_t* create_function_item(const char* text, void (*action_cb)(void));//回调菜单
 menu_item_t* create_param_int_item(const char* text, int32_t* value_ptr, int min, int max, int step);//整形枚举菜单
 menu_item_t* create_param_enum_item(const char* text,int32_t* value_ptr,const char** options,int options_nums);//字符串枚举菜单

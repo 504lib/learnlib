@@ -255,7 +255,7 @@ menu_data_t* menu_data_init(menu_item_t* root)
  * @param text 菜单名称
  * @return menu_item_t* 节点指针 
  */
-menu_item_t* create_submenu_item(const char* text)
+menu_item_t* create_submenu_item(const char* text,void (*on_enter)(menu_item_t* item),void (*on_leave)(menu_item_t* item))
 {
     if (menu_node_count >= MENU_NODE) {
         return NULL; // 超过最大节点数
@@ -264,6 +264,9 @@ menu_item_t* create_submenu_item(const char* text)
     menu_item_t* item = &Menu_Node[menu_node_count++];
     item->text = text;
     item->type = MENU_TYPE_SUB_MENU;
+    item->on_enter = on_enter;
+    item->on_leave = on_leave;
+
     return item;
 }
 
@@ -640,10 +643,14 @@ void navigate_enter(menu_data_t* menu_data)
     if (!menu_data->selected_item && menu_data->current_menu->type == MENU_TYPE_MAIN) return;
     // 如果是子菜单，进入子菜单
     if (menu_data->selected_item->type == MENU_TYPE_SUB_MENU && menu_data->selected_item->first_child) //进入子节点
-    {
+    {  
         menu_data->current_menu = menu_data->selected_item;
         menu_data->selected_item = menu_data->current_menu->first_child;
         menu_data->first_visible = menu_data->selected_item;
+        if (menu_data->current_menu->on_enter)
+        {
+            menu_data->current_menu->on_enter(menu_data->current_menu);
+        } 
     }
     // 如果是功能项，执行功能
     else if (menu_data->selected_item->type == MENU_TYPE_FUNCTION && menu_data->selected_item->data.action_cb) //回调函数节点
@@ -720,8 +727,13 @@ void navigate_back(menu_data_t* menu_data)
     }
     if(menu_data->current_menu->parent)
     {
+        if (menu_data->current_menu->on_leave)
+        {
+            menu_data->current_menu->on_leave(menu_data->current_menu);
+        }
         menu_data->current_menu = menu_data->current_menu->parent;
         menu_data->selected_item = menu_data->current_menu->first_child;
         menu_data->first_visible = menu_data->selected_item;
+        
     }
 }

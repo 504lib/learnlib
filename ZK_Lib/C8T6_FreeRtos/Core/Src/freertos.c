@@ -71,6 +71,25 @@ menu_item_t* sub2_sub2 = NULL;
 menu_item_t* main_display = NULL;
 
 menu_data_t* menu_data_ptr;
+menu_item_t* sub4_sub1 = NULL;
+menu_item_t* sub4_sub2 = NULL;
+menu_item_t* sub4_sub3 = NULL;
+menu_item_t* sub4_sub4 = NULL;
+menu_item_t* sub4_sub5 = NULL;
+menu_item_t* sub4_sub6 = NULL;
+menu_item_t* sub4_sub7 = NULL;
+  RTC_DateTypeDef sDate = {0};
+  RTC_TimeTypeDef sTime = {0};
+typedef struct
+{
+  int32_t seconds;
+  int32_t minutes;
+  int32_t hours;
+  int32_t day;
+  int32_t month;
+  int32_t year;
+}Clock_t;
+Clock_t Clock = {0};
 /* USER CODE END Variables */
 /* Definitions for U8G2_TASK */
 osThreadId_t U8G2_TASKHandle;
@@ -180,7 +199,7 @@ void MX_FREERTOS_Init(void) {
 
 static int test_var = 0;
 // 诊断函数
-// 完全避免使用任何格式化函�???
+// 完全避免使用任何格式化函�????
 void test()
 {
   UART_protocol UART_protocol_structure = {
@@ -191,6 +210,7 @@ void test()
   };
   // UART_Protocol_FLOAT(UART_protocol_structure,3.3);
   UART_Protocol_INT(UART_protocol_structure,test_var);
+  // LOG_INFO("sDate: %04d-%02d-%02d", sDate.Year + 2000, sDate.Month, sDate.Date);
 }
 
 void test2()
@@ -214,20 +234,42 @@ void test3()
   };
   UART_Protocol_ACK(UART_protocol_structure);
 }
+void set_RTC_TEMP(menu_item_t* item)
+{
+  Clock.seconds = sTime.Seconds;
+  Clock.minutes = sTime.Minutes;
+  Clock.hours = sTime.Hours;
+  Clock.day = sDate.Date;
+  Clock.month = sDate.Month;
+  Clock.year = sDate.Year;
+}
+void RTC_Set_Time()
+{
+  sTime.Hours = Clock.hours;
+  sTime.Minutes = Clock.minutes;
+  sTime.Seconds = Clock.seconds;
+  if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sDate.Month = Clock.month;
+  sDate.Date = Clock.day;
+  sDate.Year = Clock.year;
+  if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
 void main_display_cb(u8g2_t* u8g2, menu_data_t* menu_data)
 {
-  RTC_DateTypeDef sDate = {0};
-  RTC_TimeTypeDef sTime = {0};
-  HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
-  HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
   
   char buf[32];
   
-  // 1. 顶部大时间显示
+  // 1. 顶部大时间显�?
   u8g2_SetFont(u8g2, u8g2_font_logisoso26_tn);
   snprintf(buf, sizeof(buf), "%02d:%02d", sTime.Hours, sTime.Minutes);
   uint8_t time_width = u8g2_GetStrWidth(u8g2, buf);
-  u8g2_DrawStr(u8g2, (128 - time_width) / 2 - 30, 30, buf);
+  u8g2_DrawStr(u8g2, 0, 30, buf);
 
   u8g2_SetFont(u8g2, u8g2_font_9x6LED_mn);
   snprintf(buf, sizeof(buf), "%04d-%02d-%02d", 
@@ -237,12 +279,12 @@ void main_display_cb(u8g2_t* u8g2, menu_data_t* menu_data)
   // 2. 秒数小字显示
   u8g2_SetFont(u8g2, u8g2_font_6x10_tf);
   snprintf(buf, sizeof(buf), "%02d", sTime.Seconds);
-  u8g2_DrawStr(u8g2, (128 - time_width) / 2 + time_width + 2 - 30, 30, buf);
+  u8g2_DrawStr(u8g2, time_width + 5, 30, buf);
   
-  // 3. 状态卡片
+  // 3. 状�?�卡�?
   u8g2_DrawFrame(u8g2, 5, 43, 118, 20);  // 卡片外框
   
-  // 卡片内部分隔线
+  // 卡片内部分隔�?
   u8g2_DrawVLine(u8g2, 42, 45, 17);
   u8g2_DrawVLine(u8g2, 79, 45, 17);
   
@@ -275,17 +317,24 @@ void U8g2_Task(void *argument)
   u8g2Init(&u8g2);
   LOG_INFO("u8g2 init has been finished...");
   u8g2_FirstPage(&u8g2);
-  root = create_submenu_item("main_menu");
-  sub1 = create_submenu_item("param_int");
-  sub2 = create_submenu_item("param_enum");
+  root = create_submenu_item("main_menu",NULL,NULL);
+  sub1 = create_submenu_item("param_int",NULL,NULL);
+  sub2 = create_submenu_item("param_enum",NULL,NULL);
   sub3 = create_toggle_item("sub_menu_3",&toggle);
-  sub4 = create_submenu_item("sub_menu_4");
-  sub5 = create_submenu_item("sub_menu_5");
+  sub4 = create_submenu_item("Clock_Set",set_RTC_TEMP,NULL);
+  sub5 = create_submenu_item("sub_menu_5",NULL,NULL);
   sub1_sub1 = create_function_item("SendUART_INT", test);
   sub1_sub2 = create_param_int_item("Change_int", &test_var, 0, 100, 1);
   sub1_sub3 = create_function_item("SendUART_FLOAT", test2);
   sub1_sub4 = create_function_item("SendUART_ACK", test3);
   sub2_sub1 = create_param_enum_item("Change_param",&index,String_Option,5);
+  sub4_sub1 = create_param_int_item("seconds", &Clock.seconds, 0, 59, 1);
+  sub4_sub2 = create_param_int_item("minutes", &Clock.minutes, 0,59, 1);
+  sub4_sub3 = create_param_int_item("hours", &Clock.hours, 0, 23, 1);
+  sub4_sub4 = create_param_int_item("years", &Clock.year, 0, 99, 1);
+  sub4_sub5 = create_param_int_item("monthes", &Clock.month, 1, 12, 1);
+  sub4_sub6 = create_param_int_item("days", &Clock.day, 1, 31, 1);
+  sub4_sub7 = create_function_item("Set_time",RTC_Set_Time);
   main_display = create_main_item("main",root, main_display_cb);
   Link_Parent_Child(root, sub1);
   Link_next_sibling(sub1, sub2);
@@ -297,6 +346,13 @@ void U8g2_Task(void *argument)
   Link_next_sibling(sub1_sub2, sub1_sub3);
   Link_next_sibling(sub1_sub3, sub1_sub4);
   Link_Parent_Child(sub2, sub2_sub1);
+  Link_Parent_Child(sub4, sub4_sub1);
+  Link_next_sibling(sub4_sub1, sub4_sub2);
+  Link_next_sibling(sub4_sub2, sub4_sub3);
+  Link_next_sibling(sub4_sub3, sub4_sub4);
+  Link_next_sibling(sub4_sub4, sub4_sub5);
+  Link_next_sibling(sub4_sub5, sub4_sub6);
+  Link_next_sibling(sub4_sub6, sub4_sub7);
   menu_data_ptr = menu_data_init(main_display);
   LOG_INFO("menu Nodes is has been inited ...");
   LOG_INFO("u8g2 task has been init...");
@@ -304,6 +360,9 @@ void U8g2_Task(void *argument)
   /* Infinite loop */
   for(;;)
   {
+    HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+    HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+
     u8g2_FirstPage(&u8g2);
     do {
       show_menu(&u8g2,menu_data_ptr,3);
