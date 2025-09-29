@@ -30,6 +30,7 @@
 #include "menu.h"
 #include "protocol.h"
 #include "Log.h"
+#include "rtc.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -179,7 +180,7 @@ void MX_FREERTOS_Init(void) {
 
 static int test_var = 0;
 // 诊断函数
-// 完全避免使用任何格式化函�?
+// 完全避免使用任何格式化函�???
 void test()
 {
   UART_protocol UART_protocol_structure = {
@@ -215,10 +216,13 @@ void test3()
 }
 void main_display_cb(u8g2_t* u8g2, menu_data_t* menu_data)
 {
-  uint32_t tick = osKernelGetTickCount();
-  uint8_t seconds = (tick / 1000) % 60;
-  uint8_t minutes = (tick / 60000) % 60;
-  uint8_t hours = (tick / 3600000) % 24;
+  RTC_DateTypeDef sDate = {0};
+  RTC_TimeTypeDef sTime = {0};
+  HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+  HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+  uint8_t seconds = sTime.Seconds;
+  uint8_t minutes = sTime.Minutes;
+  uint8_t hours = sTime.Hours;
   u8g2_SetFont(u8g2,u8g2_font_12x6LED_mn);
   char buf[20];
   snprintf(buf, sizeof(buf), "%0.2d:%0.2d:%0.2d", hours, minutes, seconds);
