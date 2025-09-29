@@ -34,6 +34,7 @@ struct menu_item_s {
         
         // 对于参数
         struct {
+            int temp;           // 临时变量，用于存储当前编辑的值
             int* value_ptr;      // 参数值指针
             int min;             // 最小值
             int max;             // 最大值
@@ -41,16 +42,17 @@ struct menu_item_s {
         } param_int;
         
         struct {
+            int value_ptr_temp; // 临时变量，用于存储当前编辑的值
             int* value_ptr;      // 当前值指针
             const char** options;// 选项字符串数组
             int option_count;    // 选项数量
         } param_enum;
         
         struct {
+            bool temp;            // 临时变量，用于存储当前编辑的值
             bool* value_ptr;     // 开关状态指针
         } toggle;
         struct {
-           uint32_t tick; 
            void (*main_display_cb)(u8g2_t* u8g2, menu_data_t* menu_data);
         }main;
         
@@ -131,6 +133,8 @@ static void adjust_type_visible(u8g2_t* u8g2,menu_data_t* menu_data,uint16_t x, 
                 // 进入参数编辑状态，显示不同的样式
                 //OLED屏幕宽度约为128，但是我用的120是比较观察和好看
                 //首先要让选中框聚焦于数字枚举的内容，所以要在120-字符串宽度的位置开始渲染，渲染宽度就为字符串的宽度
+                sprintf(buffer, "%d",item->data.param_int.temp);//格式化字符串数据
+                str_width = u8g2_GetStrWidth(u8g2, buffer);//计算字符串数据所占的像素数
                 u8g2_DrawBox(u8g2, 120 - str_width, y - 10, str_width, 15);
                 u8g2_DrawStr(u8g2, x, y, item->text);
                 u8g2_SetDrawColor(u8g2, 0);
@@ -162,6 +166,8 @@ static void adjust_type_visible(u8g2_t* u8g2,menu_data_t* menu_data,uint16_t x, 
             if(menu_data->isSelectedParam)
             {
                 // 进入参数编辑状态，显示不同的样式
+                sprintf(buffer, "%s",item->data.param_enum.options[item->data.param_enum.value_ptr_temp]);//格式化索引所在的字符串
+                str_width = u8g2_GetStrWidth(u8g2, buffer);//计算长度
                 u8g2_DrawBox(u8g2, 120 - str_width, y - 10, str_width, 15);
                 u8g2_DrawStr(u8g2, x, y, item->text);
                 u8g2_SetDrawColor(u8g2, 0);
@@ -193,6 +199,8 @@ static void adjust_type_visible(u8g2_t* u8g2,menu_data_t* menu_data,uint16_t x, 
             if(menu_data->isSelectedParam)
             {
                 // 进入参数编辑状态，显示不同的样式
+                sprintf(buffer, "%s",(item->data.toggle.temp ? "true" : "false"));//根据数值直接渲染字符串还
+                str_width = u8g2_GetStrWidth(u8g2, buffer);
                 u8g2_DrawBox(u8g2, 120 - str_width, y - 10, str_width, 15);
                 u8g2_DrawStr(u8g2, x, y, item->text);
                 u8g2_SetDrawColor(u8g2, 0);
@@ -365,7 +373,6 @@ menu_item_t* create_main_item(const char* text,menu_item_t* root,void (*main_dis
     item->type = MENU_TYPE_MAIN;
     item->first_child = root;
     item->first_child->parent = item;
-    item->data.main.tick = 0;
     item->data.main.main_display_cb = main_display_cb;
     return item;
 }
@@ -509,40 +516,37 @@ void show_menu(u8g2_t* u8g2, menu_data_t* menu_data, uint8_t max_display_count) 
 void navigate_up(menu_data_t* menu_data) 
 {
     if (!menu_data->selected_item) return;
-    int32_t* value_ptr = NULL;
+//    int32_t* value_ptr = NULL;
 
     if(menu_data->isSelectedParam)//枚举菜单被选中后，执行数值映射
     {
         if(menu_data->selected_item->type == MENU_TYPE_PARAM_INT)//整形菜单
         {
             // 增加参数值
-            value_ptr = menu_data->selected_item->data.param_int.value_ptr;
-            if(value_ptr)
-            {
-                *value_ptr += menu_data->selected_item->data.param_int.step;//步进值递增
-                if(*value_ptr > menu_data->selected_item->data.param_int.max)//上限
+            // if(value_ptr)
+            // {
+                menu_data->selected_item->data.param_int.temp += menu_data->selected_item->data.param_int.step;//步进值递增
+                if(menu_data->selected_item->data.param_int.temp > menu_data->selected_item->data.param_int.max)//下限
                 {
-                    *value_ptr = menu_data->selected_item->data.param_int.max;
+                    menu_data->selected_item->data.param_int.temp = menu_data->selected_item->data.param_int.max;
                 }
                 return;
-            }
         }
         else if (menu_data->selected_item->type == MENU_TYPE_PARAM_ENUM)//字符串枚举菜单
         {
-            value_ptr = menu_data->selected_item->data.param_enum.value_ptr;
-            if(value_ptr)
-            {
-                *value_ptr += 1;
-                if(*value_ptr >= menu_data->selected_item->data.param_enum.option_count)//上限
+            // if(value_ptr)
+            // {
+                menu_data->selected_item->data.param_enum.value_ptr_temp += 1;
+                if(menu_data->selected_item->data.param_enum.value_ptr_temp > menu_data->selected_item->data.param_enum.option_count)//下限
                 {
-                    *value_ptr = menu_data->selected_item->data.param_enum.option_count - 1;
+                    menu_data->selected_item->data.param_enum.value_ptr_temp = menu_data->selected_item->data.param_enum.option_count;
                 }
                 return;
-            }
         }
         else if(menu_data->selected_item->type == MENU_TYPE_TOGGLE)//开关节点
         {
-            return;//不操作，因为改变数值不由它处理
+            menu_data->selected_item->data.toggle.temp ^= 1;//取反
+            return;
         }
 
     }
@@ -568,40 +572,38 @@ void navigate_down(menu_data_t* menu_data)
 {
     if (!menu_data->selected_item) return;
     
-    int32_t* value_ptr = NULL;
-
+//    int32_t* value_ptr = NULL;
     if(menu_data->isSelectedParam)//枚举菜单被选中后，执行数值映射
     {
         if(menu_data->selected_item->type == MENU_TYPE_PARAM_INT)//整形菜单
         {
             // 增加参数值
-            value_ptr = menu_data->selected_item->data.param_int.value_ptr;
-            if(value_ptr)
-            {
-                *value_ptr -= menu_data->selected_item->data.param_int.step;//步进值递增
-                if(*value_ptr < menu_data->selected_item->data.param_int.min)//下限
+            // if(value_ptr)
+            // {
+                menu_data->selected_item->data.param_int.temp -= menu_data->selected_item->data.param_int.step;//步进值递增
+                if(menu_data->selected_item->data.param_int.temp < menu_data->selected_item->data.param_int.min)//下限
                 {
-                    *value_ptr = menu_data->selected_item->data.param_int.min;
+                    menu_data->selected_item->data.param_int.temp = menu_data->selected_item->data.param_int.min;
                 }
                 return;
-            }
+            // }
         }
         else if(menu_data->selected_item->type == MENU_TYPE_PARAM_ENUM)//字符串枚举菜单
         {
             // 增加参数值
-            value_ptr = menu_data->selected_item->data.param_enum.value_ptr;
-            if(value_ptr)
-            {
-                *value_ptr -= 1;
-                if(*value_ptr < 0)//下限
+            // if(value_ptr)
+            // {
+                menu_data->selected_item->data.param_enum.value_ptr_temp -= 1;
+                if(menu_data->selected_item->data.param_enum.value_ptr_temp < 0)//下限
                 {
-                    *value_ptr = 0;
+                    menu_data->selected_item->data.param_enum.value_ptr_temp = 0;
                 }
                 return;
-            }
+            // }
         }
         else if(menu_data->selected_item->type == MENU_TYPE_TOGGLE)//开关菜单
         {
+            menu_data->selected_item->data.toggle.temp ^= 1;//取反
             return;
         }
 
@@ -651,23 +653,45 @@ void navigate_enter(menu_data_t* menu_data)
     else if (menu_data->selected_item->type == MENU_TYPE_PARAM_INT) //整形枚举菜单
     {
         // 切换参数编辑状态
-        menu_data->isSelectedParam = true;
+        menu_data->isSelectedParam ^= 1;
+        if(menu_data->isSelectedParam)//进入参数编辑状态
+        {
+            menu_data->selected_item->data.param_int.temp = *(menu_data->selected_item->data.param_int.value_ptr);//将当前值赋值给临时变量
+        }
+        else//退出参数编辑状态，保存数据
+        {
+            *(menu_data->selected_item->data.param_int.value_ptr) = menu_data->selected_item->data.param_int.temp;
+        }
     }
     else if (menu_data->selected_item->type == MENU_TYPE_PARAM_ENUM)//字符串枚举菜单
     {
-        menu_data->isSelectedParam = true;
+        menu_data->isSelectedParam ^= 1;
+        if(menu_data->isSelectedParam)//进入参数编辑状态
+        {
+            menu_data->selected_item->data.param_enum.value_ptr_temp = *(menu_data->selected_item->data.param_enum.value_ptr);//将当前值赋值给临时变量
+        }
+        else//退出参数编辑状态，保存数据
+        {
+            *(menu_data->selected_item->data.param_enum.value_ptr) = menu_data->selected_item->data.param_enum.value_ptr_temp;
+        }
     }
     else if (menu_data->selected_item->type == MENU_TYPE_TOGGLE)//开关菜单节点
     {
-        if (menu_data->isSelectedParam)
-        {
-            *(menu_data->selected_item->data.toggle.value_ptr) ^= 1;
-        }
-        else
-        {
-            menu_data->isSelectedParam = true;
-        }
-        
+        // if (menu_data->isSelectedParam)
+        // {
+        //     *(menu_data->selected_item->data.toggle.value_ptr) ^= 1;
+        // }
+        // else
+        // {
+            menu_data->isSelectedParam ^= 1;
+            if(menu_data->isSelectedParam)//进入参数编辑状态
+            {
+                menu_data->selected_item->data.toggle.temp = *(menu_data->selected_item->data.toggle.value_ptr);//将当前值赋值给临时变量
+            }
+            else//退出参数编辑状态，保存数据
+            {
+                *(menu_data->selected_item->data.toggle.value_ptr) = menu_data->selected_item->data.toggle.temp;
+            } 
     }
     else if (menu_data->current_menu->type == MENU_TYPE_MAIN && menu_data->current_menu->first_child)
     {

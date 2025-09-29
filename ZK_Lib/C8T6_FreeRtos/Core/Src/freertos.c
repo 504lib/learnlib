@@ -180,7 +180,7 @@ void MX_FREERTOS_Init(void) {
 
 static int test_var = 0;
 // 诊断函数
-// 完全避免使用任何格式化函�???
+// 完全避免使用任何格式化函�???
 void test()
 {
   UART_protocol UART_protocol_structure = {
@@ -220,25 +220,49 @@ void main_display_cb(u8g2_t* u8g2, menu_data_t* menu_data)
   RTC_TimeTypeDef sTime = {0};
   HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
   HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
-  uint8_t seconds = sTime.Seconds;
-  uint8_t minutes = sTime.Minutes;
-  uint8_t hours = sTime.Hours;
-  u8g2_SetFont(u8g2,u8g2_font_12x6LED_mn);
-  char buf[20];
-  snprintf(buf, sizeof(buf), "%0.2d:%0.2d:%0.2d", hours, minutes, seconds);
-  u8g2_DrawStr(u8g2, 64, 20, buf);
-  u8g2_DrawLine(u8g2,60,0,60,64);
-  u8g2_SetFont(u8g2,u8g2_font_6x10_tf);
-  u8g2_DrawStr(u8g2, 70, 40, "WIFI");
-  snprintf(buf,sizeof(buf),"int:%d",test_var);
-  u8g2_DrawStr(u8g2,0,10,buf);
+  
+  char buf[32];
+  
+  // 1. 顶部大时间显示
+  u8g2_SetFont(u8g2, u8g2_font_logisoso26_tn);
+  snprintf(buf, sizeof(buf), "%02d:%02d", sTime.Hours, sTime.Minutes);
+  uint8_t time_width = u8g2_GetStrWidth(u8g2, buf);
+  u8g2_DrawStr(u8g2, (128 - time_width) / 2 - 30, 30, buf);
 
-  snprintf(buf,sizeof(buf),"mode:%s",String_Option[index]);
-  u8g2_DrawStr(u8g2,0,20,buf);
-
-  snprintf(buf,sizeof(buf),"bool:%s",toggle ? "true" : "false");
-  u8g2_DrawStr(u8g2,0,30,buf);
-} 
+  u8g2_SetFont(u8g2, u8g2_font_9x6LED_mn);
+  snprintf(buf, sizeof(buf), "%04d-%02d-%02d", 
+           sDate.Year + 2000, sDate.Month, sDate.Date);
+  uint8_t date_width = u8g2_GetStrWidth(u8g2, buf);
+  u8g2_DrawStr(u8g2, 0, 40, buf);
+  // 2. 秒数小字显示
+  u8g2_SetFont(u8g2, u8g2_font_6x10_tf);
+  snprintf(buf, sizeof(buf), "%02d", sTime.Seconds);
+  u8g2_DrawStr(u8g2, (128 - time_width) / 2 + time_width + 2 - 30, 30, buf);
+  
+  // 3. 状态卡片
+  u8g2_DrawFrame(u8g2, 5, 43, 118, 20);  // 卡片外框
+  
+  // 卡片内部分隔线
+  u8g2_DrawVLine(u8g2, 42, 45, 17);
+  u8g2_DrawVLine(u8g2, 79, 45, 17);
+  
+  // 卡片内容
+  u8g2_SetFont(u8g2, u8g2_font_5x7_tf);
+  u8g2_DrawStr(u8g2, 10, 50, "INT");
+  u8g2_DrawStr(u8g2, 47, 50, "MODE");
+  u8g2_DrawStr(u8g2, 84, 50, "STAT");
+  
+  u8g2_SetFont(u8g2, u8g2_font_6x10_tf);
+  snprintf(buf, sizeof(buf), "%d", test_var);
+  u8g2_DrawStr(u8g2, 15, 60, buf);
+  
+  // 模式显示缩写
+  char mode_abbr[4] = {0};
+  strncpy(mode_abbr, String_Option[index], 3);
+  u8g2_DrawStr(u8g2, 50, 60, mode_abbr);
+  
+  u8g2_DrawStr(u8g2, 88, 60, toggle ? "ON" : "OFF");
+}
 /**
   * @brief  Function implementing the U8G2_TASK thread.
   * @param  argument: Not used
