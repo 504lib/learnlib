@@ -31,6 +31,7 @@
 #include "protocol.h"
 #include "Log.h"
 #include "rtc.h"
+#include "multikey.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -98,10 +99,10 @@ const osThreadAttr_t U8G2_TASK_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
-/* Definitions for LED_TASK */
-osThreadId_t LED_TASKHandle;
-const osThreadAttr_t LED_TASK_attributes = {
-  .name = "LED_TASK",
+/* Definitions for KEY_TASK */
+osThreadId_t KEY_TASKHandle;
+const osThreadAttr_t KEY_TASK_attributes = {
+  .name = "KEY_TASK",
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
@@ -117,11 +118,6 @@ osMutexId_t UART_TXMuteHandle;
 const osMutexAttr_t UART_TXMute_attributes = {
   .name = "UART_TXMute"
 };
-/* Definitions for KEY_EVENT */
-osEventFlagsId_t KEY_EVENTHandle;
-const osEventFlagsAttr_t KEY_EVENT_attributes = {
-  .name = "KEY_EVENT"
-};
 /* Definitions for UART_EVENT */
 osEventFlagsId_t UART_EVENTHandle;
 const osEventFlagsAttr_t UART_EVENT_attributes = {
@@ -134,7 +130,7 @@ const osEventFlagsAttr_t UART_EVENT_attributes = {
 /* USER CODE END FunctionPrototypes */
 
 void U8g2_Task(void *argument);
-void LED_Task(void *argument);
+void KEY_Task(void *argument);
 void uart_task(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
@@ -172,8 +168,8 @@ void MX_FREERTOS_Init(void) {
   /* creation of U8G2_TASK */
   U8G2_TASKHandle = osThreadNew(U8g2_Task, NULL, &U8G2_TASK_attributes);
 
-  /* creation of LED_TASK */
-  LED_TASKHandle = osThreadNew(LED_Task, NULL, &LED_TASK_attributes);
+  /* creation of KEY_TASK */
+  KEY_TASKHandle = osThreadNew(KEY_Task, NULL, &KEY_TASK_attributes);
 
   /* creation of UART_TASK */
   UART_TASKHandle = osThreadNew(uart_task, NULL, &UART_TASK_attributes);
@@ -181,9 +177,6 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
-
-  /* creation of KEY_EVENT */
-  KEY_EVENTHandle = osEventFlagsNew(&KEY_EVENT_attributes);
 
   /* creation of UART_EVENT */
   UART_EVENTHandle = osEventFlagsNew(&UART_EVENT_attributes);
@@ -199,7 +192,7 @@ void MX_FREERTOS_Init(void) {
 
 static int test_var = 0;
 // 诊断函数
-// 完全避免使用任何格式化函�????
+// 完全避免使用任何格式化函�?????
 void test()
 {
   UART_protocol UART_protocol_structure = {
@@ -259,13 +252,18 @@ void RTC_Set_Time()
   {
     Error_Handler();
   }
+  RTC_SaveDate(&sDate);
+  HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+  LOG_DEBUG("Seted date: %04d-%02d-%02d", sDate.Year + 2000, sDate.Month, sDate.Date);
+  RTC_RestoreDate(&sDate);
+  LOG_DEBUG("Restored date: %04d-%02d-%02d", sDate.Year + 2000, sDate.Month, sDate.Date);
 }
 void main_display_cb(u8g2_t* u8g2, menu_data_t* menu_data)
 {
   
   char buf[32];
   
-  // 1. 顶部大时间显�?
+  // 1. 顶部大时间显�??
   u8g2_SetFont(u8g2, u8g2_font_logisoso26_tn);
   snprintf(buf, sizeof(buf), "%02d:%02d", sTime.Hours, sTime.Minutes);
   uint8_t time_width = u8g2_GetStrWidth(u8g2, buf);
@@ -281,10 +279,10 @@ void main_display_cb(u8g2_t* u8g2, menu_data_t* menu_data)
   snprintf(buf, sizeof(buf), "%02d", sTime.Seconds);
   u8g2_DrawStr(u8g2, time_width + 5, 30, buf);
   
-  // 3. 状�?�卡�?
+  // 3. 状�?�卡�??
   u8g2_DrawFrame(u8g2, 5, 43, 118, 20);  // 卡片外框
   
-  // 卡片内部分隔�?
+  // 卡片内部分隔�??
   u8g2_DrawVLine(u8g2, 42, 45, 17);
   u8g2_DrawVLine(u8g2, 79, 45, 17);
   
@@ -360,9 +358,15 @@ void U8g2_Task(void *argument)
   /* Infinite loop */
   for(;;)
   {
+    static uint32_t last_tick = 0;
     HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
     HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
-
+    if (osKernelGetTickCount() - last_tick > 60000)
+    {
+      RTC_SaveDate(&sDate);
+      LOG_INFO("Date has been saved to Backup reg...");
+      last_tick = osKernelGetTickCount();
+    }
     u8g2_FirstPage(&u8g2);
     do {
       show_menu(&u8g2,menu_data_ptr,3);
@@ -371,77 +375,76 @@ void U8g2_Task(void *argument)
   }
   /* USER CODE END U8g2_Task */
 }
+uint8_t Key_UP_ReadPin(MulitKey_t* key)
+{
+  return HAL_GPIO_ReadPin(KEY_UP_GPIO_Port,KEY_UP_Pin);
+}
 
-/* USER CODE BEGIN Header_LED_Task */
+uint8_t Key_DOWN_ReadPin(MulitKey_t* key)
+{
+  return HAL_GPIO_ReadPin(KEY_DOWN_GPIO_Port,KEY_DOWN_Pin);
+}
+
+uint8_t Key_ENTER_ReadPin(MulitKey_t* key)
+{
+  return HAL_GPIO_ReadPin(KEY_ENTER_GPIO_Port,KEY_ENTER_Pin);
+}
+
+uint8_t Key_CANCEL_ReadPin(MulitKey_t* key)
+{
+  return HAL_GPIO_ReadPin(KEY_CANCEL_GPIO_Port,KEY_CANCEL_Pin);
+}
+
+void KEY_UP_Pressed(MulitKey_t* key)
+{
+  navigate_up(menu_data_ptr);
+}
+
+void KEY_DOWN_Pressed(MulitKey_t* key)
+{
+  navigate_down(menu_data_ptr);
+}
+
+void KEY_ENTER_Pressed(MulitKey_t* key)
+{
+  navigate_enter(menu_data_ptr);
+}
+
+void KEY_CANCEL_Pressed(MulitKey_t* key)
+{
+  navigate_back(menu_data_ptr);
+}
+
+/* USER CODE BEGIN Header_KEY_Task */
 /**
-* @brief Function implementing the LED_TASK thread.
+* @brief Function implementing the KEY_TASK thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_LED_Task */
-void LED_Task(void *argument)
+/* USER CODE END Header_KEY_Task */
+void KEY_Task(void *argument)
 {
-  /* USER CODE BEGIN LED_Task */
-  uint32_t flags;
-  uint8_t Blink_Flag = 0;
-  uint32_t tick = 0;
-  LOG_INFO("LED task has been init ...");
-  // LOG_INFO("LED task started.");
+  /* USER CODE BEGIN KEY_Task */
+
+  MulitKey_t Key_UP_S;
+  MulitKey_t Key_DOWN_S;
+  MulitKey_t Key_ENTER_S;
+  MulitKey_t Key_CANCEL_S;
+  MulitKey_Init(&Key_UP_S,Key_UP_ReadPin,KEY_UP_Pressed,KEY_UP_Pressed,FALL_BORDER_TRIGGER);
+
+  MulitKey_Init(&Key_DOWN_S,Key_DOWN_ReadPin,KEY_DOWN_Pressed,KEY_DOWN_Pressed,FALL_BORDER_TRIGGER);
+  MulitKey_Init(&Key_ENTER_S,Key_ENTER_ReadPin,KEY_ENTER_Pressed,KEY_ENTER_Pressed,FALL_BORDER_TRIGGER);
+  MulitKey_Init(&Key_CANCEL_S,Key_CANCEL_ReadPin,KEY_CANCEL_Pressed,KEY_CANCEL_Pressed,FALL_BORDER_TRIGGER);
   /* Infinite loop */
   for(;;)
   {
-    flags = osEventFlagsWait(KEY_EVENTHandle,KEY_DOWN_EVENT|KEY_UP_EVENT|KEY_ENTER_EVENT|KEY_CANCEL_EVENT|KEY_FUNCTION_EVENT,osFlagsWaitAny,osWaitForever);
-    if(flags & KEY_UP_EVENT)
-    {
-      if(osKernelGetTickCount() - tick < 200) continue;
-      LOG_DEBUG("KEY_UP arise ...");
-      navigate_up(menu_data_ptr);
-      tick = osKernelGetTickCount();
-      // HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
-    }
-    if(flags & KEY_DOWN_EVENT)
-    {
-
-      if(osKernelGetTickCount() - tick < 200) continue;
-      LOG_DEBUG("KEY_DOWN arise ...");
-      navigate_down(menu_data_ptr);
-      tick = osKernelGetTickCount();
-      // HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
-    }
-    if(flags & KEY_ENTER_EVENT)
-    {
-      if(osKernelGetTickCount() - tick < 200) continue;
-      LOG_DEBUG("KEY_ENTER arise ...");
-      navigate_enter(menu_data_ptr);
-      tick = osKernelGetTickCount();
-      // HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
-    }
-    if(flags & KEY_CANCEL_EVENT)
-    {
-      if(osKernelGetTickCount() - tick < 200) continue;
-      LOG_DEBUG("KEY_CANCEL arise ...");
-      navigate_back(menu_data_ptr);
-      tick = osKernelGetTickCount();
-      // HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
-    }
-    if(flags & KEY_FUNCTION_EVENT)
-    {
-      if(osKernelGetTickCount() - tick < 200) continue;
-      // LOG_INFO("KEY_UP arise ...");
-      // Handle function event
-      Blink_Flag = !Blink_Flag;
-      if(Blink_Flag)
-      {
-        HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
-      }
-      else
-      {
-        HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
-      }
-      tick = osKernelGetTickCount();
-    }
+    MulitKey_Scan(&Key_UP_S);
+    MulitKey_Scan(&Key_DOWN_S);
+    MulitKey_Scan(&Key_ENTER_S);
+    MulitKey_Scan(&Key_CANCEL_S);
+    osDelay(1);
   }
-  /* USER CODE END LED_Task */
+  /* USER CODE END KEY_Task */
 }
 
 /* USER CODE BEGIN Header_uart_task */

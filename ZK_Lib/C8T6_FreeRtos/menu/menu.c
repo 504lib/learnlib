@@ -540,9 +540,9 @@ void navigate_up(menu_data_t* menu_data)
             // if(value_ptr)
             // {
                 menu_data->selected_item->data.param_enum.value_ptr_temp += 1;
-                if(menu_data->selected_item->data.param_enum.value_ptr_temp > menu_data->selected_item->data.param_enum.option_count)//下限
+                if(menu_data->selected_item->data.param_enum.value_ptr_temp > menu_data->selected_item->data.param_enum.option_count - 1)//下限
                 {
-                    menu_data->selected_item->data.param_enum.value_ptr_temp = menu_data->selected_item->data.param_enum.option_count;
+                    menu_data->selected_item->data.param_enum.value_ptr_temp = menu_data->selected_item->data.param_enum.option_count - 1;
                 }
                 return;
         }

@@ -179,31 +179,31 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-  if(GPIO_Pin == KEY_UP_Pin)
-  {
-    osEventFlagsClear(KEY_EVENTHandle, KEY_UP_EVENT | KEY_DOWN_EVENT | KEY_ENTER_EVENT | KEY_CANCEL_EVENT);
-    osEventFlagsSet(KEY_EVENTHandle, KEY_UP_EVENT);
-  }
-  else if(GPIO_Pin == KEY_DOWN_Pin)
-  {
-    // Handle KEY_DOWN press event
-    osEventFlagsClear(KEY_EVENTHandle, KEY_UP_EVENT | KEY_DOWN_EVENT | KEY_ENTER_EVENT | KEY_CANCEL_EVENT);
-    osEventFlagsSet(KEY_EVENTHandle, KEY_DOWN_EVENT);
-  }
-  else if (GPIO_Pin == KEY_ENTER_Pin)
-  {
-    osEventFlagsClear(KEY_EVENTHandle, KEY_UP_EVENT | KEY_DOWN_EVENT | KEY_ENTER_EVENT | KEY_CANCEL_EVENT);
-    osEventFlagsSet(KEY_EVENTHandle, KEY_ENTER_EVENT);
-  }
-  else if (GPIO_Pin == KEY_CANCEL_Pin)
-  {
-    osEventFlagsClear(KEY_EVENTHandle, KEY_UP_EVENT | KEY_DOWN_EVENT | KEY_ENTER_EVENT | KEY_CANCEL_EVENT);
-    osEventFlagsSet(KEY_EVENTHandle, KEY_CANCEL_EVENT);
-  }
-  
-}
+//void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+//{
+//  if(GPIO_Pin == KEY_UP_Pin)
+//  {
+//    osEventFlagsClear(KEY_EVENTHandle, KEY_UP_EVENT | KEY_DOWN_EVENT | KEY_ENTER_EVENT | KEY_CANCEL_EVENT);
+//    osEventFlagsSet(KEY_EVENTHandle, KEY_UP_EVENT);
+//  }
+//  else if(GPIO_Pin == KEY_DOWN_Pin)
+//  {
+//    // Handle KEY_DOWN press event
+//    osEventFlagsClear(KEY_EVENTHandle, KEY_UP_EVENT | KEY_DOWN_EVENT | KEY_ENTER_EVENT | KEY_CANCEL_EVENT);
+//    osEventFlagsSet(KEY_EVENTHandle, KEY_DOWN_EVENT);
+//  }
+//  else if (GPIO_Pin == KEY_ENTER_Pin)
+//  {
+//    osEventFlagsClear(KEY_EVENTHandle, KEY_UP_EVENT | KEY_DOWN_EVENT | KEY_ENTER_EVENT | KEY_CANCEL_EVENT);
+//    osEventFlagsSet(KEY_EVENTHandle, KEY_ENTER_EVENT);
+//  }
+//  else if (GPIO_Pin == KEY_CANCEL_Pin)
+//  {
+//    osEventFlagsClear(KEY_EVENTHandle, KEY_UP_EVENT | KEY_DOWN_EVENT | KEY_ENTER_EVENT | KEY_CANCEL_EVENT);
+//    osEventFlagsSet(KEY_EVENTHandle, KEY_CANCEL_EVENT);
+//  }
+//  
+//}
 
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
