@@ -1,11 +1,16 @@
 #include <Arduino.h>
 #include "./protocol/protocol.hpp"
+#include <ESPAsyncWebServer.h>
+#include <WiFi.h>
+// #include "
 
+const char* ssid = "ESP32-Access-Point"; // AP åç§°
+const char* password = "12345678"; // AP å¯†ç 
 #define LED_Pin GPIO_NUM_48
-
+AsyncWebServer server(80);
 static int count = 0;
 static float fcount = 0.0;
-
+uint32_t lastPrint = 0;
 bool Flag_INT = false;
 bool Flag_FLOAT = false;
 bool Flag_ACK = false;
@@ -31,12 +36,55 @@ void setup()
 {
   
   pinMode(LED_Pin,OUTPUT);
-  pinMode(11, INPUT); // è®¾ç½®ä¸ºè¾“å…¥
-  pinMode(12, INPUT); // è®¾ç½®ä¸ºè¾“å…¥
-  pinMode(13, INPUT); // è®¾ç½®ä¸ºè¾“å…¥
-  attachInterrupt(11, handleInterrupt1, RISING); // ä¸Šå‡æ²¿è§¦å‘
-  attachInterrupt(12, handleInterrupt2, RISING); // ä¸Šå‡æ²¿è§¦å‘
-  attachInterrupt(13, handleInterrupt3, RISING); // ä¸Šå‡æ²¿è§¦å‘
+  pinMode(11, INPUT); // è®¾ç½®ä¸ºè¾“å…?
+  pinMode(12, INPUT); // è®¾ç½®ä¸ºè¾“å…?
+  pinMode(13, INPUT); // è®¾ç½®ä¸ºè¾“å…?
+  attachInterrupt(11, handleInterrupt1, RISING); // ä¸Šå‡æ²¿è§¦å?
+  attachInterrupt(12, handleInterrupt2, RISING); // ä¸Šå‡æ²¿è§¦å?
+  attachInterrupt(13, handleInterrupt3, RISING); // ä¸Šå‡æ²¿è§¦å?
+ Serial.println("ÕıÔÚÆô¶¯ AP Ä£Ê½...");
+  
+  // Æô¶¯ AP
+  if (WiFi.softAP(ssid, password)) {
+    Serial.println("AP Ä£Ê½Æô¶¯³É¹¦!");
+    
+    // »ñÈ¡ AP µÄ IP µØÖ·
+    IPAddress myIP = WiFi.softAPIP();
+    Serial.print("AP IP µØÖ·: ");
+    Serial.println(myIP);
+    
+    // ÏÔÊ¾Á¬½ÓĞÅÏ¢
+    Serial.print("SSID: ");
+    Serial.println(ssid);
+    Serial.print("ÃÜÂë: ");
+    Serial.println(password);
+  } else {
+    Serial.println("AP Ä£Ê½Æô¶¯Ê§°Ü!");
+    return;
+  }
+
+  // ÉèÖÃ Web ·şÎñÆ÷Â·ÓÉ
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    String html = "<html><head><title>ESP32-S3 APÄ£Ê½</title></head>";
+    html += "<body><h1>»¶Ó­Ê¹ÓÃESP32-S3 APÄ£Ê½</h1>";
+    html += "<p>IPµØÖ·: " + WiFi.softAPIP().toString() + "</p>";
+    html += "<p>ÒÑÁ¬½ÓÉè±¸Êı: " + String(WiFi.softAPgetStationNum()) + "</p>";
+    html += "</body></html>";
+    request->send(200, "text/html", html);
+  });
+
+  server.on("/info", HTTP_GET, [](AsyncWebServerRequest *request){
+    String json = "{";
+    json += "\"ip\":\"" + WiFi.softAPIP().toString() + "\",";
+    json += "\"clients\":" + String(WiFi.softAPgetStationNum()) + ",";
+    json += "\"ssid\":\"" + String(ssid) + "\"";
+    json += "}";
+    request->send(200, "application/json", json);
+  });
+
+  // Æô¶¯·şÎñÆ÷
+  server.begin();
+  Serial.println("HTTP ·şÎñÆ÷ÒÑÆô¶¯");
 }
 
 void loop() 
@@ -65,5 +113,11 @@ void loop()
     // Serial.println("ACK");
     Flag_ACK = false;
   }
+  if (millis() - lastPrint > 10000) {  // æ¯?10ç§’æ‰“å°ä¸€æ¬?
+    lastPrint = millis();
+    Serial.print("ÒÑÁ¬½Ó´Ó»úÊıÁ¿ ");
+    Serial.println(WiFi.softAPgetStationNum());
+  }
+  // è®¾ç½®WebæœåŠ¡å™¨è·¯ç”?
   // delay(10);
 }
