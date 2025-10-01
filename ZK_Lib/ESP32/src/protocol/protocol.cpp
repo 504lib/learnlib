@@ -125,6 +125,26 @@ void protocol::Send_Uart_Frame_PASSENGER_NUM(uint8_t value)
     Serial1.write(frame,sizeof(frame));
 }
 
+void protocol::Send_Uart_Frame_CLEAR()
+{
+    uint8_t frame[8];
+
+    frame[0] = Headerframe1;
+    frame[1] = Headerframe2;
+
+    frame[2] = static_cast<uint8_t>(CmdType::CLEAR);
+    frame[3] = 0;
+
+    uint16_t check = calculateChecksum(&frame[2],2);
+    frame[4] = (check >> 8) & 0xff;
+    frame[5] = check & 0xff;
+
+    frame[6] = Tailframe1;
+    frame[7] = Tailframe2;
+
+    Serial1.write(frame,sizeof(frame));
+}
+
 void protocol::Receive_Uart_Frame(uint8_t data)
 {
     static enum { WAIT_HEADER1, WAIT_HEADER2, WAIT_TYPE, WAIT_LEN, WAIT_DATA, WAIT_CHECK1, WAIT_CHECK2, WAIT_TAIL1, WAIT_TAIL2 } state = WAIT_HEADER1;
@@ -242,6 +262,17 @@ void protocol::Receive_Uart_Frame(uint8_t data)
                             Serial.println(value);
                         }
                     }
+                    else if (frame_type == static_cast<uint8_t>(CmdType::CLEAR) && frame_len == 0)
+                    {
+                       if(clearcallback) 
+                       {
+                            clearcallback();
+                       }
+                       else
+                       {
+                            Serial.println("Received Clear");
+                       }
+                    }
                 }
                 else
                 {
@@ -272,4 +303,9 @@ void protocol::setAckCallback(AckCallback cb)
 void protocol::setPassengerNumCallback(PassengerNumCallback cb)
 {
     passengerNumCallback = cb;
+}
+
+void protocol::setClearCallback(ClearCallback cb)
+{
+    clearcallback = cb;
 }

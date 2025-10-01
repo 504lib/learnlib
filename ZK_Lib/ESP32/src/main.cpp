@@ -22,6 +22,11 @@ void set_passenger(uint8_t value)
 {
   passenger_num = value;
 }
+
+void clear_passenger()
+{
+  passenger_num = 0;
+}
 void IRAM_ATTR handleInterrupt1() {
   Flag_INT = true;
 }
@@ -48,6 +53,7 @@ void setup()
   attachInterrupt(12, handleInterrupt2, RISING); // 涓婂崌娌胯Е鍙?
   attachInterrupt(13, handleInterrupt3, RISING); // 涓婂崌娌胯Е鍙?
   uart_protocol.setPassengerNumCallback(set_passenger);
+  uart_protocol.setClearCallback(clear_passenger);
   Serial.println("正在启动 AP 模式...");
   
   // 启动 AP
