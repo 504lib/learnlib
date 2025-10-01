@@ -4,8 +4,8 @@
 #include <WiFi.h>
 // #include "
 
-const char* ssid = "ESP32-Access-Point"; // AP åç§°
-const char* password = "12345678"; // AP å¯†ç 
+const char* ssid = "ESP32-Access-Point"; // AP éšå¶‡Ğ
+const char* password = "12345678"; // AP ç€µå—™çˆœ
 #define LED_Pin GPIO_NUM_48
 AsyncWebServer server(80);
 static int count = 0;
@@ -14,9 +14,14 @@ uint32_t lastPrint = 0;
 bool Flag_INT = false;
 bool Flag_FLOAT = false;
 bool Flag_ACK = false;
+uint8_t passenger_num = 0;
+String station_name = "å¸ˆèŒƒå­¦é™¢";
 
 protocol uart_protocol(0xAA,0x55,0x0D,0x0A);
-
+void set_passenger(uint8_t value)
+{
+  passenger_num = value;
+}
 void IRAM_ATTR handleInterrupt1() {
   Flag_INT = true;
 }
@@ -36,55 +41,120 @@ void setup()
 {
   
   pinMode(LED_Pin,OUTPUT);
-  pinMode(11, INPUT); // è®¾ç½®ä¸ºè¾“å…?
-  pinMode(12, INPUT); // è®¾ç½®ä¸ºè¾“å…?
-  pinMode(13, INPUT); // è®¾ç½®ä¸ºè¾“å…?
-  attachInterrupt(11, handleInterrupt1, RISING); // ä¸Šå‡æ²¿è§¦å?
-  attachInterrupt(12, handleInterrupt2, RISING); // ä¸Šå‡æ²¿è§¦å?
-  attachInterrupt(13, handleInterrupt3, RISING); // ä¸Šå‡æ²¿è§¦å?
- Serial.println("ÕıÔÚÆô¶¯ AP Ä£Ê½...");
+  pinMode(11, INPUT); // ç’å‰§ç–†æ¶“é¸¿ç·­é?
+  pinMode(12, INPUT); // ç’å‰§ç–†æ¶“é¸¿ç·­é?
+  pinMode(13, INPUT); // ç’å‰§ç–†æ¶“é¸¿ç·­é?
+  attachInterrupt(11, handleInterrupt1, RISING); // æ¶“å©‚å´Œå¨Œèƒ¯Ğ•é™?
+  attachInterrupt(12, handleInterrupt2, RISING); // æ¶“å©‚å´Œå¨Œèƒ¯Ğ•é™?
+  attachInterrupt(13, handleInterrupt3, RISING); // æ¶“å©‚å´Œå¨Œèƒ¯Ğ•é™?
+  uart_protocol.setPassengerNumCallback(set_passenger);
+  Serial.println("æ­£åœ¨å¯åŠ¨ AP æ¨¡å¼...");
   
-  // Æô¶¯ AP
+  // å¯åŠ¨ AP
   if (WiFi.softAP(ssid, password)) {
-    Serial.println("AP Ä£Ê½Æô¶¯³É¹¦!");
+    Serial.println("AP æ¨¡å¼å¯åŠ¨æˆåŠŸ!");
     
-    // »ñÈ¡ AP µÄ IP µØÖ·
+    // è·å– AP çš„ IP åœ°å€
     IPAddress myIP = WiFi.softAPIP();
-    Serial.print("AP IP µØÖ·: ");
+    Serial.print("AP IP åœ°å€: ");
     Serial.println(myIP);
     
-    // ÏÔÊ¾Á¬½ÓĞÅÏ¢
+    // æ˜¾ç¤ºè¿æ¥ä¿¡æ¯
     Serial.print("SSID: ");
     Serial.println(ssid);
-    Serial.print("ÃÜÂë: ");
+    Serial.print("å¯†ç : ");
     Serial.println(password);
   } else {
-    Serial.println("AP Ä£Ê½Æô¶¯Ê§°Ü!");
+    Serial.println("AP æ¨¡å¼å¯åŠ¨å¤±è´¥!");
     return;
   }
 
-  // ÉèÖÃ Web ·şÎñÆ÷Â·ÓÉ
+  // è®¾ç½® Web æœåŠ¡å™¨è·¯ç”±
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    String html = "<html><head><title>ESP32-S3 APÄ£Ê½</title></head>";
-    html += "<body><h1>»¶Ó­Ê¹ÓÃESP32-S3 APÄ£Ê½</h1>";
-    html += "<p>IPµØÖ·: " + WiFi.softAPIP().toString() + "</p>";
-    html += "<p>ÒÑÁ¬½ÓÉè±¸Êı: " + String(WiFi.softAPgetStationNum()) + "</p>";
-    html += "</body></html>";
+    String html = R"rawliteral(
+<!DOCTYPE html>
+<html>
+<head>
+    <title>è®¾å¤‡ç›‘æ§</title>
+    <meta charset="UTF-8">
+     <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background: #f5f5f5;
+        }
+        .card { 
+            background: white; 
+            padding: 20px; 
+            margin: 15px 0; 
+            border-radius: 10px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .value { 
+            font-size: 2em; 
+            color: #2196F3; 
+            font-weight: bold;
+        }
+        .header { 
+            color: #666; 
+            margin-bottom: 10px;
+        }
+        .station-header {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+<body>
+    <!-- ä¿®æ­£çš„ç«™ç‚¹åç§°æ˜¾ç¤º -->
+    <h1 class="station-header" id="station">--</h1>
+    
+    <div class="card">
+        <div class="header">ä¹˜å®¢æ•°é‡</div>
+        <div class="value" id="passengers">--</div>
+    </div>
+    
+    <div class="card">
+        <div class="header">è¿æ¥çŠ¶æ€</div>
+        <div id="connection">--</div>
+    </div>
+
+    <script>
+        function updateData() {
+            fetch('/api/info')
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('station').textContent = data.station;
+                    document.getElementById('passengers').textContent = data.passengers;
+                    document.getElementById('connection').textContent = `IP: ${data.ip}, è®¾å¤‡: ${data.clients}`;
+                });
+        }
+        setInterval(updateData, 3000);
+        updateData();
+    </script>
+</body>
+</html>
+    )rawliteral";
     request->send(200, "text/html", html);
   });
 
-  server.on("/info", HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on("/api/info", HTTP_GET, [](AsyncWebServerRequest *request){
     String json = "{";
+    json += "\"station\":\"" + station_name + "\",";
     json += "\"ip\":\"" + WiFi.softAPIP().toString() + "\",";
     json += "\"clients\":" + String(WiFi.softAPgetStationNum()) + ",";
-    json += "\"ssid\":\"" + String(ssid) + "\"";
+    json += "\"ssid\":\"" + String(ssid) + "\",";
+    json += "\"passengers\":" + String(passenger_num);
     json += "}";
     request->send(200, "application/json", json);
   });
 
-  // Æô¶¯·şÎñÆ÷
+  // å¯åŠ¨æœåŠ¡å™¨
   server.begin();
-  Serial.println("HTTP ·şÎñÆ÷ÒÑÆô¶¯");
+  Serial.println("HTTP æœåŠ¡å™¨å·²å¯åŠ¨");
 }
 
 void loop() 
@@ -113,11 +183,11 @@ void loop()
     // Serial.println("ACK");
     Flag_ACK = false;
   }
-  if (millis() - lastPrint > 10000) {  // æ¯?10ç§’æ‰“å°ä¸€æ¬?
+  if (millis() - lastPrint > 10000) {  // å§£?10ç»‰æ“å¢¦é—é¢ç«´å¨†?
     lastPrint = millis();
-    Serial.print("ÒÑÁ¬½Ó´Ó»úÊıÁ¿ ");
+    Serial.print("å·²è¿æ¥ä»æœºæ•°é‡ ");
     Serial.println(WiFi.softAPgetStationNum());
   }
-  // è®¾ç½®WebæœåŠ¡å™¨è·¯ç”?
+  // ç’å‰§ç–†Webéˆå¶…å§Ÿé£ã„¨çŸ¾é¢?
   // delay(10);
 }

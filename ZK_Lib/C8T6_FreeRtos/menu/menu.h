@@ -32,7 +32,7 @@
     #error "Atomic operation macros are not correctly defined! Please check the platform configuration."
 #endif
 
-#define MENU_NODE 20
+#define MENU_NODE 30
 
 
 typedef enum {

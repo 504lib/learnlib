@@ -25,7 +25,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "multikey.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -84,7 +84,33 @@ const osEventFlagsAttr_t KEYevent_attributes = {
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
+uint8_t Key1_ReadPin(MulitKey_t* key)
+{
+  return HAL_GPIO_ReadPin(KEY1_GPIO_Port,KEY1_Pin);
+}
 
+uint8_t Key2_ReadPin(MulitKey_t* key)
+{
+  return HAL_GPIO_ReadPin(KEY2_GPIO_Port,KEY2_Pin);
+}
+
+void Key1_Press(MulitKey_t* key)
+{
+  osEventFlagsClear(KEYeventHandle,LED0_BLINK|LED1_BLINK|LED_FLOW);
+  osEventFlagsSet(KEYeventHandle,LED0_BLINK);
+}
+
+void Key1_LongPress(MulitKey_t* key)
+{
+  osEventFlagsClear(KEYeventHandle,LED0_BLINK|LED1_BLINK|LED_FLOW);
+  osEventFlagsSet(KEYeventHandle,LED_FLOW);
+}
+
+void Key2_Press(MulitKey_t* key)
+{
+  osEventFlagsClear(KEYeventHandle,LED0_BLINK|LED1_BLINK|LED_FLOW);
+  osEventFlagsSet(KEYeventHandle,LED1_BLINK);
+}
 /* USER CODE END FunctionPrototypes */
 
 void LED1_TASK(void *argument);
@@ -205,48 +231,14 @@ void LED2_TASK(void *argument)
 void KEY_TASK(void *argument)
 {
   /* USER CODE BEGIN KEY_TASK */
-  BUTTON_STATE KEY1_state = {0};
-  BUTTON_STATE KEY2_state = {0};
+  MulitKey_t key1,key2;
+  MulitKey_Init(&key1,Key1_ReadPin,Key1_Press,Key1_LongPress,RISE_BORDER_TRIGGER);
+  MulitKey_Init(&key2,Key2_ReadPin,Key2_Press,Key1_LongPress,RISE_BORDER_TRIGGER);
   /* Infinite loop */
   for(;;)
   {
-    KEY1_state.key_state = HAL_GPIO_ReadPin(KEY1_GPIO_Port,KEY1_Pin);
-    KEY2_state.key_state = HAL_GPIO_ReadPin(KEY2_GPIO_Port,KEY2_Pin);
-    if(KEY1_state.key_state == true && KEY2_state.key_state == true)
-    {
-      KEY1_state.key_last_state = KEY1_state.key_state;
-      KEY2_state.key_last_state = KEY2_state.key_state;
-      // if(KEY1_state.key_state == GPIO_PIN_SET && KEY2_state.key_last_state == GPIO_PIN_SET)
-      // {
-        osEventFlagsClear(KEYeventHandle,LED0_BLINK|LED1_BLINK|LED_FLOW);
-        osEventFlagsSet(KEYeventHandle,LED_FLOW);
-        HAL_GPIO_WritePin(LED0_GPIO_Port,LED0_Pin,GPIO_PIN_SET);
-        HAL_GPIO_WritePin(LED1_GPIO_Port,LED1_Pin,GPIO_PIN_SET);
-      // }
-    }
-    else if (KEY1_state.key_state != KEY1_state.key_last_state)
-    {
-      KEY1_state.key_last_state = KEY1_state.key_state;
-      if(KEY1_state.key_state == GPIO_PIN_SET)
-      {
-        osEventFlagsClear(KEYeventHandle,LED0_BLINK|LED1_BLINK|LED_FLOW);
-        osEventFlagsSet(KEYeventHandle,LED0_BLINK);
-        HAL_GPIO_WritePin(LED0_GPIO_Port,LED0_Pin,GPIO_PIN_SET);
-        HAL_GPIO_WritePin(LED1_GPIO_Port,LED1_Pin,GPIO_PIN_SET);
-      }
-    }
-    else if (KEY2_state.key_state != KEY2_state.key_last_state)
-    {
-      KEY2_state.key_last_state = KEY2_state.key_state;
-      if(KEY2_state.key_state == GPIO_PIN_SET)
-      {
-        osEventFlagsClear(KEYeventHandle,LED0_BLINK|LED1_BLINK|LED_FLOW);
-        osEventFlagsSet(KEYeventHandle,LED1_BLINK);
-        HAL_GPIO_WritePin(LED0_GPIO_Port,LED0_Pin,GPIO_PIN_SET);
-        HAL_GPIO_WritePin(LED1_GPIO_Port,LED1_Pin,GPIO_PIN_SET);
-      }
-    }
-    
+    MulitKey_Scan(&key1); 
+    MulitKey_Scan(&key2);
     osDelay(1);
   }
   /* USER CODE END KEY_TASK */

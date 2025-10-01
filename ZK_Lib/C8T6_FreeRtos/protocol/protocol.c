@@ -7,6 +7,7 @@ typedef struct
     INT_Callback int_callback;
     FLOAT_Callback float_callback;
     ACK_Callback ack_callback;
+    PASSENGER_NUM_Callback passenger_callback;
 }callback_functions;
 
 callback_functions callbacks = {
@@ -81,6 +82,25 @@ static void handle_ACK(void)
     }
 }
 
+static void handle_PASSENGER(uint8_t value)
+{
+    if (callbacks.ack_callback) 
+    {
+        callbacks.passenger_callback(value);
+        return;
+    }
+    else
+    {
+        UART_protocol UART_protocol_structure = {
+        .Headerframe1 = 0xAA,
+        .Headerframe2 = 0x55,
+        .Tailframe1 = 0x0D,
+        .Tailframe2 = 0x0A
+        };
+        UART_Protocol_Passenger(UART_protocol_structure,value);
+    }
+}
+
 static void RingBuffer_Init(RingBuffer *rb)
 {
     rb->head = 0;
@@ -150,6 +170,10 @@ void set_ACK_Callback(ACK_Callback cb)
     callbacks.ack_callback = cb;
 }
 
+void set_PASSENGER_Callback(PASSENGER_NUM_Callback cb)
+{
+    callbacks.passenger_callback = cb;
+}
 
 void UART_Protocol_INT(UART_protocol UART_protocol_structure,int32_t value)
 {
@@ -260,6 +284,36 @@ void UART_Protocol_ACK(UART_protocol UART_protocol_structure)
     LOG_INFO("ACK frame has sent,checksum = 0x%04x",check);
 }
 
+void UART_Protocol_Passenger(UART_protocol UART_protocol_structure,uint8_t value)
+{
+
+    uint8_t frame[9];
+
+    LOG_DEBUG("data frame data variable has been built ...");
+    frame[0] = UART_protocol_structure.Headerframe1;
+    frame[1] = UART_protocol_structure.Headerframe2;
+
+    LOG_DEBUG("header has been placed ...");
+    frame[2] = PASSENGER_NUM;
+    frame[3] = 1;
+
+    LOG_DEBUG("type has been placed ... , type = PASSENGER_NUM");
+    frame[4] = value;
+
+    LOG_DEBUG("data has been placed ...");
+    uint16_t check = calculateChecksum(&frame[2],3);
+    frame[5] = (check >> 8) & 0xff;
+    frame[6] = check & 0xff;
+
+    LOG_DEBUG("checksum has been placed ... , checksum = 0x%04x",check);
+    frame[7] = UART_protocol_structure.Tailframe1;
+    frame[8] = UART_protocol_structure.Tailframe2;
+
+    LOG_DEBUG("Tailer has been placed ...");
+    HAL_UART_Transmit(&huart1,frame,sizeof(frame),HAL_MAX_DELAY);
+    LOG_INFO("INT frame has sent,checksum = 0x%04x",check);
+}
+
 void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uint16_t size)
 {
     // 最小帧长度检查
@@ -328,6 +382,11 @@ void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uin
     else if(frame_type == ACK && frame_len == 0)
     {
         handle_ACK();
+    }
+    else if (frame_type == PASSENGER_NUM && frame_len == 1)
+    {
+        uint8_t value = *payload;
+        handle_PASSENGER(value); 
     }
     // 其他类型可扩展
 }

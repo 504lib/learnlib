@@ -104,6 +104,27 @@ void protocol::Send_Uart_Frame_ACK()
     Serial1.write(frame,sizeof(frame));
 }
 
+void protocol::Send_Uart_Frame_PASSENGER_NUM(uint8_t value)
+{
+    uint8_t frame[9];
+
+    frame[0] = Headerframe1;
+    frame[1] = Headerframe2;
+
+    frame[2] = static_cast<uint8_t>(CmdType::PASSENGER_NUM);
+    frame[3] = 1;
+    frame[4] = value;
+
+    uint16_t check = calculateChecksum(&frame[2],2);
+    frame[5] = (check >> 8) & 0xff;
+    frame[6] = check & 0xff;
+
+    frame[7] = Tailframe1;
+    frame[8] = Tailframe2;
+
+    Serial1.write(frame,sizeof(frame));
+}
+
 void protocol::Receive_Uart_Frame(uint8_t data)
 {
     static enum { WAIT_HEADER1, WAIT_HEADER2, WAIT_TYPE, WAIT_LEN, WAIT_DATA, WAIT_CHECK1, WAIT_CHECK2, WAIT_TAIL1, WAIT_TAIL2 } state = WAIT_HEADER1;
@@ -165,9 +186,15 @@ void protocol::Receive_Uart_Frame(uint8_t data)
                     if(frame_type == static_cast<uint8_t>(CmdType::INT) && frame_len == 4)
                     {
                         int32_t value = (data_buf[0] << 24) | (data_buf[1] << 16) | (data_buf[2] << 8) | data_buf[3];
-                        // 处理接收到的整数值
-                        Serial.print("Received INT: ");
-                        Serial.println(value);
+                        if(intCallback)
+                        {
+                            intCallback(value);
+                        }
+                        else
+                        {
+                            Serial.print("Received INT: ");
+                            Serial.println(value);
+                        }
                     }
                     else if(frame_type == static_cast<uint8_t>(CmdType::FLOAT) && frame_len == 4)
                     {
@@ -181,13 +208,39 @@ void protocol::Receive_Uart_Frame(uint8_t data)
                         u.b[3] = data_buf[0];
                         float value = u.f;
                         // 处理接收到的浮点值
-                        Serial.print("Received FLOAT: ");
-                        Serial.println(value);
+                        if(floatCallback)
+                        {
+                            floatCallback(value);
+                        }
+                        else
+                        {
+                            Serial.print("Received FLOAT: ");
+                            Serial.println(value);
+                        }
                     }
                     else if(frame_type == static_cast<uint8_t>(CmdType::ACK) && frame_len == 0)
                     {
-                        // 处理接收到的ACK
-                        Serial.println("Received ACK");
+                        if(ackCallback)
+                        {
+                            ackCallback();
+                        }
+                        else
+                        {
+                            Serial.println("Received ACK");
+                        }
+                    }
+                    else if(frame_type == static_cast<uint8_t>(CmdType::PASSENGER_NUM) && frame_len == 1)
+                    {
+                        uint8_t value = data_buf[0];
+                        if(passengerNumCallback)
+                        {
+                            passengerNumCallback(value);
+                        }
+                        else
+                        {
+                            Serial.print("Received PASSENGER NUM:");
+                            Serial.println(value);
+                        }
                     }
                 }
                 else
@@ -202,4 +255,21 @@ void protocol::Receive_Uart_Frame(uint8_t data)
 }
 protocol::~protocol()
 {
+}
+void protocol::setIntCallback(IntCallback cb)
+{
+    intCallback = cb;
+}
+
+void protocol::setFloatCallback(FloatCallback cb)
+{
+    floatCallback = cb;
+}
+void protocol::setAckCallback(AckCallback cb)
+{
+    ackCallback = cb;
+}
+void protocol::setPassengerNumCallback(PassengerNumCallback cb)
+{
+    passengerNumCallback = cb;
 }

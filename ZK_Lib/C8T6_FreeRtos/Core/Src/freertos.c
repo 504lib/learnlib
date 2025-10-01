@@ -56,7 +56,7 @@ u8g2_t u8g2;
 int index = 0;
 const char* String_Option[] = {"begin","test1","test2","test3","end"};
 bool toggle = false;
-
+int32_t passenger_num = 0;
 menu_item_t* root = NULL;
 menu_item_t* sub1 = NULL;
 menu_item_t* sub2 = NULL;
@@ -79,6 +79,9 @@ menu_item_t* sub4_sub4 = NULL;
 menu_item_t* sub4_sub5 = NULL;
 menu_item_t* sub4_sub6 = NULL;
 menu_item_t* sub4_sub7 = NULL;
+menu_item_t* sub5_sub1 = NULL;
+menu_item_t* sub5_sub2 = NULL;
+menu_item_t* sub5_sub3 = NULL;
   RTC_DateTypeDef sDate = {0};
   RTC_TimeTypeDef sTime = {0};
 typedef struct
@@ -258,6 +261,17 @@ void RTC_Set_Time()
   RTC_RestoreDate(&sDate);
   LOG_DEBUG("Restored date: %04d-%02d-%02d", sDate.Year + 2000, sDate.Month, sDate.Date);
 }
+
+void Send_Passenger()
+{
+  UART_protocol UART_protocol_structure = {
+    .Headerframe1 = 0xAA,
+    .Headerframe2 = 0x55,
+    .Tailframe1 = 0x0D,
+    .Tailframe2 = 0x0A
+  };
+  UART_Protocol_Passenger(UART_protocol_structure,++passenger_num);
+}
 void main_display_cb(u8g2_t* u8g2, menu_data_t* menu_data)
 {
   
@@ -318,9 +332,9 @@ void U8g2_Task(void *argument)
   root = create_submenu_item("main_menu",NULL,NULL);
   sub1 = create_submenu_item("param_int",NULL,NULL);
   sub2 = create_submenu_item("param_enum",NULL,NULL);
-  sub3 = create_toggle_item("sub_menu_3",&toggle);
+  sub3 = create_toggle_item("toggle",&toggle);
   sub4 = create_submenu_item("Clock_Set",set_RTC_TEMP,NULL);
-  sub5 = create_submenu_item("sub_menu_5",NULL,NULL);
+  sub5 = create_submenu_item("Set_passenger",NULL,NULL);
   sub1_sub1 = create_function_item("SendUART_INT", test);
   sub1_sub2 = create_param_int_item("Change_int", &test_var, 0, 100, 1);
   sub1_sub3 = create_function_item("SendUART_FLOAT", test2);
@@ -333,6 +347,9 @@ void U8g2_Task(void *argument)
   sub4_sub5 = create_param_int_item("monthes", &Clock.month, 1, 12, 1);
   sub4_sub6 = create_param_int_item("days", &Clock.day, 1, 31, 1);
   sub4_sub7 = create_function_item("Set_time",RTC_Set_Time);
+  sub5_sub1 = create_param_int_item("Set_Passenger",&passenger_num,0,255,1);
+  sub5_sub2 = create_function_item("SendUART_Passenger",Send_Passenger);
+  sub5_sub3 = create_function_item("clear",NULL);
   main_display = create_main_item("main",root, main_display_cb);
   Link_Parent_Child(root, sub1);
   Link_next_sibling(sub1, sub2);
@@ -351,6 +368,8 @@ void U8g2_Task(void *argument)
   Link_next_sibling(sub4_sub4, sub4_sub5);
   Link_next_sibling(sub4_sub5, sub4_sub6);
   Link_next_sibling(sub4_sub6, sub4_sub7);
+  Link_Parent_Child(sub5,sub5_sub1);
+  Link_next_sibling(sub5_sub1,sub5_sub2);
   menu_data_ptr = menu_data_init(main_display);
   LOG_INFO("menu Nodes is has been inited ...");
   LOG_INFO("u8g2 task has been init...");
