@@ -82,6 +82,7 @@ menu_item_t* sub4_sub7 = NULL;
 menu_item_t* sub5_sub1 = NULL;
 menu_item_t* sub5_sub2 = NULL;
 menu_item_t* sub5_sub3 = NULL;
+menu_item_t* sub5_sub4 = NULL;
   RTC_DateTypeDef sDate = {0};
   RTC_TimeTypeDef sTime = {0};
 typedef struct
@@ -445,7 +446,10 @@ void KEY_CANCEL_Pressed(MulitKey_t* key)
 {
   navigate_back(menu_data_ptr);
 }
-
+void synchronized_passengers(uint8_t value)
+{
+  passenger_num = value;
+}
 /* USER CODE BEGIN Header_KEY_Task */
 /**
 * @brief Function implementing the KEY_TASK thread.
@@ -498,6 +502,7 @@ void uart_task(void *argument)
   UartFrame* frame_buffer = Get_Uart_Frame_Buffer();
   uint32_t flags;
   LOG_INFO("UART_RX task has been init ...");
+  set_PASSENGER_Callback(synchronized_passengers);
   /* Infinite loop */
   for(;;)
   {

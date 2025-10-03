@@ -2,10 +2,14 @@
 #include "./protocol/protocol.hpp"
 #include <ESPAsyncWebServer.h>
 #include <WiFi.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
 // #include "
-
+#define AP_MODE 1 
 const char* ssid = "ESP32-Access-Point"; // AP 鍚嶇О
 const char* password = "12345678"; // AP 瀵嗙爜
+const char* station_server = "http://192.168.4.1";
+
 #define LED_Pin GPIO_NUM_48
 AsyncWebServer server(80);
 static int count = 0;
@@ -15,6 +19,7 @@ bool Flag_INT = false;
 bool Flag_FLOAT = false;
 bool Flag_ACK = false;
 uint8_t passenger_num = 0;
+String station_ch = "normal university";
 String station_name = "师范学院";
 
 protocol uart_protocol(0xAA,0x55,0x0D,0x0A);
@@ -27,36 +32,87 @@ void clear_passenger()
 {
   passenger_num = 0;
 }
-void IRAM_ATTR handleInterrupt1() {
-  Flag_INT = true;
-}
+// void IRAM_ATTR handleInterrupt1() {
+//   Flag_INT = true;
+// }
 
-void IRAM_ATTR handleInterrupt2() {
+// void IRAM_ATTR handleInterrupt2() {
   
-  Flag_FLOAT = true;
+//   Flag_FLOAT = true;
+// }
+
+
+// void IRAM_ATTR handleInterrupt3() {
+//   Flag_ACK = true;
+// }
+#if AP_MDOE != 1
+void getStationPassengerData() {
+    if (WiFi.status() == WL_CONNECTED) {
+        HTTPClient http;
+        
+        // 构建请求URL
+        String url = String(station_server) + "/api/info";
+        
+        Serial.print("📡 请求站点数据: ");
+        Serial.println(url);
+        
+        http.begin(url);
+        
+        int httpCode = http.GET();
+        
+        if (httpCode == 200) {
+            String payload = http.getString();
+            Serial.print("✅ 收到站点响应: ");
+            Serial.println(payload);
+            
+            // 解析JSON
+            JsonDocument doc;
+            DeserializationError error = deserializeJson(doc, payload);
+            
+            if (!error) {
+                int station_passengers = doc["passengers"];
+                String station_name = doc["station"];
+                
+                Serial.print("🏠 ");
+                Serial.print(station_name);
+                Serial.print(" - 候车人数: ");
+                Serial.println(station_passengers);
+                
+                // 可以通过串口发送给STM32
+                // uart_protocol.Send_Uart_Frame_PASSENGER_NUM(station_passengers);
+                
+            } else {
+                Serial.println("❌ JSON解析失败");
+            }
+            
+        } else {
+            Serial.print("❌ HTTP请求失败: ");
+            Serial.println(httpCode);
+        }
+        
+        http.end();
+    } else {
+        Serial.println("❌ WiFi未连接，无法获取站点数据");
+    }
 }
-
-
-void IRAM_ATTR handleInterrupt3() {
-  Flag_ACK = true;
-}
-
+#endif
 
 void setup() 
 {
   
   pinMode(LED_Pin,OUTPUT);
-  pinMode(11, INPUT); // 璁剧疆涓鸿緭鍏?
-  pinMode(12, INPUT); // 璁剧疆涓鸿緭鍏?
-  pinMode(13, INPUT); // 璁剧疆涓鸿緭鍏?
-  attachInterrupt(11, handleInterrupt1, RISING); // 涓婂崌娌胯Е鍙?
-  attachInterrupt(12, handleInterrupt2, RISING); // 涓婂崌娌胯Е鍙?
-  attachInterrupt(13, handleInterrupt3, RISING); // 涓婂崌娌胯Е鍙?
+  // pinMode(11, INPUT); // 璁剧疆涓鸿緭鍏?
+  // pinMode(12, INPUT); // 璁剧疆涓鸿緭鍏?
+  // pinMode(13, INPUT); // 璁剧疆涓鸿緭鍏?
+  // attachInterrupt(11, handleInterrupt1, RISING); // 涓婂崌娌胯Е鍙?
+  // attachInterrupt(12, handleInterrupt2, RISING); // 涓婂崌娌胯Е鍙?
+  // attachInterrupt(13, handleInterrupt3, RISING); // 涓婂崌娌胯Е鍙?
   uart_protocol.setPassengerNumCallback(set_passenger);
   uart_protocol.setClearCallback(clear_passenger);
   Serial.println("正在启动 AP 模式...");
   
   // 启动 AP
+  #if AP_MODE == 1
   if (WiFi.softAP(ssid, password)) {
     Serial.println("AP 模式启动成功!");
     
@@ -149,6 +205,7 @@ void setup()
 
   server.on("/api/info", HTTP_GET, [](AsyncWebServerRequest *request){
     String json = "{";
+    json += "\"station_ch\":\"" + station_ch + "\",";
     json += "\"station\":\"" + station_name + "\",";
     json += "\"ip\":\"" + WiFi.softAPIP().toString() + "\",";
     json += "\"clients\":" + String(WiFi.softAPgetStationNum()) + ",";
@@ -161,6 +218,26 @@ void setup()
   // 启动服务器
   server.begin();
   Serial.println("HTTP 服务器已启动");
+
+  #else 
+    WiFi.begin(ssid,password);
+    uint16_t attempts = 0;
+    while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+        delay(1000);
+        Serial.print(".");
+        attempts++;
+    }
+    
+    if (WiFi.status() == WL_CONNECTED) {
+        Serial.println("\n✅ 成功连接到站点AP!");
+        Serial.print("IP地址: ");
+        Serial.println(WiFi.localIP());
+        Serial.print("站点服务器: ");
+    } else {
+        Serial.println("\n❌ 连接站点AP失败!");
+        return;
+    }
+  #endif
 }
 
 void loop() 
@@ -170,30 +247,56 @@ void loop()
     uart_protocol.Receive_Uart_Frame(Serial1.read());
     // Serial.write(Serial1.read());
   }
-  if (Flag_INT)
+  #if AP_MODE != 1
+  static uint32_t last_tick = 0;
+  static bool LED_ON = true;
+  if(WiFi.status() == WL_CONNECTED)
   {
-    uart_protocol.Send_Uart_Frame(count++);
-    // Serial.println(count++);
-    Flag_INT = false;
+    if (millis() - last_tick > 3000)
+    {
+      getStationPassengerData();
+      digitalWrite(LED_Pin,LED_ON);
+      LED_ON ^= 1;
+      last_tick = millis();
+    }
+    
   }
-  if (Flag_FLOAT)
+  else
   {
-    uart_protocol.Send_Uart_Frame(fcount);
-   fcount += 0.1;
-    // Serial.println(fcount, 1);
-    Flag_FLOAT = false;
+    if (millis() - last_tick > 250)
+    {
+      digitalWrite(LED_Pin,LED_ON);
+      LED_ON ^= 1;
+      last_tick = millis();
+    }
   }
-  if (Flag_ACK)
-  {
-    uart_protocol.Send_Uart_Frame_ACK();
-    // Serial.println("ACK");
-    Flag_ACK = false;
-  }
-  if (millis() - lastPrint > 10000) {  // 姣?10绉掓墦鍗颁竴娆?
+  #else
+  // if (Flag_INT)
+  // {
+  //   uart_protocol.Send_Uart_Frame(count++);
+  //   // Serial.println(count++);
+  //   Flag_INT = false;
+  // }
+  // if (Flag_FLOAT)
+  // {
+  //   uart_protocol.Send_Uart_Frame(fcount);
+  //  fcount += 0.1;
+  //   // Serial.println(fcount, 1);
+  //   Flag_FLOAT = false;
+  // }
+  // if (Flag_ACK)
+  // {
+  //   uart_protocol.Send_Uart_Frame_ACK();
+  //   // Serial.println("ACK");
+  //   Flag_ACK = false;
+  // }
+  if (millis() - lastPrint > 3000) {  // 姣?10绉掓墦鍗颁竴娆?
     lastPrint = millis();
-    Serial.print("已连接从机数量 ");
-    Serial.println(WiFi.softAPgetStationNum());
+    // Serial.print("已连接从机数量 ");
+    // Serial.println(WiFi.softAPgetStationNum());
+    uart_protocol.Send_Uart_Frame_PASSENGER_NUM(passenger_num);
   }
+  #endif
   // 璁剧疆Web鏈嶅姟鍣ㄨ矾鐢?
   // delay(10);
 }

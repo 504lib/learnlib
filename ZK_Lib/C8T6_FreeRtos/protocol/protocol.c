@@ -47,9 +47,9 @@ static void handle_INT(int32_t value)
 
 static void handle_FLOAT(float value)
 {
-    if (callbacks.int_callback) 
+    if (callbacks.float_callback) 
     {
-        callbacks.int_callback(value);
+        callbacks.float_callback(value);
         return;
     }
     else
@@ -85,7 +85,7 @@ static void handle_ACK(void)
 
 static void handle_PASSENGER(uint8_t value)
 {
-    if (callbacks.ack_callback) 
+    if (callbacks.passenger_callback) 
     {
         callbacks.passenger_callback(value);
         return;

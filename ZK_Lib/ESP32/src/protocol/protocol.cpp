@@ -115,7 +115,7 @@ void protocol::Send_Uart_Frame_PASSENGER_NUM(uint8_t value)
     frame[3] = 1;
     frame[4] = value;
 
-    uint16_t check = calculateChecksum(&frame[2],2);
+    uint16_t check = calculateChecksum(&frame[2],3);
     frame[5] = (check >> 8) & 0xff;
     frame[6] = check & 0xff;
 
