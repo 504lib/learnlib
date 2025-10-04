@@ -200,7 +200,7 @@ void protocol::Receive_Uart_Frame(uint8_t data)
                 memcpy(&check_buf[2], data_buf, frame_len);
                 uint16_t calc_check = calculateChecksum(check_buf, 2 + frame_len);
                 uint16_t recv_check = (check1 << 8) | check2;
-                Serial.printf("calc_check: 0x%04X, recv_check: 0x%04X\n", calc_check, recv_check);
+                // Serial.printf("calc_check: 0x%04X, recv_check: 0x%04X\n", calc_check, recv_check);
                 if(calc_check == recv_check)
                 {
                     if(frame_type == static_cast<uint8_t>(CmdType::INT) && frame_len == 4)

@@ -5,7 +5,7 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 // #include "
-#define AP_MODE 1 
+#define AP_MODE 0 
 const char* ssid = "ESP32-Access-Point"; // AP 鍚嶇О
 const char* password = "12345678"; // AP 瀵嗙爜
 const char* station_server = "http://192.168.4.1";
@@ -22,6 +22,9 @@ uint8_t passenger_num = 0;
 String station_ch = "normal university";
 String station_name = "师范学院";
 
+QueueHandle_t xUartRxQueue;
+QueueHandle_t xPassengerUpdateQueue;
+
 protocol uart_protocol(0xAA,0x55,0x0D,0x0A);
 void set_passenger(uint8_t value)
 {
@@ -32,20 +35,55 @@ void clear_passenger()
 {
   passenger_num = 0;
 }
-// void IRAM_ATTR handleInterrupt1() {
-//   Flag_INT = true;
-// }
 
-// void IRAM_ATTR handleInterrupt2() {
-  
-//   Flag_FLOAT = true;
-// }
+void Rx_Task(void* pvParameters)
+{
+  uint8_t rx_byte = 0;
+  for(;;)
+  { 
+    if (xQueueReceive(xUartRxQueue,&rx_byte,portMAX_DELAY))
+    {
+       uart_protocol.Receive_Uart_Frame(rx_byte);
+      //  Serial.println("rx_byte:" + rx_byte);
+    }
+  }
+}
 
+void Serial_Task(void* p)
+{
+  uint8_t Serial_Rx_byte = 0;
+  for(;;)
+  {
+    if (Serial1.available())
+    {
+      Serial_Rx_byte = Serial1.read();
+      xQueueSend(xUartRxQueue,&Serial_Rx_byte,portMAX_DELAY);
+    }
+    vTaskDelay(5 / portTICK_PERIOD_MS); 
+  }
+}
+#if AP_MODE == 1
+void AP_Task(void* pvParameters)
+{
+  uint8_t pass_num = 0;
+  for(;;)
+  {
+    if (xQueueReceive(xPassengerUpdateQueue,&pass_num,portMAX_DELAY))
+    {
+      uart_protocol.Send_Uart_Frame_PASSENGER_NUM(pass_num);
+    }
+  }
+}
 
-// void IRAM_ATTR handleInterrupt3() {
-//   Flag_ACK = true;
-// }
-#if AP_MDOE != 1
+void PassengerTask(void* p)
+{
+  for(;;)
+  {
+    xQueueSend(xPassengerUpdateQueue,&passenger_num,1000 / portTICK_PERIOD_MS);
+    vTaskDelay(3000 / portTICK_PERIOD_MS);
+  }
+}
+#else 
 void getStationPassengerData() {
     if (WiFi.status() == WL_CONNECTED) {
         HTTPClient http;
@@ -78,9 +116,6 @@ void getStationPassengerData() {
                 Serial.print(" - 候车人数: ");
                 Serial.println(station_passengers);
                 
-                // 可以通过串口发送给STM32
-                // uart_protocol.Send_Uart_Frame_PASSENGER_NUM(station_passengers);
-                
             } else {
                 Serial.println("❌ JSON解析失败");
             }
@@ -95,18 +130,42 @@ void getStationPassengerData() {
         Serial.println("❌ WiFi未连接，无法获取站点数据");
     }
 }
+void STA_Task(void* pvParameters)
+{
+  
+  static uint32_t last_tick = 0;
+  static bool LED_ON = true;
+  for(;;)
+  {
+    if(WiFi.status() == WL_CONNECTED)
+    {
+      if (xTaskGetTickCount() - last_tick > 3000)
+      {
+        getStationPassengerData();
+        digitalWrite(LED_Pin,LED_ON);
+        LED_ON ^= 1;
+        last_tick = xTaskGetTickCount();
+      }
+    
+    }
+    else
+    {
+      if (xTaskGetTickCount() - last_tick > 250)
+      {
+        digitalWrite(LED_Pin,LED_ON);
+        LED_ON ^= 1;
+        last_tick = xTaskGetTickCount();
+      }
+    }
+    vTaskDelay(50 / portTICK_PERIOD_MS);
+  }
+}
 #endif
 
 void setup() 
 {
   
   pinMode(LED_Pin,OUTPUT);
-  // pinMode(11, INPUT); // 璁剧疆涓鸿緭鍏?
-  // pinMode(12, INPUT); // 璁剧疆涓鸿緭鍏?
-  // pinMode(13, INPUT); // 璁剧疆涓鸿緭鍏?
-  // attachInterrupt(11, handleInterrupt1, RISING); // 涓婂崌娌胯Е鍙?
-  // attachInterrupt(12, handleInterrupt2, RISING); // 涓婂崌娌胯Е鍙?
-  // attachInterrupt(13, handleInterrupt3, RISING); // 涓婂崌娌胯Е鍙?
   uart_protocol.setPassengerNumCallback(set_passenger);
   uart_protocol.setClearCallback(clear_passenger);
   Serial.println("正在启动 AP 模式...");
@@ -218,7 +277,9 @@ void setup()
   // 启动服务器
   server.begin();
   Serial.println("HTTP 服务器已启动");
-
+  xPassengerUpdateQueue = xQueueCreate(10,sizeof(uint8_t));
+  xTaskCreate(AP_Task,"ap_task",1024,NULL,1,NULL);
+  xTaskCreate(PassengerTask,"passengertask",1024,NULL,1,NULL); 
   #else 
     WiFi.begin(ssid,password);
     uint16_t attempts = 0;
@@ -237,66 +298,14 @@ void setup()
         Serial.println("\n❌ 连接站点AP失败!");
         return;
     }
+  xTaskCreate(STA_Task,"sta_task",3072,NULL,1,NULL);
   #endif
+ xUartRxQueue = xQueueCreate(32,sizeof(uint8_t)); 
+  xTaskCreate(Rx_Task,"rx_task",2048,NULL,3,NULL);
+  xTaskCreate(Serial_Task,"serial_task",1024,NULL,2,NULL);
 }
 
 void loop() 
 {
-  if(Serial1.available())
-  {
-    uart_protocol.Receive_Uart_Frame(Serial1.read());
-    // Serial.write(Serial1.read());
-  }
-  #if AP_MODE != 1
-  static uint32_t last_tick = 0;
-  static bool LED_ON = true;
-  if(WiFi.status() == WL_CONNECTED)
-  {
-    if (millis() - last_tick > 3000)
-    {
-      getStationPassengerData();
-      digitalWrite(LED_Pin,LED_ON);
-      LED_ON ^= 1;
-      last_tick = millis();
-    }
-    
-  }
-  else
-  {
-    if (millis() - last_tick > 250)
-    {
-      digitalWrite(LED_Pin,LED_ON);
-      LED_ON ^= 1;
-      last_tick = millis();
-    }
-  }
-  #else
-  // if (Flag_INT)
-  // {
-  //   uart_protocol.Send_Uart_Frame(count++);
-  //   // Serial.println(count++);
-  //   Flag_INT = false;
-  // }
-  // if (Flag_FLOAT)
-  // {
-  //   uart_protocol.Send_Uart_Frame(fcount);
-  //  fcount += 0.1;
-  //   // Serial.println(fcount, 1);
-  //   Flag_FLOAT = false;
-  // }
-  // if (Flag_ACK)
-  // {
-  //   uart_protocol.Send_Uart_Frame_ACK();
-  //   // Serial.println("ACK");
-  //   Flag_ACK = false;
-  // }
-  if (millis() - lastPrint > 3000) {  // 姣?10绉掓墦鍗颁竴娆?
-    lastPrint = millis();
-    // Serial.print("已连接从机数量 ");
-    // Serial.println(WiFi.softAPgetStationNum());
-    uart_protocol.Send_Uart_Frame_PASSENGER_NUM(passenger_num);
-  }
-  #endif
-  // 璁剧疆Web鏈嶅姟鍣ㄨ矾鐢?
-  // delay(10);
+
 }
