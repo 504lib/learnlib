@@ -282,6 +282,7 @@ void Send_Clear()
     .Tailframe1 = 0x0D,
     .Tailframe2 = 0x0A
   };
+  passenger_num = 0;
   UART_Protocol_Clear(UART_protocol_structure);
 }
 void main_display_cb(u8g2_t* u8g2, menu_data_t* menu_data)
@@ -501,6 +502,7 @@ void uart_task(void *argument)
   uint8_t data[32] = {0};
   UartFrame* frame_buffer = Get_Uart_Frame_Buffer();
   uint32_t flags;
+  uint8_t passenger_temp = 0;
   LOG_INFO("UART_RX task has been init ...");
   set_PASSENGER_Callback(synchronized_passengers);
   /* Infinite loop */
@@ -519,6 +521,11 @@ void uart_task(void *argument)
     }
     else
     {
+      if(passenger_temp != passenger_num)
+      {
+        UART_Protocol_Passenger(UART_protocol_structure,passenger_num);
+        passenger_temp = passenger_num;
+      }
       // 超时，检查ORE标志
       if (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_ORE)) 
       {

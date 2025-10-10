@@ -5,7 +5,7 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 // #include "
-#define AP_MODE 0 
+#define AP_MODE 1 
 const char* ssid = "ESP32-Access-Point"; // AP 鍚嶇О
 const char* password = "12345678"; // AP 瀵嗙爜
 const char* station_server = "http://192.168.4.1";
@@ -75,14 +75,14 @@ void AP_Task(void* pvParameters)
   }
 }
 
-void PassengerTask(void* p)
-{
-  for(;;)
-  {
-    xQueueSend(xPassengerUpdateQueue,&passenger_num,1000 / portTICK_PERIOD_MS);
-    vTaskDelay(3000 / portTICK_PERIOD_MS);
-  }
-}
+// void PassengerTask(void* p)
+// {
+//   for(;;)
+//   {
+//     xQueueSend(xPassengerUpdateQueue,&passenger_num,1000 / portTICK_PERIOD_MS);
+//     vTaskDelay(3000 / portTICK_PERIOD_MS);
+//   }
+// }
 #else 
 void getStationPassengerData() {
     if (WiFi.status() == WL_CONNECTED) {
@@ -279,7 +279,7 @@ void setup()
   Serial.println("HTTP 服务器已启动");
   xPassengerUpdateQueue = xQueueCreate(10,sizeof(uint8_t));
   xTaskCreate(AP_Task,"ap_task",1024,NULL,1,NULL);
-  xTaskCreate(PassengerTask,"passengertask",1024,NULL,1,NULL); 
+  // xTaskCreate(PassengerTask,"passengertask",1024,NULL,1,NULL); 
   #else 
     WiFi.begin(ssid,password);
     uint16_t attempts = 0;
