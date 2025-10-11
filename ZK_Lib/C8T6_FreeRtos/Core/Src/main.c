@@ -54,6 +54,7 @@ extern osEventFlagsId_t UART_EVENTHandle;
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+// 空闲中断缓冲区
 uint8_t temp[16] = {0};
 extern DMA_HandleTypeDef hdma_usart1_rx;
 /* USER CODE END PV */
@@ -104,6 +105,7 @@ int main(void)
   MX_USART2_UART_Init();
   MX_RTC_Init();
   /* USER CODE BEGIN 2 */
+  // 启动空闲中断
 	HAL_UARTEx_ReceiveToIdle_DMA(&huart1,temp,sizeof(temp));  
   /* USER CODE END 2 */
 
@@ -179,43 +181,16 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-//void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-//{
-//  if(GPIO_Pin == KEY_UP_Pin)
-//  {
-//    osEventFlagsClear(KEY_EVENTHandle, KEY_UP_EVENT | KEY_DOWN_EVENT | KEY_ENTER_EVENT | KEY_CANCEL_EVENT);
-//    osEventFlagsSet(KEY_EVENTHandle, KEY_UP_EVENT);
-//  }
-//  else if(GPIO_Pin == KEY_DOWN_Pin)
-//  {
-//    // Handle KEY_DOWN press event
-//    osEventFlagsClear(KEY_EVENTHandle, KEY_UP_EVENT | KEY_DOWN_EVENT | KEY_ENTER_EVENT | KEY_CANCEL_EVENT);
-//    osEventFlagsSet(KEY_EVENTHandle, KEY_DOWN_EVENT);
-//  }
-//  else if (GPIO_Pin == KEY_ENTER_Pin)
-//  {
-//    osEventFlagsClear(KEY_EVENTHandle, KEY_UP_EVENT | KEY_DOWN_EVENT | KEY_ENTER_EVENT | KEY_CANCEL_EVENT);
-//    osEventFlagsSet(KEY_EVENTHandle, KEY_ENTER_EVENT);
-//  }
-//  else if (GPIO_Pin == KEY_CANCEL_Pin)
-//  {
-//    osEventFlagsClear(KEY_EVENTHandle, KEY_UP_EVENT | KEY_DOWN_EVENT | KEY_ENTER_EVENT | KEY_CANCEL_EVENT);
-//    osEventFlagsSet(KEY_EVENTHandle, KEY_CANCEL_EVENT);
-//  }
-//  
-//}
 
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
   UartFrame* frame = Get_Uart_Frame_Buffer();
   if (huart->Instance == USART1)
   {
-    // LOG_INFO("A new data frame has come, size=%d", Size);
     osEventFlagsSet(UART_EVENTHandle,UART_RECEIVE_EVENT );
-    // HAL_UART_Transmit_DMA(&huart1,temp,Size);
 	  HAL_UARTEx_ReceiveToIdle_DMA(&huart1,temp,sizeof(temp));
     Uart_Buffer_Put_frame(frame, temp, Size);
-	  __HAL_DMA_DISABLE_IT(&hdma_usart1_rx,DMA_IT_HT);
+	  __HAL_DMA_DISABLE_IT(&hdma_usart1_rx,DMA_IT_HT);      //过半中断，为了保证数据完整性，必须开启它
   }
   
 
@@ -235,7 +210,6 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef* huart) {
           __HAL_UART_CLEAR_OREFLAG(&huart1);
           // 重新启动DMA接收
           HAL_UARTEx_ReceiveToIdle_DMA(&huart1, temp, sizeof(temp));
-          // __HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);
       }
     }
 }

@@ -51,14 +51,18 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-extern uint8_t temp[16];
-u8g2_t u8g2;
-int index = 0;
-const char* String_Option[] = {"begin","test1","test2","test3","end"};
-bool toggle = false;
-int32_t passenger_num = 0;
+extern uint8_t temp[16];                                                          // 来自main.c的缓冲区
+u8g2_t u8g2;                                                                      // u8g2对象
+int index = 0;                                                                    // String_Option的字符串数组索引
+const char* String_Option[] = {"begin","test1","test2","test3","end"};            // 测试的字符串
+bool toggle = false;                                                              // 测试bool节点的变量
+int32_t passenger_num = 0;                                                        // 存储乘客的变量
+
+// 用于跟踪菜单信息的数据结构体指指针
+menu_data_t* menu_data_ptr;
+// 节点指针
 menu_item_t* root = NULL;
-menu_item_t* sub1 = NULL;
+menu_item_t* sub1 = NULL;                                                         
 menu_item_t* sub2 = NULL;
 menu_item_t* sub3 = NULL;
 menu_item_t* sub4 = NULL;
@@ -70,8 +74,6 @@ menu_item_t* sub1_sub4 = NULL;
 menu_item_t* sub2_sub1 = NULL;
 menu_item_t* sub2_sub2 = NULL;
 menu_item_t* main_display = NULL;
-
-menu_data_t* menu_data_ptr;
 menu_item_t* sub4_sub1 = NULL;
 menu_item_t* sub4_sub2 = NULL;
 menu_item_t* sub4_sub3 = NULL;
@@ -83,18 +85,20 @@ menu_item_t* sub5_sub1 = NULL;
 menu_item_t* sub5_sub2 = NULL;
 menu_item_t* sub5_sub3 = NULL;
 menu_item_t* sub5_sub4 = NULL;
+
+// RTC内部结构体
   RTC_DateTypeDef sDate = {0};
   RTC_TimeTypeDef sTime = {0};
 typedef struct
 {
-  int32_t seconds;
-  int32_t minutes;
-  int32_t hours;
-  int32_t day;
-  int32_t month;
-  int32_t year;
+  int32_t seconds;                  // 暂存秒
+  int32_t minutes;                  // 暂存分
+  int32_t hours;                    // 暂存时
+  int32_t day;                      // 暂存天
+  int32_t month;                    // 暂存月
+  int32_t year;                     // 暂存年
 }Clock_t;
-Clock_t Clock = {0};
+Clock_t Clock = {0};                // 暂存时间结构体
 /* USER CODE END Variables */
 /* Definitions for U8G2_TASK */
 osThreadId_t U8G2_TASKHandle;
@@ -194,9 +198,11 @@ void MX_FREERTOS_Init(void) {
 /* USER CODE BEGIN Header_U8g2_Task */
 
 
-static int test_var = 0;
-// 诊断函数
-// 完全避免使用任何格式化函�?????
+static int test_var = 0;                                            // INT类型的变量
+
+/**
+ * @brief    作为sub1_sub1的回调函数
+ */
 void test()
 {
   UART_protocol UART_protocol_structure = {
@@ -205,11 +211,13 @@ void test()
     .Tailframe1 = 0x0D,
     .Tailframe2 = 0x0A
   };
-  // UART_Protocol_FLOAT(UART_protocol_structure,3.3);
   UART_Protocol_INT(UART_protocol_structure,test_var);
-  // LOG_INFO("sDate: %04d-%02d-%02d", sDate.Year + 2000, sDate.Month, sDate.Date);
 }
 
+
+/**
+ * @brief    作为sub1_sub3的回调函数
+ */
 void test2()
 {
   UART_protocol UART_protocol_structure = {
@@ -221,6 +229,9 @@ void test2()
   UART_Protocol_FLOAT(UART_protocol_structure,3.3);
 }
 
+/**
+ * @brief    作为sub1_sub4的回调函数
+ */
 void test3()
 {
   UART_protocol UART_protocol_structure = {
@@ -231,6 +242,12 @@ void test3()
   };
   UART_Protocol_ACK(UART_protocol_structure);
 }
+
+
+/**
+ * @brief    作为sub4的进入回调函数,目的暂存进入当前任务的时间
+ * @param    item      当前节点信息，用户无需了解
+ */
 void set_RTC_TEMP(menu_item_t* item)
 {
   Clock.seconds = sTime.Seconds;
@@ -240,6 +257,10 @@ void set_RTC_TEMP(menu_item_t* item)
   Clock.month = sDate.Month;
   Clock.year = sDate.Year;
 }
+
+/**
+ * @brief    作为sub4_sub7的回调函数，目的是向RTC备份寄存器写入年月日和修改时分秒
+ */
 void RTC_Set_Time()
 {
   sTime.Hours = Clock.hours;
@@ -263,6 +284,9 @@ void RTC_Set_Time()
   LOG_DEBUG("Restored date: %04d-%02d-%02d", sDate.Year + 2000, sDate.Month, sDate.Date);
 }
 
+/**
+ * @brief    作为sub5_sub2的回调函数，目的是向esp32发送当前的乘客数量
+ */
 void Send_Passenger()
 {
   UART_protocol UART_protocol_structure = {
@@ -274,6 +298,10 @@ void Send_Passenger()
   UART_Protocol_Passenger(UART_protocol_structure,++passenger_num);
 }
 
+
+/**
+ * @brief    作为sub5_sub3的回调函数，目的是向esp32发送清空当前乘客数量指令
+ */
 void Send_Clear()
 {
   UART_protocol UART_protocol_structure = {
@@ -285,6 +313,12 @@ void Send_Clear()
   passenger_num = 0;
   UART_Protocol_Clear(UART_protocol_structure);
 }
+
+/**
+ * @brief    作为main_display节点的回调函数，目的是作为渲染首页面
+ * @param    u8g2      u8g2句柄,回调函数固定参数
+ * @param    menu_data 节点数据句柄,回调函数固定参数
+ */
 void main_display_cb(u8g2_t* u8g2, menu_data_t* menu_data)
 {
   
@@ -330,6 +364,7 @@ void main_display_cb(u8g2_t* u8g2, menu_data_t* menu_data)
   
   u8g2_DrawStr(u8g2, 88, 60, toggle ? "ON" : "OFF");
 }
+
 /**
   * @brief  Function implementing the U8G2_TASK thread.
   * @param  argument: Not used
@@ -387,7 +422,6 @@ void U8g2_Task(void *argument)
   menu_data_ptr = menu_data_init(main_display);
   LOG_INFO("menu Nodes is has been inited ...");
   LOG_INFO("u8g2 task has been init...");
-  // menu_data.selected_item = root->first_child;
   /* Infinite loop */
   for(;;)
   {
@@ -408,50 +442,98 @@ void U8g2_Task(void *argument)
   }
   /* USER CODE END U8g2_Task */
 }
+
+/**
+ * @brief    UP按键的按键检测函数,用于按键对象回调
+ * @param    key       按键对象句柄,回调函数固定参数
+ * @return   uint8_t   按键状态,只有0和1两个参数
+ */
 uint8_t Key_UP_ReadPin(MulitKey_t* key)
 {
   return HAL_GPIO_ReadPin(KEY_UP_GPIO_Port,KEY_UP_Pin);
 }
 
+/**
+ * @brief    DOWN按键的按键检测函数,用于按键对象回调
+ * @param    key       按键对象句柄,回调函数固定参数
+ * @return   uint8_t   按键状态,只有0和1两个参数
+ */
 uint8_t Key_DOWN_ReadPin(MulitKey_t* key)
 {
   return HAL_GPIO_ReadPin(KEY_DOWN_GPIO_Port,KEY_DOWN_Pin);
 }
 
+/**
+ * @brief    ENTER按键的按键检测函数,用于按键对象回调
+ * @param    key       按键对象句柄,回调函数固定参数
+ * @return   uint8_t   按键状态,只有0和1两个参数
+ */
 uint8_t Key_ENTER_ReadPin(MulitKey_t* key)
 {
   return HAL_GPIO_ReadPin(KEY_ENTER_GPIO_Port,KEY_ENTER_Pin);
 }
-
+ 
+/**
+ * @brief    CANCEL按键的按键检测函数,用于按键对象回调
+ * @param    key       按键对象句柄,回调函数固定参数
+ * @return   uint8_t   按键状态,只有0和1两个参数
+ */
 uint8_t Key_CANCEL_ReadPin(MulitKey_t* key)
 {
   return HAL_GPIO_ReadPin(KEY_CANCEL_GPIO_Port,KEY_CANCEL_Pin);
 }
 
+/**
+ * @brief    UP键触发回调
+ * @attention 注意，该函数已经被单按和长按同时调用
+ * @param    key       按键对象句柄,回调函数固定参数
+ */
 void KEY_UP_Pressed(MulitKey_t* key)
 {
   navigate_up(menu_data_ptr);
 }
 
+/**
+ * @brief    DOWN键触发回调
+ * @attention 注意，该函数已经被单按和长按同时调用
+ * @param    key       按键对象句柄,回调函数固定参数
+ */
 void KEY_DOWN_Pressed(MulitKey_t* key)
 {
   navigate_down(menu_data_ptr);
 }
 
+/**
+ * @brief    ENTER键触发回调
+ * @attention 注意，该函数已经被单按和长按同时调用
+ * @param    key       按键对象句柄,回调函数固定参数
+ */
 void KEY_ENTER_Pressed(MulitKey_t* key)
 {
   navigate_enter(menu_data_ptr);
 }
 
+/**
+ * @brief    CANCEL键触发回调
+ * @attention 注意，该函数已经被单按和长按同时调用
+ * @param    key       按键对象句柄,回调函数固定参数
+ */
 void KEY_CANCEL_Pressed(MulitKey_t* key)
 {
   navigate_back(menu_data_ptr);
 }
+
+/**
+ * @brief    该函数是收到PASSENGER信息的回调函数
+ * @param    value     function of param
+ */
 void synchronized_passengers(uint8_t value)
 {
   passenger_num = value;
 }
+
 /* USER CODE BEGIN Header_KEY_Task */
+
 /**
 * @brief Function implementing the KEY_TASK thread.
 * @param argument: Not used
@@ -462,12 +544,11 @@ void KEY_Task(void *argument)
 {
   /* USER CODE BEGIN KEY_Task */
 
-  MulitKey_t Key_UP_S;
-  MulitKey_t Key_DOWN_S;
-  MulitKey_t Key_ENTER_S;
-  MulitKey_t Key_CANCEL_S;
+  MulitKey_t Key_UP_S;                  // UP按键对象
+  MulitKey_t Key_DOWN_S;                // DOWN按键对象
+  MulitKey_t Key_ENTER_S;               // ENTER按键对象
+  MulitKey_t Key_CANCEL_S;              // CANCEL按键对象
   MulitKey_Init(&Key_UP_S,Key_UP_ReadPin,KEY_UP_Pressed,KEY_UP_Pressed,FALL_BORDER_TRIGGER);
-
   MulitKey_Init(&Key_DOWN_S,Key_DOWN_ReadPin,KEY_DOWN_Pressed,KEY_DOWN_Pressed,FALL_BORDER_TRIGGER);
   MulitKey_Init(&Key_ENTER_S,Key_ENTER_ReadPin,KEY_ENTER_Pressed,KEY_ENTER_Pressed,FALL_BORDER_TRIGGER);
   MulitKey_Init(&Key_CANCEL_S,Key_CANCEL_ReadPin,KEY_CANCEL_Pressed,KEY_CANCEL_Pressed,FALL_BORDER_TRIGGER);
@@ -499,41 +580,38 @@ void uart_task(void *argument)
     .Tailframe1 = 0x0D,
     .Tailframe2 = 0x0A
   }; 
-  uint8_t data[32] = {0};
-  UartFrame* frame_buffer = Get_Uart_Frame_Buffer();
-  uint32_t flags;
-  uint8_t passenger_temp = 0;
+  uint8_t data[32] = {0};                                             // 暂存数据帧的缓冲区
+  UartFrame* frame_buffer = Get_Uart_Frame_Buffer();                  // 获得环形环形缓冲区的指针
+  uint32_t flags;                                                     // 事件组
+  uint8_t passenger_temp = 0;                                         // 暂存passenger的数量的变量，一旦与实际passenger不同，立刻向esp32发送信息
   LOG_INFO("UART_RX task has been init ...");
   set_PASSENGER_Callback(synchronized_passengers);
   /* Infinite loop */
   for(;;)
   {
     flags = osEventFlagsWait(UART_EVENTHandle,UART_RECEIVE_EVENT,osFlagsWaitAny,100);
-    if(flags & UART_RECEIVE_EVENT)
+    if(flags & UART_RECEIVE_EVENT)                                    // 事件组收到通知，立刻处理数据帧
     {
       LOG_INFO("data frame is has came ... , Size = %d",frame_buffer->Size);
-      memset(data,0,sizeof(data));
-      uint16_t size = frame_buffer->Size;
-      Uart_Buffer_Get_frame(frame_buffer,data);
-//      HAL_UART_Transmit_DMA(&huart1,data,size);
-      // HAL_UART_Transmit(&huart1,data,size,HAL_MAX_DELAY);
-      Receive_Uart_Frame(UART_protocol_structure,data,size);
+      memset(data,0,sizeof(data));                                    // 防止有残留数据帧，清空缓冲区
+      uint16_t size = frame_buffer->Size;                             // 获得该帧长度
+      Uart_Buffer_Get_frame(frame_buffer,data);                       // 从环形缓冲区提取出帧数据，方便处理
+      Receive_Uart_Frame(UART_protocol_structure,data,size);          // 处理数据
     }
     else
     {
-      if(passenger_temp != passenger_num)
+      if(passenger_temp != passenger_num)                             // 一旦与实际passenger不同，立刻向esp32发送信息
       {
         UART_Protocol_Passenger(UART_protocol_structure,passenger_num);
-        passenger_temp = passenger_num;
+        passenger_temp = passenger_num;                               // 保持同步
       }
       // 超时，检查ORE标志
-      if (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_ORE)) 
+      if (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_ORE))                // ORE异常，需要马上恢复缓冲区,否则DMA会瘫痪
       {
           LOG_WARN("ORE detected in task, recovering...");
           __HAL_UART_CLEAR_OREFLAG(&huart1);
           // 重新启动DMA接收
           HAL_UARTEx_ReceiveToIdle_DMA(&huart1, temp, sizeof(temp));
-          // __HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);
       }
     }
   }

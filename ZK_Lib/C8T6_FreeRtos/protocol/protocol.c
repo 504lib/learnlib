@@ -1,31 +1,50 @@
 #include "protocol.h"
 
+// 静态环形缓冲区
 static UartFrame Receive_Uart_Frame_Buffer = {0};
 
 typedef struct
 {
-    INT_Callback int_callback;
-    FLOAT_Callback float_callback;
-    ACK_Callback ack_callback;
-    PASSENGER_NUM_Callback passenger_callback;
-    CLEAR_Callback clear_callback;
+    INT_Callback int_callback;                      // 整形数据接受的回调函数
+    FLOAT_Callback float_callback;                  // 浮点型数据接受的回调函数
+    ACK_Callback ack_callback;                      // ack信号接受的回调函数
+    PASSENGER_NUM_Callback passenger_callback;      // 乘客数量接受的回调函数
+    CLEAR_Callback clear_callback;                  // 清除乘客数量的回调函数
 }callback_functions;
 
+// 回调函数实例 + 初始化
 callback_functions callbacks = {
-    .ack_callback = NULL,
+    .ack_callback = NULL,           
     .float_callback = NULL,
-    .int_callback = NULL
+    .int_callback = NULL,
+    .passenger_callback = NULL,
+    .clear_callback = NULL
 };
 
+/**
+ * @brief    校验和计算
+ * 
+ * @param    data      数据指针
+ * @param    length    计算的数据长度，注意边界问题
+ * @return   uint16_t  校验和的值
+ */
 static uint16_t calculateChecksum(const uint8_t* data, size_t length)
 {
     uint16_t sum = 0;
-    for (size_t i = 0; i < length; i++) {
+    for (size_t i = 0; i < length; i++) 
+    {
         sum += data[i];
     }
     return sum;
 }
 
+/**
+ * @brief    处理INT数据
+ * @details  通过Receive_Uart_Frame()函数,帧解包为INT类型对数据进行处理的函数
+ * @if       未设置INT回调函数，执行echo行为
+ * @else     执行用户定义行为
+ * @param    value     为帧解包获得的值
+ */
 static void handle_INT(int32_t value)
 {
     if (callbacks.int_callback) 
@@ -45,6 +64,14 @@ static void handle_INT(int32_t value)
     }
 }
 
+
+/**
+ * @brief    处理INT数据
+ * @details  通过Receive_Uart_Frame()函数,帧解包为FLOAT类型对数据进行处理的函数
+ * @if       未设置FLOAT回调函数，执行echo行为
+ * @else     执行用户定义行为
+ * @param    value     为帧解包获得的值
+ */
 static void handle_FLOAT(float value)
 {
     if (callbacks.float_callback) 
@@ -64,6 +91,13 @@ static void handle_FLOAT(float value)
     }
 }
 
+
+/**
+ * @brief    处理ACK信号
+ * @details  通过Receive_Uart_Frame()函数,帧解包为ACK类型对信号进行处理的函数
+ * @if       未设置ACK回调函数，执行echo行为
+ * @else     执行用户定义行为
+ */
 static void handle_ACK(void)
 {
     if (callbacks.ack_callback) 
@@ -83,6 +117,14 @@ static void handle_ACK(void)
     }
 }
 
+
+/**
+ * @brief    处理PASSENGES数据
+ * @details  通过Receive_Uart_Frame()函数,帧解包为PASSENGES类型对数据进行处理的函数
+ * @if       未设置PASSENGES回调函数，执行echo行为
+ * @else     执行用户定义行为
+ * @param    value     为帧解包获得的值
+ */
 static void handle_PASSENGER(uint8_t value)
 {
     if (callbacks.passenger_callback) 
@@ -102,6 +144,14 @@ static void handle_PASSENGER(uint8_t value)
     }
 }
 
+
+/**
+ * @brief    处理CLEAR信号
+ * @details  通过Receive_Uart_Frame()函数,帧解包为CLEAR类型对数据进行处理的函数
+ * @if       未设置CLEAR回调函数，执行echo行为
+ * @else     执行用户定义行为
+ * @param    value     为帧解包获得的值
+ */
 static void handle_CLEAR()
 {
     if (callbacks.clear_callback) 
@@ -121,22 +171,38 @@ static void handle_CLEAR()
     }
 }
 
+/**
+ * @brief    环形缓冲区初始化
+ * @param    rb        环形缓冲区指针
+ */
 static void RingBuffer_Init(RingBuffer *rb)
 {
     rb->head = 0;
     rb->tail = 0;
 }
 
+/**
+ * @brief    向环形缓冲区放置数据
+ * @param    rb        环形缓冲区指针
+ * @param    data      一个字节的二进制数据
+ */
 static void RingBuffer_Put(RingBuffer *rb, uint8_t data)
 {
-    uint16_t next_head = (rb->head + 1) % sizeof(rb->buffer);
-    if (next_head != rb->tail) // 检查缓冲区是否已满
+    uint16_t next_head = (rb->head + 1) % sizeof(rb->buffer);   // 指向下一个区域的指针下标
+    if (next_head != rb->tail)                                  // 检查缓冲区是否已满
     {
-        rb->buffer[rb->head] = data;
-        rb->head = next_head;
+        rb->buffer[rb->head] = data;                            // 放置数据
+        rb->head = next_head;                                   // 更改指针下标·
     }
 }
 
+/**
+ * @brief    从环形缓冲区获取一字节二进制数据
+ * @param    rb        环形缓冲区指针
+ * @param    data      接受数据的指针
+ * @return   true      获取成功
+ * @return   false     缓冲区为空，无法获取
+ */
 static bool RingBuffer_Get(RingBuffer *rb, uint8_t *data)
 {
     if (rb->head == rb->tail) // 检查缓冲区是否为空
@@ -148,6 +214,10 @@ static bool RingBuffer_Get(RingBuffer *rb, uint8_t *data)
     return true; // 成功读取一个字节
 }
 
+/**
+ * @brief    获取环形缓冲期指针
+ * @return   UartFrame* 环形缓冲区指针
+ */
 UartFrame* Get_Uart_Frame_Buffer(void)
 {
     UartFrame* frame = &Receive_Uart_Frame_Buffer;
@@ -156,6 +226,13 @@ UartFrame* Get_Uart_Frame_Buffer(void)
     return &Receive_Uart_Frame_Buffer;
 }
 
+/**
+ * @brief    放置指定字节长度的二进制数据
+ * @cite     RingBuffer_Put()
+ * @param    frame     环形缓冲区的指针
+ * @param    data      放置数据的缓冲区数组
+ * @param    size      指定大小
+ */
 void Uart_Buffer_Put_frame(UartFrame* frame,uint8_t* data,uint8_t size)
 {
     frame->Size = size;
@@ -165,6 +242,12 @@ void Uart_Buffer_Put_frame(UartFrame* frame,uint8_t* data,uint8_t size)
     }
 }
 
+/**
+ * @brief    获取目前缓冲区存放的数据
+ * @warning  注意缓冲区大小问题，请确保size大小的数据能完美的放在data数组内
+ * @param    frame     环形缓冲区的指针
+ * @param    data      用于接受数据的缓冲区指针
+ */
 void Uart_Buffer_Get_frame(UartFrame* frame,uint8_t* data)
 {
     uint8_t temp;
@@ -175,31 +258,57 @@ void Uart_Buffer_Get_frame(UartFrame* frame,uint8_t* data)
     }
 }
 
+/**
+ * @brief    Set the INT Callback object:用于设置INT数据处理的回调函数
+ * @param    cb        INT回调函数
+ */
 void set_INT_Callback(INT_Callback cb)
 {
     callbacks.int_callback = cb;
 }
 
+/**
+ * @brief    Set the FLOAT Callback object:用于设置FLOAT数据处理的回调函数
+ * @param    cb        FLOAT回调函数
+ */
 void set_FLOAT_Callback(FLOAT_Callback cb)
 {
     callbacks.float_callback = cb;
 }
 
+/**
+ * @brief    Set the ACK Callback object:用于设置ACK信号处理的回调函数
+ * @param    cb        ACK回调函数
+ */
 void set_ACK_Callback(ACK_Callback cb)
 {
     callbacks.ack_callback = cb;
 }
 
+/**
+ * @brief    Set the PASSENGER Callback object:用于设置PASSENGER数据处理的回调函数
+ * @param    cb        PASSENGER回调函数
+ */
 void set_PASSENGER_Callback(PASSENGER_NUM_Callback cb)
 {
     callbacks.passenger_callback = cb;
 }
 
+/**
+ * @brief    Set the Clear Callback object:用于设置CLEAR数据处理的回调函数
+ * @param    cb        CLEAR回调函数
+ */
 void set_Clear_Callback(CLEAR_Callback cb)
 {
     callbacks.clear_callback = cb;
 }
 
+/**
+ * @brief    发送整形数据
+ * @cite     LOG_DEBUG();calculateChecksum();
+ * @param    UART_protocol_structure 帧头帧尾结构体数据
+ * @param    value     四字节的整形值
+ */
 void UART_Protocol_INT(UART_protocol UART_protocol_structure,int32_t value)
 {
     typedef union
@@ -242,6 +351,12 @@ void UART_Protocol_INT(UART_protocol UART_protocol_structure,int32_t value)
     LOG_INFO("INT frame has sent,checksum = 0x%04x",check);
 }
 
+/**
+ * @brief    发送浮点型数据
+ * @cite     LOG_DEBUG();calculateChecksum();
+ * @param    UART_protocol_structure 帧头帧尾结构体数据
+ * @param    value     四字节的浮点数值
+ */
 void UART_Protocol_FLOAT(UART_protocol UART_protocol_structure,float value)
 {
     typedef union
@@ -283,6 +398,11 @@ void UART_Protocol_FLOAT(UART_protocol UART_protocol_structure,float value)
     LOG_INFO("FLOAT frame has sent,checksum = 0x%04x",check);
 }
 
+/**
+ * @brief    发送ACK信号
+ * @cite     LOG_DEBUG();calculateChecksum();
+ * @param    UART_protocol_structure 帧头帧尾结构体数据
+ */
 void UART_Protocol_ACK(UART_protocol UART_protocol_structure)
 {
     uint8_t frame[8];
@@ -309,6 +429,13 @@ void UART_Protocol_ACK(UART_protocol UART_protocol_structure)
     LOG_INFO("ACK frame has sent,checksum = 0x%04x",check);
 }
 
+
+/**
+ * @brief    发送乘客数量
+ * @cite     LOG_DEBUG();calculateChecksum();
+ * @param    UART_protocol_structure 帧头帧尾结构体数据
+ * @param    value     一字节的数值
+ */
 void UART_Protocol_Passenger(UART_protocol UART_protocol_structure,uint8_t value)
 {
 
@@ -339,7 +466,11 @@ void UART_Protocol_Passenger(UART_protocol UART_protocol_structure,uint8_t value
     LOG_INFO("PASSENGER frame has sent,checksum = 0x%04x",check);
 }
 
-
+/**
+ * @brief    发送清除顾客数量信号
+ * @warning  当前还只是车站自清理，不是http端信号！！！
+ * @param    UART_protocol_structure    帧头帧尾结构体数据
+ */
 void UART_Protocol_Clear(UART_protocol UART_protocol_structure)
 {
     uint8_t frame[8];
@@ -366,6 +497,13 @@ void UART_Protocol_Clear(UART_protocol UART_protocol_structure)
     LOG_INFO("CLEAR frame has sent,checksum = 0x%04x",check);
 }
 
+/**
+ * @brief    处理数据帧函数
+ * @details  处理规定帧头帧尾的数据帧
+ * @param    UART_protocol_structure    帧头帧尾结构体数据
+ * @param    data      存储数据帧的缓冲区指针
+ * @param    size      数据帧大小
+ */
 void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uint16_t size)
 {
     // 最小帧长度检查
@@ -444,6 +582,5 @@ void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uin
     {
         handle_CLEAR();
     }
-    // 其他类型可扩展
 }
 
