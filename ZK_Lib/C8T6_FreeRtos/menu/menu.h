@@ -16,9 +16,11 @@
     #include "FreeRTOS.h"
     #define _disable_interrupt_func osKernelLock()
     #define _enable_interrupt_func osKernelUnlock();
+    #define GetTick_MENU()               osKernelGetTickCount()
 #elif defined(MENU_USE_BARE_METAL)
     #define _disable_interrupt_func __disable_irq()
     #define _enable_interrupt_func __enable_irq()
+    #define GetTick_MENU()               HAL_GetTick()
 #elif defined(MENU_USE_CUSTOM)
     //请加入宏定义
     #if !defined(_disable_interrupt_func) || !defined(_enable_interrupt_func)
@@ -72,3 +74,4 @@ void Link_Parent_Child(menu_item_t* parent, menu_item_t* child);
 
 /* ************************* 展示函数 ************************************ */
 void show_menu(u8g2_t* u8g2, menu_data_t* menu_data, uint8_t max_display_count);
+void update_animation(menu_data_t* menu_data);

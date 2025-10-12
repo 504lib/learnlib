@@ -142,3 +142,21 @@ flowchart TD
 | sub5_sub1      | Set_Passenger      |                  |                |
 | sub5_sub2      | SendUART_Passenger |                  |                |
 | sub5_sub3      | clear              |                  |                |
+
+## 快速开始
+
+- [硬件连接指南](./docs/hardware.md)
+- [软件编译指南](./docs/software.md)
+- [API](./docs/api.md)
+
+## 模块文档
+
++ [菜单系统](./docs/modules/menu.md)
++ [通信协议](./docs/modules/protocol.md)
++ [按键处理](./docs/modules/multikeys.md)
++ [日志系统](./docs/modules/Log.md)
+
+## 开发指南
+
++ [菜单使用技巧](./docs/guides/add_menu.md)
++ [协议使用技巧](./docs/guides/Link_protocol.md)
