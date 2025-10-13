@@ -112,9 +112,12 @@ static void adjust_type_visible(u8g2_t* u8g2,menu_data_t* menu_data,uint16_t x, 
 {
 	char buffer[20];//暂时的缓冲区
     uint16_t str_width = 0;//当前子选项字符长度的大小变量
+    if (isSelected && !menu_data->isSelectedParam)
+    {
+        menu_data->animation.target_y = y - 10;
+        menu_data->animation.target_x = x;
+    }
     u8g2_SetFont(u8g2, u8g2_font_6x10_tf);//字体
-    menu_data->animation.target_y = y - 10;
-    menu_data->animation.target_x = x;
     uint16_t item_text_width = u8g2_GetStrWidth(u8g2, item->text);
     int16_t offset_x = menu_data->animation.target_x - menu_data->animation.current_x;
     int16_t offset_y = menu_data->animation.target_y - menu_data->animation.current_y;
@@ -122,51 +125,72 @@ static void adjust_type_visible(u8g2_t* u8g2,menu_data_t* menu_data,uint16_t x, 
     int16_t offset_width = menu_data->animation.target_width - menu_data->animation.current_width;
     if (menu_data->animation.isAmation && isSelected)
     {
-        if (offset_heigh == 0 && offset_x == 0 && offset_y == 0 && offset_width == 0) 
-        {
-            // 动画结束
-            menu_data->animation.isAmation = false;
-            menu_data->animation.start_y = menu_data->animation.target_y;
-            menu_data->animation.start_x = menu_data->animation.target_x;
-            menu_data->animation.start_heigh = menu_data->animation.target_heigh;
-            menu_data->animation.start_width = menu_data->animation.target_width;
-        }
-        else 
-        {
+            if ((offset_heigh <= 2 && offset_heigh >= -2) && (offset_y <=2 && offset_y >= -2) && (offset_x <= 2 && offset_x >= -2) && (offset_width <= 2 && offset_width >= -2))
+            {
+                menu_data->animation.isAmation = false;
+            }
             // 线性插值
             if (menu_data->animation.update_flag)
             {
-
-               menu_data->animation.update_flag = false;
-
-                menu_data->animation.current_y = menu_data->animation.current_y + 2 * (offset_y > 0? 1 : -1);
-                // LOG_DEBUG("offset_y:%d,current_y:%d,target_y:%d",offset_y,menu_data->animation.current_y,menu_data->animation.target_y); 
-                if (offset_y <=3 && offset_y >= -3)
+                if (!(offset_y <= 2 && offset_y >= -2))
                 {
-                    menu_data->animation.isAmation = false;
+                    menu_data->animation.current_y = menu_data->animation.current_y + 2 * (offset_y > 0? 1 : -1);
                 }
+                if (!(offset_x <= 2 && offset_x >= -2))
+                {
+                    menu_data->animation.current_x = menu_data->animation.current_x + 10 * (offset_x > 0? 1 : -1);
+                }
+                if (!(offset_heigh <= 2 && offset_heigh >= -2))
+                {
+                    menu_data->animation.current_heigh = menu_data->animation.current_heigh + (offset_heigh > 0? 1 : -1);
+                }
+                if (!(offset_width <= 2 && offset_width >= -2))
+                {
+                    menu_data->animation.current_width = menu_data->animation.current_width + (offset_width > 0? 1 : -1);
+                }
+                menu_data->animation.update_flag = false;
+                LOG_INFO("cur_y:%d,target_y:%d",menu_data->animation.current_y,menu_data->animation.target_y);
+                LOG_INFO("cur_x:%d,target_x:%d",menu_data->animation.current_x,menu_data->animation.target_x);
+                LOG_INFO("cur_heigh:%d,target_heigh:%d",menu_data->animation.current_heigh,menu_data->animation.target_heigh);
+                LOG_INFO("cur_width:%d,target_width:%d",menu_data->animation.current_width,menu_data->animation.target_width);
                 
-                // if (offset_y > 0)
-                // {
-                //     menu_data->animation.current_y = menu_data->animation.current_y + 2;
-                // }
-                // else
-                // {
-                //     menu_data->animation.current_y = menu_data->animation.current_y - 2;
-                // }
-                
-                menu_data->animation.current_x = menu_data->animation.start_x + (offset_x > 0? 1 : -1);
-                menu_data->animation.current_heigh = menu_data->animation.start_heigh + (offset_heigh > 0? 1 : -1);
-                menu_data->animation.current_width = menu_data->animation.start_width + (offset_width > 0? 1 : -1);
              }
-        }
     }
     switch (item->type)
     {
     case MENU_TYPE_SUB_MENU://菜单选项
+        menu_data->animation.target_heigh = 15;
+        menu_data->animation.target_width = 128;
         if(isSelected)//选中
         {
             //必须先画框再写字，不然渲染有错误
+            if (!(menu_data->animation.isAmation))
+            {
+                u8g2_DrawBox(u8g2, 0, y - 10, 128, 15);
+                u8g2_SetDrawColor(u8g2, 0);
+                u8g2_DrawStr(u8g2, x, y, item->text);
+                u8g2_SetDrawColor(u8g2, 1);
+                menu_data->animation.start_x = 0;
+                menu_data->animation.start_y = y - 10;
+            }
+            else
+            {
+                u8g2_DrawBox(u8g2, 0 ,menu_data->animation.current_y, 128, 15);
+                u8g2_SetDrawColor(u8g2, 0);
+                u8g2_DrawStr(u8g2, x, y, item->text);  // 文字位置不变
+                u8g2_SetDrawColor(u8g2, 1);    
+            }
+        } 
+        else //未选中
+        {
+            u8g2_DrawStr(u8g2, x, y, item->text);
+        }
+        break;
+    case MENU_TYPE_FUNCTION://函数选项
+        menu_data->animation.target_heigh = 15;
+        menu_data->animation.target_width = 128;
+        if(isSelected)//选中
+        {
             if (!(menu_data->animation.isAmation))
             {
                 u8g2_DrawBox(u8g2, 0, y - 10, 128, 15);
@@ -189,20 +213,9 @@ static void adjust_type_visible(u8g2_t* u8g2,menu_data_t* menu_data,uint16_t x, 
             u8g2_DrawStr(u8g2, x, y, item->text);
         }
         break;
-    case MENU_TYPE_FUNCTION://函数选项
-        if(isSelected)//选中
-        {
-            u8g2_DrawBox(u8g2, 0, y - 10, 128, 15);
-            u8g2_SetDrawColor(u8g2, 0);
-            u8g2_DrawStr(u8g2, x, y, item->text);
-            u8g2_SetDrawColor(u8g2, 1);
-        } 
-        else //未选中
-        {
-            u8g2_DrawStr(u8g2, x, y, item->text);
-        }
-        break;
     case MENU_TYPE_PARAM_INT://整形枚举选项
+        menu_data->animation.target_heigh = 15;
+        menu_data->animation.target_width = 128;
         sprintf(buffer, "%d",*(item->data.param_int.value_ptr));//格式化字符串数据
         str_width = u8g2_GetStrWidth(u8g2, buffer);//计算字符串数据所占的像素数
         if(isSelected)//选中
@@ -223,11 +236,22 @@ static void adjust_type_visible(u8g2_t* u8g2,menu_data_t* menu_data,uint16_t x, 
             else//未选中
             {
                 // 普通选中状态
-                u8g2_DrawBox(u8g2, 0, y - 10, 128, 15);
-                u8g2_SetDrawColor(u8g2, 0);
-                u8g2_DrawStr(u8g2, x, y, item->text);
-                u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
-                u8g2_SetDrawColor(u8g2, 1);
+                if (menu_data->animation.isAmation)
+                {
+                    u8g2_DrawBox(u8g2, 0, menu_data->animation.current_y, 128, 15);
+                    u8g2_SetDrawColor(u8g2, 0);
+                    u8g2_DrawStr(u8g2, x, y, item->text);  // 文字位置不变
+                    u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
+                    u8g2_SetDrawColor(u8g2, 1);    
+                }
+                else
+                {
+                    u8g2_DrawBox(u8g2, 0, y - 10, 128, 15);
+                    u8g2_SetDrawColor(u8g2, 0);
+                    u8g2_DrawStr(u8g2, x, y, item->text);
+                    u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
+                    u8g2_SetDrawColor(u8g2, 1);
+                } 
             }
         } 
         else //未选中
@@ -237,6 +261,8 @@ static void adjust_type_visible(u8g2_t* u8g2,menu_data_t* menu_data,uint16_t x, 
         }
         break;
     case MENU_TYPE_PARAM_ENUM://字符串枚举
+        menu_data->animation.target_heigh = 15;
+        menu_data->animation.target_width = 128;
         sprintf(buffer, "%s",item->data.param_enum.options[*(item->data.param_enum.value_ptr)]);//格式化索引所在的字符串
         str_width = u8g2_GetStrWidth(u8g2, buffer);//计算长度
         // u8g2_DrawStr(u8g2, x, y, buffer);
@@ -256,11 +282,22 @@ static void adjust_type_visible(u8g2_t* u8g2,menu_data_t* menu_data,uint16_t x, 
             else
             {
                 // 普通选中状态
-                u8g2_DrawBox(u8g2, 0, y - 10, 128, 15);
-                u8g2_SetDrawColor(u8g2, 0);
-                u8g2_DrawStr(u8g2, x, y, item->text);
-                u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
-                u8g2_SetDrawColor(u8g2, 1);
+                if (menu_data->animation.isAmation)
+                {
+                    u8g2_DrawBox(u8g2, 0, menu_data->animation.current_y, 128, 15);
+                    u8g2_SetDrawColor(u8g2, 0);
+                    u8g2_DrawStr(u8g2, x, y, item->text);  // 文字位置不变
+                    u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
+                    u8g2_SetDrawColor(u8g2, 1);    
+                }
+                else
+                {
+                    u8g2_DrawBox(u8g2, 0, y - 10, 128, 15);
+                    u8g2_SetDrawColor(u8g2, 0);
+                    u8g2_DrawStr(u8g2, x, y, item->text);
+                    u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
+                    u8g2_SetDrawColor(u8g2, 1);
+                } 
             }
         } 
         else 
@@ -270,6 +307,8 @@ static void adjust_type_visible(u8g2_t* u8g2,menu_data_t* menu_data,uint16_t x, 
         }
         break;
     case MENU_TYPE_TOGGLE://开关菜单
+        menu_data->animation.target_heigh = 15;
+        menu_data->animation.target_width = 128;
         sprintf(buffer, "%s",(*(item->data.toggle.value_ptr) ? "true" : "false"));//根据数值直接渲染字符串还
         str_width = u8g2_GetStrWidth(u8g2, buffer);
         // u8g2_DrawStr(u8g2, x, y, buffer);
@@ -277,23 +316,56 @@ static void adjust_type_visible(u8g2_t* u8g2,menu_data_t* menu_data,uint16_t x, 
         {
             if(menu_data->isSelectedParam)
             {
-                // 进入参数编辑状态，显示不同的样式
                 sprintf(buffer, "%s",(item->data.toggle.temp ? "true" : "false"));//根据数值直接渲染字符串还
                 str_width = u8g2_GetStrWidth(u8g2, buffer);
-                u8g2_DrawBox(u8g2, 120 - str_width, y - 10, str_width, 15);
-                u8g2_DrawStr(u8g2, x, y, item->text);
-                u8g2_SetDrawColor(u8g2, 0);
-                u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
-                u8g2_SetDrawColor(u8g2, 1);
+                if (menu_data->animation.isAmation)
+                {
+                    // 进入参数编辑状态，显示不同的样式
+                    menu_data->animation.target_x = 120 - str_width;
+                    menu_data->animation.target_y = y - 10;
+                    menu_data->animation.target_heigh = 15;
+                    menu_data->animation.target_width = str_width;
+                    u8g2_DrawBox(u8g2, menu_data->animation.current_x, menu_data->animation.current_y, menu_data->animation.current_width, menu_data->animation.current_heigh);
+                    u8g2_DrawStr(u8g2, x, y, item->text);
+                    u8g2_SetDrawColor(u8g2, 0);
+                    u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
+                    u8g2_SetDrawColor(u8g2, 1);
+                }
+                else
+                {
+                    u8g2_DrawBox(u8g2, 120 - str_width, y - 10, str_width, 15);
+                    u8g2_DrawStr(u8g2, x, y, item->text);
+                    u8g2_SetDrawColor(u8g2, 0);
+                    u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
+                    u8g2_SetDrawColor(u8g2, 1);
+                }
+                
             }
             else
             {
                 // 普通选中状态
-                u8g2_DrawBox(u8g2, 0, y - 10, 128, 15);
-                u8g2_SetDrawColor(u8g2, 0);
-                u8g2_DrawStr(u8g2, x, y, item->text);
-                u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
-                u8g2_SetDrawColor(u8g2, 1);
+                
+                if (menu_data->animation.isAmation)
+                {
+                    u8g2_DrawBox(u8g2, 0, menu_data->animation.current_y, 128, 15);
+                    u8g2_SetDrawColor(u8g2, 0);
+                    u8g2_DrawStr(u8g2, x, y, item->text);  // 文字位置不变
+                    u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
+                    u8g2_SetDrawColor(u8g2, 1);    
+                }
+                else
+                {
+                    u8g2_DrawBox(u8g2, 0, y - 10, 128, 15);
+                    u8g2_SetDrawColor(u8g2, 0);
+                    u8g2_DrawStr(u8g2, x, y, item->text);
+                    u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
+                    u8g2_SetDrawColor(u8g2, 1);
+                } 
+                // u8g2_DrawBox(u8g2, 0, y - 10, 128, 15);
+                // u8g2_SetDrawColor(u8g2, 0);
+                // u8g2_DrawStr(u8g2, x, y, item->text);
+                // u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
+                // u8g2_SetDrawColor(u8g2, 1);
             }
         } 
         else 
@@ -731,6 +803,7 @@ void navigate_enter(menu_data_t* menu_data)
 {
     if (!menu_data->selected_item && menu_data->current_menu->type == MENU_TYPE_MAIN) return;
     // 如果是子菜单，进入子菜单
+    menu_data->animation.isAmation = true;   
     if (menu_data->selected_item->type == MENU_TYPE_SUB_MENU && menu_data->selected_item->first_child) //进入子节点
     {  
         menu_data->current_menu = menu_data->selected_item;
@@ -806,7 +879,7 @@ void navigate_enter(menu_data_t* menu_data)
 void navigate_back(menu_data_t* menu_data) 
 {
     if (!menu_data->current_menu) return;
-    
+    menu_data->animation.isAmation = true;   
     // 返回到父菜单
     if(menu_data->isSelectedParam)
     {

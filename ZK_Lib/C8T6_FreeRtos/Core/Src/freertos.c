@@ -455,7 +455,7 @@ void U8g2_Task(void *argument)
 uint8_t Key_UP_ReadPin(MulitKey_t* key)
 {
   return HAL_GPIO_ReadPin(KEY_UP_GPIO_Port,KEY_UP_Pin);
-}
+}	
 
 /**
  * @brief    DOWN按键的按键检测函数,用于按键对象回调
