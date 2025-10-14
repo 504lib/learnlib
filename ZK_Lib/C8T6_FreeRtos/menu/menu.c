@@ -67,10 +67,7 @@ struct menu_item_s {
 typedef struct
 {
     bool isAmation;
-    uint8_t start_x;
-    uint8_t start_y;
-    uint8_t start_heigh;
-    uint8_t start_width;
+    bool isNeedUpdata;
     uint8_t current_x;
     uint8_t current_y;
     uint8_t current_heigh;
@@ -79,8 +76,17 @@ typedef struct
     uint8_t target_y;
     uint8_t target_heigh;
     uint8_t target_width;
-    bool update_flag;
+    struct
+    {
+        uint8_t step_x;
+        uint8_t step_y;
+        uint8_t step_width;
+        uint8_t step_heigh;
+    }Animation_Step;
+    
 }Animation;
+
+
 
 
 struct menu_data_t{
@@ -98,6 +104,48 @@ static menu_item_t Menu_Node[MENU_NODE] = {0};
 /// @brief 全局唯一静态数据结构体
 static menu_data_t menu_data = {0};
 
+
+//  在导航时统一设置目标值
+void set_animation_target(u8g2_t* u8g2 ,menu_data_t* menu_data, menu_item_t* selected_item, uint16_t y) {
+    menu_data->animation.isAmation = true;   
+    // 基础位置（选中框覆盖整个项）
+    menu_data->animation.target_x = 0;
+    menu_data->animation.target_y = y - 10;
+    menu_data->animation.target_width = 128;
+    menu_data->animation.target_heigh = 15; 
+    // 如果是参数编辑状态，调整目标值
+    if (menu_data->isSelectedParam) {
+        char buffer[20];
+        uint16_t str_width = 0;
+        
+        switch (selected_item->type) {
+            case MENU_TYPE_PARAM_INT:
+                sprintf(buffer, "%d", selected_item->data.param_int.temp);
+                str_width = u8g2_GetStrWidth(u8g2, buffer); // 需要u8g2实例
+                menu_data->animation.target_x = 120 - str_width;
+                menu_data->animation.target_width = str_width;
+                menu_data->animation.target_heigh = 15; 
+                break;
+                
+            case MENU_TYPE_PARAM_ENUM:
+                sprintf(buffer, "%s", selected_item->data.param_enum.options[selected_item->data.param_enum.value_ptr_temp]);
+                str_width = u8g2_GetStrWidth(u8g2, buffer);
+                menu_data->animation.target_x = 120 - str_width;
+                menu_data->animation.target_width = str_width;
+                menu_data->animation.target_heigh = 15; 
+                break;
+                
+            case MENU_TYPE_TOGGLE:
+                sprintf(buffer, "%s", selected_item->data.toggle.temp ? "true" : "false");
+                str_width = u8g2_GetStrWidth(u8g2, buffer);
+                menu_data->animation.target_x = 120 - str_width;
+                menu_data->animation.target_width = str_width;
+                menu_data->animation.target_heigh = 15; 
+                break;
+        }
+    }
+}
+
 /**
  * @brief 选定框执行策略函数
  * 
@@ -112,72 +160,19 @@ static void adjust_type_visible(u8g2_t* u8g2,menu_data_t* menu_data,uint16_t x, 
 {
 	char buffer[20];//暂时的缓冲区
     uint16_t str_width = 0;//当前子选项字符长度的大小变量
-    if (isSelected && !menu_data->isSelectedParam)
-    {
-        menu_data->animation.target_y = y - 10;
-        menu_data->animation.target_x = x;
-        // menu_data->animation.target_heigh = 15;
-        // menu_data->animation.target_width = 128;
+     if (isSelected && menu_data->animation.isNeedUpdata) 
+     {
+        set_animation_target(u8g2,menu_data, item, y);
+        menu_data->animation.isNeedUpdata = false;
     }
     u8g2_SetFont(u8g2, u8g2_font_6x10_tf);//字体
-    uint16_t item_text_width = u8g2_GetStrWidth(u8g2, item->text);
-    int16_t offset_x = menu_data->animation.target_x - menu_data->animation.current_x;
-    int16_t offset_y = menu_data->animation.target_y - menu_data->animation.current_y;
-    int16_t offset_heigh = menu_data->animation.target_heigh - menu_data->animation.current_heigh;
-    int16_t offset_width = menu_data->animation.target_width - menu_data->animation.current_width;
-    if (menu_data->animation.isAmation && isSelected)
-    {
-            if ((offset_heigh <= 2 && offset_heigh >= -2) && (offset_y <=2 && offset_y >= -2) && (offset_x <= 2 && offset_x >= -2) && (offset_width <= 2 && offset_width >= -2))
-            {
-                menu_data->animation.current_heigh = menu_data->animation.target_heigh;
-                menu_data->animation.current_x = menu_data->animation.target_x;
-                menu_data->animation.current_y = menu_data->animation.target_y;
-                menu_data->animation.current_width = menu_data->animation.current_width;
-                menu_data->animation.isAmation = false;
-            }
-            // 线性插值
-            if (menu_data->animation.update_flag)
-            {
-                if (!(offset_y <= 2 && offset_y >= -2))
-                {
-                    menu_data->animation.current_y = menu_data->animation.current_y + 2 * (offset_y > 0? 1 : -1);
-                }
-                if (!(offset_x <= 2 && offset_x >= -2))
-                {
-                    menu_data->animation.current_x = menu_data->animation.current_x + 10 * (offset_x > 0? 1 : -1);
-                }
-                if (!(offset_heigh <= 2 && offset_heigh >= -2))
-                {
-                    menu_data->animation.current_heigh = menu_data->animation.current_heigh + (offset_heigh > 0? 1 : -1);
-                }
-                if (!(offset_width <= 2 && offset_width >= -2))
-                {
-                    menu_data->animation.current_width = menu_data->animation.current_width + 1 * (offset_width > 0? 1 : -1);
-                }
-                menu_data->animation.update_flag = false;
-                if (item->type == MENU_TYPE_TOGGLE && isSelected)
-                {
-
-                    LOG_INFO("cur_y:%d,target_y:%d",menu_data->animation.current_y,menu_data->animation.target_y);
-                    LOG_INFO("cur_x:%d,target_x:%d",menu_data->animation.current_x,menu_data->animation.target_x);
-                LOG_INFO("cur_heigh:%d,target_heigh:%d",menu_data->animation.current_heigh,menu_data->animation.target_heigh);
-                LOG_INFO("cur_width:%d,target_width:%d",menu_data->animation.current_width,menu_data->animation.target_width);
-                }
-                
-                
-             }
-    }
     switch (item->type)
     {
     case MENU_TYPE_SUB_MENU://菜单选项
         if(isSelected)//选中
         {
-            menu_data->animation.target_x = 0;
-            menu_data->animation.target_y = y - 10;
-            menu_data->animation.target_heigh = 15;
-            menu_data->animation.target_width = 128;
             //必须先画框再写字，不然渲染有错误
-            u8g2_DrawBox(u8g2, menu_data->animation.target_x,menu_data->animation.current_y, 128, 15);
+            u8g2_DrawBox(u8g2, menu_data->animation.current_x,menu_data->animation.current_y, menu_data->animation.current_width, menu_data->animation.current_heigh);
             u8g2_SetDrawColor(u8g2, 0);
             u8g2_DrawStr(u8g2, x, y, item->text);
             u8g2_SetDrawColor(u8g2, 1);
@@ -190,10 +185,8 @@ static void adjust_type_visible(u8g2_t* u8g2,menu_data_t* menu_data,uint16_t x, 
     case MENU_TYPE_FUNCTION://函数选项
         if(isSelected)//选中
         {
-            menu_data->animation.target_heigh = 15;
-            menu_data->animation.target_width = 128;
             //必须先画框再写字，不然渲染有错误
-            u8g2_DrawBox(u8g2, menu_data->animation.target_x,menu_data->animation.current_y, 128, 15);
+            u8g2_DrawBox(u8g2, menu_data->animation.current_x,menu_data->animation.current_y, menu_data->animation.current_width, menu_data->animation.current_heigh);
             u8g2_SetDrawColor(u8g2, 0);
             u8g2_DrawStr(u8g2, x, y, item->text);
             u8g2_SetDrawColor(u8g2, 1);
@@ -204,20 +197,17 @@ static void adjust_type_visible(u8g2_t* u8g2,menu_data_t* menu_data,uint16_t x, 
         }
         break;
     case MENU_TYPE_PARAM_INT://整形枚举选项
-        sprintf(buffer, "%d",*(item->data.param_int.value_ptr));//格式化字符串数据
-        str_width = u8g2_GetStrWidth(u8g2, buffer);//计算字符串数据所占的像素数
+
+        sprintf(buffer, "%d", item->data.param_int.temp);
+        str_width = u8g2_GetStrWidth(u8g2, buffer); // 需要u8g2实例
         if(isSelected)//选中
         {
-            menu_data->animation.target_heigh = 15;
-            menu_data->animation.target_width = 128;
             if(menu_data->isSelectedParam)//选中并执行选参
             {
                 // 进入参数编辑状态，显示不同的样式
                 //OLED屏幕宽度约为128，但是我用的120是比较观察和好看
                 //首先要让选中框聚焦于数字枚举的内容，所以要在120-字符串宽度的位置开始渲染，渲染宽度就为字符串的宽度
-                sprintf(buffer, "%d",item->data.param_int.temp);//格式化字符串数据
-                str_width = u8g2_GetStrWidth(u8g2, buffer);//计算字符串数据所占的像素数
-                u8g2_DrawBox(u8g2, 120 - str_width, y - 10, str_width, 15);
+                u8g2_DrawBox(u8g2, menu_data->animation.current_x,menu_data->animation.current_y, menu_data->animation.current_width, menu_data->animation.current_heigh);
                 u8g2_DrawStr(u8g2, x, y, item->text);
                 u8g2_SetDrawColor(u8g2, 0);
                 u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
@@ -230,7 +220,7 @@ static void adjust_type_visible(u8g2_t* u8g2,menu_data_t* menu_data,uint16_t x, 
                 // menu_data->animation.target_heigh = 15;
                 // menu_data->animation.target_width = 128;
             //必须先画框再写字，不然渲染有错误
-                u8g2_DrawBox(u8g2, menu_data->animation.target_x,menu_data->animation.current_y, 128, 15);
+                u8g2_DrawBox(u8g2, menu_data->animation.current_x,menu_data->animation.current_y, menu_data->animation.current_width, menu_data->animation.current_heigh);
                 u8g2_SetDrawColor(u8g2, 0);
                 u8g2_DrawStr(u8g2, x, y, item->text);
                 u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
@@ -246,17 +236,16 @@ static void adjust_type_visible(u8g2_t* u8g2,menu_data_t* menu_data,uint16_t x, 
     case MENU_TYPE_PARAM_ENUM://字符串枚举
         // menu_data->animation.target_heigh = 15;
         // menu_data->animation.target_width = 128;
-        sprintf(buffer, "%s",item->data.param_enum.options[*(item->data.param_enum.value_ptr)]);//格式化索引所在的字符串
-        str_width = u8g2_GetStrWidth(u8g2, buffer);//计算长度
         // u8g2_DrawStr(u8g2, x, y, buffer);
+
+        sprintf(buffer, "%s",item->data.param_enum.options[item->data.param_enum.value_ptr_temp]);//格式化索引所在的字符串
+        str_width = u8g2_GetStrWidth(u8g2, buffer); // 需要u8g2实例
         if(isSelected)
         {
             if(menu_data->isSelectedParam)
             {
                 // 进入参数编辑状态，显示不同的样式
-                sprintf(buffer, "%s",item->data.param_enum.options[item->data.param_enum.value_ptr_temp]);//格式化索引所在的字符串
-                str_width = u8g2_GetStrWidth(u8g2, buffer);//计算长度
-                u8g2_DrawBox(u8g2, 120 - str_width, y - 10, str_width, 15);
+                u8g2_DrawBox(u8g2, menu_data->animation.current_x,menu_data->animation.current_y, menu_data->animation.current_width, menu_data->animation.current_heigh);
                 u8g2_DrawStr(u8g2, x, y, item->text);
                 u8g2_SetDrawColor(u8g2, 0);
                 u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
@@ -268,7 +257,7 @@ static void adjust_type_visible(u8g2_t* u8g2,menu_data_t* menu_data,uint16_t x, 
                 // menu_data->animation.target_heigh = 15;
                 // menu_data->animation.target_width = 128;
                 //必须先画框再写字，不然渲染有错误
-                u8g2_DrawBox(u8g2, menu_data->animation.target_x,menu_data->animation.current_y, 128, 15);
+                u8g2_DrawBox(u8g2, menu_data->animation.current_x,menu_data->animation.current_y, menu_data->animation.current_width, menu_data->animation.current_heigh);
                 u8g2_SetDrawColor(u8g2, 0);
                 u8g2_DrawStr(u8g2, x, y, item->text);
                 u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
@@ -282,31 +271,23 @@ static void adjust_type_visible(u8g2_t* u8g2,menu_data_t* menu_data,uint16_t x, 
         }
         break;
     case MENU_TYPE_TOGGLE://开关菜单
-        sprintf(buffer, "%s",(*(item->data.toggle.value_ptr) ? "true" : "false"));//根据数值直接渲染字符串还
-        str_width = u8g2_GetStrWidth(u8g2, buffer);
+
+        sprintf(buffer, "%s", item->data.toggle.temp ? "true" : "false");
+        str_width = u8g2_GetStrWidth(u8g2, buffer); // 需要u8g2实例
         if(isSelected)
         {
             if(menu_data->isSelectedParam)
             {
-                // LOG_INFO("join_target_width:%d",menu_data->animation.target_width);
-                sprintf(buffer, "%s",(item->data.toggle.temp ? "true" : "false"));//根据数值直接渲染字符串还
-                str_width = u8g2_GetStrWidth(u8g2, buffer);
-                menu_data->animation.target_x = 120 - str_width;
-                menu_data->animation.target_y = y - 10;
-                menu_data->animation.target_heigh = 15;
-                menu_data->animation.target_width = str_width;
                 //必须先画框再写字，不然渲染有错误
-                u8g2_DrawBox(u8g2, menu_data->animation.current_x,menu_data->animation.current_y, menu_data->animation.current_width, menu_data->animation.current_heigh);
-                u8g2_SetDrawColor(u8g2, 0);
+                u8g2_DrawBox(u8g2, menu_data->animation.current_x,menu_data->animation.current_y,menu_data->animation.current_width, menu_data->animation.current_heigh);
                 u8g2_DrawStr(u8g2, x, y, item->text);
+                u8g2_SetDrawColor(u8g2, 0);
                 u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
                 u8g2_SetDrawColor(u8g2, 1);
             }
             else
             {
                 // 普通选中状态
-                menu_data->animation.target_heigh = 15;
-                menu_data->animation.target_width = 128;
                 u8g2_DrawBox(u8g2, menu_data->animation.current_x,menu_data->animation.current_y,menu_data->animation.current_width, menu_data->animation.current_heigh);
                 u8g2_SetDrawColor(u8g2, 0);
                 u8g2_DrawStr(u8g2, x, y, item->text);
@@ -343,16 +324,17 @@ menu_data_t* menu_data_init(menu_item_t* root)
     menu_data.selected_item = root->first_child;//默认选中第一个孩子
     menu_data.first_visible = root->first_child;//默认让第一个孩子在首置位显示
     menu_data.visible_count = 0;//默认屏幕可见的子菜单数为0
-    menu_data.animation.start_heigh = 0;
-    menu_data.animation.start_width = 0;
-    menu_data.animation.start_x = 0;
-    menu_data.animation.start_y = 0;
     menu_data.animation.isAmation = false;
     menu_data.animation.target_heigh = 0;
     menu_data.animation.target_width = 0;
     menu_data.animation.target_x = 0;
     menu_data.animation.target_y = 0;
-    menu_data.animation.update_flag = false;
+    menu_data.animation.isNeedUpdata = false;
+    menu_data.animation.Animation_Step.step_heigh = 1;
+    menu_data.animation.Animation_Step.step_width = 10;
+    menu_data.animation.Animation_Step.step_x = 10;
+    menu_data.animation.Animation_Step.step_y = 2;
+
     return &menu_data;
 }
 
@@ -627,7 +609,7 @@ void navigate_up(menu_data_t* menu_data)
 {
     if (!menu_data->selected_item) return;
 //    int32_t* value_ptr = NULL;
-    menu_data->animation.isAmation = true;
+    menu_data->animation.isNeedUpdata = true;
     if(menu_data->isSelectedParam)//枚举菜单被选中后，执行数值映射
     {
         if(menu_data->selected_item->type == MENU_TYPE_PARAM_INT)//整形菜单
@@ -682,7 +664,7 @@ void navigate_down(menu_data_t* menu_data)
 {
     if (!menu_data->selected_item) return;
     
-    menu_data->animation.isAmation = true;
+    menu_data->animation.isNeedUpdata = true;   
     if(menu_data->isSelectedParam)//枚举菜单被选中后，执行数值映射
     {
         if(menu_data->selected_item->type == MENU_TYPE_PARAM_INT)//整形菜单
@@ -749,7 +731,7 @@ void navigate_enter(menu_data_t* menu_data)
 {
     if (!menu_data->selected_item && menu_data->current_menu->type == MENU_TYPE_MAIN) return;
     // 如果是子菜单，进入子菜单
-    menu_data->animation.isAmation = true;   
+    menu_data->animation.isNeedUpdata = true;   
     if (menu_data->selected_item->type == MENU_TYPE_SUB_MENU && menu_data->selected_item->first_child) //进入子节点
     {  
         menu_data->current_menu = menu_data->selected_item;
@@ -825,7 +807,7 @@ void navigate_enter(menu_data_t* menu_data)
 void navigate_back(menu_data_t* menu_data) 
 {
     if (!menu_data->current_menu) return;
-    menu_data->animation.isAmation = true;   
+    menu_data->animation.isNeedUpdata = true;   
     // 返回到父菜单
     if(menu_data->isSelectedParam)
     {
@@ -848,5 +830,44 @@ void navigate_back(menu_data_t* menu_data)
 
 void update_animation(menu_data_t* menu_data)
 {
-    menu_data->animation.update_flag = true;
+    if (!menu_data->animation.isAmation) return;
+    
+    // 简单的线性插值
+    int16_t y_diff = menu_data->animation.target_y - menu_data->animation.current_y;
+    int16_t x_diff = menu_data->animation.target_x - menu_data->animation.current_x;
+    int16_t width_diff = menu_data->animation.target_width - menu_data->animation.current_width;
+    int16_t heigh_diff = menu_data->animation.target_heigh - menu_data->animation.current_heigh;
+    
+    // 更新位置（固定步长）
+    if (abs(y_diff) > menu_data->animation.Animation_Step.step_y) {
+        menu_data->animation.current_y += (y_diff > 0 ? menu_data->animation.Animation_Step.step_y : -menu_data->animation.Animation_Step.step_y);
+    } else {
+        menu_data->animation.current_y = menu_data->animation.target_y;
+    }
+    
+    if (abs(x_diff) > menu_data->animation.Animation_Step.step_x) {
+        menu_data->animation.current_x +=  (x_diff > 0 ? menu_data->animation.Animation_Step.step_x : -menu_data->animation.Animation_Step.step_x);
+    } else {
+        menu_data->animation.current_x = menu_data->animation.target_x;
+    }
+    
+    if (abs(width_diff) > menu_data->animation.Animation_Step.step_width) {
+        menu_data->animation.current_width += (width_diff > 0 ?  menu_data->animation.Animation_Step.step_width : -menu_data->animation.Animation_Step.step_width);
+    } else {
+        menu_data->animation.current_width = menu_data->animation.target_width;
+    }
+    
+	if (abs(heigh_diff) > menu_data->animation.Animation_Step.step_heigh) {
+        menu_data->animation.current_heigh += (heigh_diff > 0 ? menu_data->animation.Animation_Step.step_heigh : -menu_data->animation.Animation_Step.step_heigh);
+    } else {
+        menu_data->animation.current_heigh = menu_data->animation.target_heigh;
+    }
+
+    // 检查动画是否完成
+    if (menu_data->animation.current_y == menu_data->animation.target_y &&
+        menu_data->animation.current_x == menu_data->animation.target_x &&
+        menu_data->animation.current_width == menu_data->animation.target_width) {
+        menu_data->animation.isAmation = false;
+    }
 }
+

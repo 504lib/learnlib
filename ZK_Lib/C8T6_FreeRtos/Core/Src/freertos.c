@@ -435,13 +435,14 @@ void U8g2_Task(void *argument)
       last_tick = osKernelGetTickCount();
     }
     u8g2_FirstPage(&u8g2);
+    update_animation(menu_data_ptr);
+
   //  static uint8_t progess = 0;
     do {
       show_menu(&u8g2,menu_data_ptr,3);
       // u8g2_DrawBox(&u8g2,progess,0,128,15);
     } while (u8g2_NextPage(&u8g2));
     // progess = (progess + 1) % 128;
-    update_animation(menu_data_ptr);
     osDelay(1);
   }
   /* USER CODE END U8g2_Task */
