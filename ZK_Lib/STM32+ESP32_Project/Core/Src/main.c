@@ -55,7 +55,7 @@ extern osEventFlagsId_t UART_EVENTHandle;
 
 /* USER CODE BEGIN PV */
 // 空闲中断缓冲�?
-uint8_t temp[16] = {0};
+uint8_t temp[64] = {0};
 extern DMA_HandleTypeDef hdma_usart1_rx;
 /* USER CODE END PV */
 
@@ -105,7 +105,7 @@ int main(void)
   MX_USART2_UART_Init();
   MX_RTC_Init();
   /* USER CODE BEGIN 2 */
-  // 启动空闲中断
+  // 坯动空闲中断
 	HAL_UARTEx_ReceiveToIdle_DMA(&huart1,temp,sizeof(temp));  
   /* USER CODE END 2 */
 
@@ -190,7 +190,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
     osEventFlagsSet(UART_EVENTHandle,UART_RECEIVE_EVENT );
 	  HAL_UARTEx_ReceiveToIdle_DMA(&huart1,temp,sizeof(temp));
     Uart_Buffer_Put_frame(frame, temp, Size);
-	  __HAL_DMA_DISABLE_IT(&hdma_usart1_rx,DMA_IT_HT);      //过半中断，为了保证数据完整�?�，必须�?启它
+	  __HAL_DMA_DISABLE_IT(&hdma_usart1_rx,DMA_IT_HT);      //过坊中断，为了保话数杮完整�?�，必须�?坯它
   }
   
 
@@ -201,14 +201,14 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef* huart) {
     {
         LOG_FATAL("UART error: 0x%08lX", huart->ErrorCode);
         
-        // 清除错误并重新初始化
+        // 清除错误并針新初始化
         huart->ErrorCode = HAL_UART_ERROR_NONE;
         
       if (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_ORE)) 
       {
           LOG_WARN("ORE detected in task, recovering...");
           __HAL_UART_CLEAR_OREFLAG(&huart1);
-          // 重新启动DMA接收
+          // 針新坯动DMA接收
           HAL_UARTEx_ReceiveToIdle_DMA(&huart1, temp, sizeof(temp));
       }
     }

@@ -178,9 +178,9 @@ void protocol:: Send_Uart_Frame_WEIGHT(float weight_value)
     Serial1.write(frame,sizeof(frame));
 }
 
-void protocol::Send_Uart_Frame_CURRENT_USER(String name)
+void protocol::Send_Uart_Frame_CURRENT_USER(String name,Medicine medicine)
 {
-    uint16_t frame_size = name.length() + 10;
+    uint16_t frame_size = name.length() + 9;
     uint8_t* frame = (uint8_t*)malloc(frame_size);
     
     if (frame == nullptr) {
@@ -196,7 +196,9 @@ void protocol::Send_Uart_Frame_CURRENT_USER(String name)
 
     // 类型和长度
     frame[index++] = static_cast<uint8_t>(CmdType::CURRENT_USER);
-    frame[index++] = name.length();
+    frame[index++] = name.length() + 1;
+
+    frame[index++] = static_cast<uint8_t>(medicine);
 
     // 数据
     for (uint16_t i = 0; i < name.length(); i++) 
@@ -205,7 +207,7 @@ void protocol::Send_Uart_Frame_CURRENT_USER(String name)
     }
 
     // 校验和（从类型开始到数据结束）
-    uint16_t check = calculateChecksum(&frame[2], name.length() + 2);
+    uint16_t check = calculateChecksum(&frame[2], name.length() + 3);
     frame[index++] = (check >> 8) & 0xff;
     frame[index++] = check & 0xff;
 
@@ -215,7 +217,8 @@ void protocol::Send_Uart_Frame_CURRENT_USER(String name)
 
     // 发送
     Serial1.write(frame, frame_size);
-    
+    Serial.printf("frame_size:%d",frame_size);
+    Serial.printf("frame_checksum:0x%.2x\n",check);
     // 释放内存
     free(frame);
 }
@@ -372,22 +375,24 @@ void protocol::Receive_Uart_Frame(uint8_t data)
                         
                     }
                    // 校验成功 - 这里添加 CURRENT_USER 处理（和其他类型并列）
-                    else if(frame_type == static_cast<uint8_t>(CmdType::CURRENT_USER))
+                    else if(frame_type == static_cast<uint8_t>(CmdType::CURRENT_USER) && frame_len >= 2)
                     {
-                        // 方法1：使用String（C++方式）
                         String userName = "";
-                        for(int i = 0; i < frame_len; i++) 
+                        Medicine medicine = static_cast<Medicine>(data_buf[0]);
+                        for(int i = 1; i < frame_len; i++) 
                         {
                             userName += (char)data_buf[i];
                         }
                         if(current_user_callback) 
                         {
-                            current_user_callback(userName);
+                            current_user_callback(userName,medicine);
                         } 
                         else 
                         {
                             Serial.print("Received CURRENT_USER: ");
-                            Serial.println(userName);
+                            Serial.print(userName);
+                            Serial.print("Medicine: ");
+                            Serial.println((uint8_t)data_buf[0]);
                         }
                     }
                 }

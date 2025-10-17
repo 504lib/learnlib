@@ -12,6 +12,7 @@
 
 #include "main.h"
 #include "usart.h"
+#include <stdlib.h>
 #include "stdbool.h"
 #include "Log.h"
 typedef struct {
@@ -28,13 +29,8 @@ typedef enum
     PASSENGER_NUM,          // 乘客数量
     CLEAR,                  // 清理指令
     HX711_WEIGHT,
+    CURRENT_USER
 }CmdType;
-
-typedef enum
-{
-    RUNING,
-    STOP,
-}Motor_Status;
 
 typedef enum
 {
@@ -56,6 +52,7 @@ typedef void (*ACK_Callback)(void);                         // ACK信号回调�
 typedef void (*PASSENGER_NUM_Callback)(uint8_t value);      // 乘客回调函数模板
 typedef void (*CLEAR_Callback)(void);                       // 清理指令回调函数模板
 typedef void (*HX711_WEIGHT_Callback)(float weight);
+typedef void (*CURRENT_USER_Callback)(char* name,Medicine medicine,uint8_t size);
 typedef struct {
     uint16_t Size;                                          // 当前数据帧的大小
     RingBuffer ring_buffer;                                 // 环形缓冲区
@@ -71,6 +68,7 @@ void UART_Protocol_ACK(UART_protocol UART_protocol_structure);
 void UART_Protocol_Passenger(UART_protocol UART_protocol_structure,uint8_t value);
 void UART_Protocol_Clear(UART_protocol UART_protocol_structure);
 void UART_Protocol_WEIGHT(UART_protocol UART_protocol_structure , float weight);
+void UART_Protocol_CURRENT_USER(UART_protocol UART_protocol_structure,char* name,Medicine medicine,uint8_t size);
 void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uint16_t size);
 
 /************************ 设置自定义功能 *********************** */
@@ -79,6 +77,7 @@ void set_FLOAT_Callback(FLOAT_Callback cb);
 void set_ACK_Callback(ACK_Callback cb);
 void set_PASSENGER_Callback(PASSENGER_NUM_Callback cb);
 void set_Clear_Callback(CLEAR_Callback cb);
+void set_Current_User(CURRENT_USER_Callback cb);
 
 /************************ 环形缓冲区接收/放置 *********************** */
 UartFrame* Get_Uart_Frame_Buffer(void);

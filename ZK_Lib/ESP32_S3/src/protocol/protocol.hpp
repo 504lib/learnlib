@@ -27,7 +27,7 @@ typedef void (*AckCallback)(void);
 typedef void (*PassengerNumCallback)(uint8_t value);
 typedef void (*ClearCallback)(void);
 typedef void (*HX711_WEIGHT_Callback)(float weight);
-typedef void (*CURRENT_USER_Callback)(String name);
+typedef void (*CURRENT_USER_Callback)(String name,Medicine medicine);
 
 class protocol
 {
@@ -53,7 +53,7 @@ public:
     void Send_Uart_Frame_PASSENGER_NUM(uint8_t value);
     void Send_Uart_Frame_WEIGHT(float weight_value);
     void Send_Uart_Frame_CLEAR();
-    void Send_Uart_Frame_CURRENT_USER(String name);
+    void Send_Uart_Frame_CURRENT_USER(String name,Medicine medicine);
     void Receive_Uart_Frame(uint8_t data);
     void setIntCallback(IntCallback cb);
     void setFloatCallback(FloatCallback cb);

@@ -11,6 +11,7 @@ typedef struct
     PASSENGER_NUM_Callback passenger_callback;      // 乘客数量接受的回调函数
     CLEAR_Callback clear_callback;                  // 清除乘客数量的回调函数
     HX711_WEIGHT_Callback weight_callback;
+    CURRENT_USER_Callback current_user_callback;
 }callback_functions;
 
 // 回调函数实例 + 初始化
@@ -192,6 +193,24 @@ static void handle_WEIGHT(float weight)
     }
 }
 
+static void handle_CURRENT_USER(char* name,Medicine medicine,uint8_t size)
+{
+    if (callbacks.current_user_callback) 
+    {
+        callbacks.current_user_callback(name,medicine,size);
+        return;
+    }
+    else
+    {
+        UART_protocol UART_protocol_structure = {
+        .Headerframe1 = 0xAA,
+        .Headerframe2 = 0x55,
+        .Tailframe1 = 0x0D,
+        .Tailframe2 = 0x0A
+        };
+        UART_Protocol_CURRENT_USER(UART_protocol_structure,name,medicine,size);
+    }
+}
 /**
  * @brief    环形缓冲区初始化
  * @param    rb        环形缓冲区指针
@@ -322,6 +341,11 @@ void set_PASSENGER_Callback(PASSENGER_NUM_Callback cb)
 void set_Clear_Callback(CLEAR_Callback cb)
 {
     callbacks.clear_callback = cb;
+}
+
+void set_Current_User(CURRENT_USER_Callback cb)
+{
+   callbacks.current_user_callback = cb; 
 }
 
 /**
@@ -559,6 +583,48 @@ void UART_Protocol_WEIGHT(UART_protocol UART_protocol_structure , float weight)
     // LOG_INFO("WEIGHT frame has sent,checksum = 0x%04x",check);
 }
 
+void UART_Protocol_CURRENT_USER(UART_protocol UART_protocol_structure,char* name,Medicine medicine,uint8_t size)
+{
+    uint16_t frame_size = size + 9;
+    uint8_t* frame = (uint8_t*)malloc(frame_size);
+    
+    if (frame == NULL) 
+    {
+        return;
+    }
+
+    uint16_t index = 0;
+
+    // 帧头
+    frame[index++] = UART_protocol_structure.Headerframe1;
+    frame[index++] = UART_protocol_structure.Headerframe2;
+
+    // 类型和长度
+    frame[index++] = CURRENT_USER;
+    frame[index++] = size + 1;
+
+    frame[index++] = medicine;
+
+    // 数据
+    for (uint16_t i = 0; i < size; i++) 
+    {
+        frame[index++] = name[i];
+    }
+
+    // 校验和（从类型开始到数据结束）
+    uint16_t check = calculateChecksum(&frame[2], size + 2);
+    frame[index++] = (check >> 8) & 0xff;
+    frame[index++] = check & 0xff;
+
+    // 帧尾
+    frame[index++] = UART_protocol_structure.Tailframe1;
+    frame[index++] = UART_protocol_structure.Tailframe2;
+
+    HAL_UART_Transmit(&huart1,frame,sizeof(frame),HAL_MAX_DELAY);
+    // 释放内存
+    free(frame);
+}
+
 /**
  * @brief    处理数据帧函数
  * @details  处理规定帧头帧尾的数据帧
@@ -572,6 +638,11 @@ void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uin
     if(size < 8)
     {
         LOG_INFO("Frame too short, size=%d", size);
+        LOG_INFO("abanddoned data:");
+        for (uint8_t i = 0; i < size; i++)
+        {
+            LOG_INFO("0x%.2x ",data[i]);
+        }
     }
     // 检查头
     if(data[0] != UART_protocol_structure.Headerframe1 ||
@@ -655,6 +726,17 @@ void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uin
         u.b[2] = payload[1];
         u.b[3] = payload[0];
         handle_WEIGHT(u.f);        
+    }
+    else if (frame_type == CURRENT_USER)
+    {
+        char buf[32] = {0};
+        Medicine medicine = (Medicine)payload[0];
+        for (uint8_t i = 0; i < frame_len - 1; i++)
+        {
+            buf[i] = payload[i + 1];
+        }
+        handle_CURRENT_USER(buf,medicine,strlen(buf));
+                
     }
 }
 

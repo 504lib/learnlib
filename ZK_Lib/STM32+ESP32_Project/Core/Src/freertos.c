@@ -52,7 +52,9 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-extern uint8_t temp[16];                                                          // 鏉ヨ嚜main.c鐨勭紦鍐插尯
+char user_buf[32] = "\0";
+Medicine current_medicine;
+extern uint8_t temp[64];                                                          // 鏉ヨ嚜main.c鐨勭紦鍐插尯
 u8g2_t u8g2;                                                                      // u8g2瀵硅薄
 int index = 0;                                                                    // String_Option鐨勫瓧绗︿覆鏁扮粍绱㈠紩
 const char* String_Option[] = {"begin","test1","test2","test3","end"};            // 娴嬭瘯鐨勫瓧绗︿覆
@@ -335,25 +337,59 @@ void main_display_cb(u8g2_t* u8g2, menu_data_t* menu_data)
 {
   
   char buf[32];
-  
   // 1. 椤堕儴澶ф椂闂存樉锟???
-  u8g2_SetFont(u8g2, u8g2_font_logisoso26_tn);
-  snprintf(buf, sizeof(buf), "%02d:%02d", sTime.Hours, sTime.Minutes);
-  uint8_t time_width = u8g2_GetStrWidth(u8g2, buf);
-  u8g2_DrawStr(u8g2, 0, 30, buf);
+  if (strlen(user_buf) != 0)
+  {
+        u8g2_SetFont(u8g2, u8g2_font_9x15B_tf);
+        
+        // 顶部状态栏
+        u8g2_DrawBox(u8g2, 0, 0, 128, 20);
+        u8g2_SetDrawColor(u8g2, 0); // 白色文字
+        u8g2_DrawStr(u8g2, 5, 15, "ACTIVE USER");
+        u8g2_SetDrawColor(u8g2, 1); // 恢复黑色
+        
+        // 用户ID - 大字体显示
+        u8g2_SetFont(u8g2, u8g2_font_10x20_me);
+        snprintf(buf, sizeof(buf), "%s", user_buf);
+        u8g2_DrawStr(u8g2, 5, 35, buf);
+        
+        // 重量信息 - 突出显示
+        u8g2_SetFont(u8g2, u8g2_font_logisoso18_tn);
+        snprintf(buf, sizeof(buf), "%.1f g", weight);
+        uint8_t weight_width = u8g2_GetStrWidth(u8g2, buf);
+        u8g2_DrawStr(u8g2, (128 - weight_width) / 2, 55, buf);
+        
+        // 底部状态指示
+        u8g2_SetFont(u8g2, u8g2_font_6x10_tf);
+        u8g2_DrawStr(u8g2, 5, 62, "READY");
+  }
+  else
+  {
 
-  u8g2_SetFont(u8g2, u8g2_font_9x6LED_mn);
-  snprintf(buf, sizeof(buf), "%04d-%02d-%02d", 
-           sDate.Year + 2000, sDate.Month, sDate.Date);
-  uint8_t date_width = u8g2_GetStrWidth(u8g2, buf);
-  u8g2_DrawStr(u8g2, 0, 40, buf);
-  // 2. 绉掓暟灏忓瓧鏄剧ず
-  u8g2_SetFont(u8g2, u8g2_font_6x10_tf);
-  snprintf(buf, sizeof(buf), "%02d", sTime.Seconds);
-  u8g2_DrawStr(u8g2, time_width + 5, 30, buf);
-
-  snprintf(buf,sizeof(buf),"weight:%.1f",weight);
-  u8g2_DrawStr(u8g2,0,50,buf);
+        u8g2_SetFont(u8g2, u8g2_font_logisoso26_tn);
+        
+        // 时间 - 大字体居中
+        snprintf(buf, sizeof(buf), "%02d:%02d", sTime.Hours, sTime.Minutes);
+        uint8_t time_width = u8g2_GetStrWidth(u8g2, buf);
+        u8g2_DrawStr(u8g2, (128 - time_width) / 2, 30, buf);
+        
+        // 秒数 - 小字体在时间右侧
+        u8g2_SetFont(u8g2, u8g2_font_6x10_tf);
+        snprintf(buf, sizeof(buf), "%02d", sTime.Seconds);
+        u8g2_DrawStr(u8g2, (128 - time_width) / 2 + time_width + 5, 30, buf);
+        
+        // 日期 - 中等字体
+        u8g2_SetFont(u8g2, u8g2_font_9x6LED_mn);
+        snprintf(buf, sizeof(buf), "%04d-%02d-%02d", 
+                sDate.Year + 2000, sDate.Month, sDate.Date);
+        uint8_t date_width = u8g2_GetStrWidth(u8g2, buf);
+        u8g2_DrawStr(u8g2, (128 - date_width) / 2, 45, buf);
+        
+        // 底部提示信息
+        u8g2_SetFont(u8g2, u8g2_font_6x10_tf);
+        u8g2_DrawStr(u8g2, 20, 62, "WAITING FOR USER");
+  }
+  
   
   // 3. 鐘讹拷?锟藉崱锟???
 }
@@ -619,6 +655,13 @@ void uart_task(void *argument)
 }
 
 /* USER CODE BEGIN Header_HX711_Task */
+void current_user_cb(char* name,Medicine medicine,uint8_t size)
+{
+  strcpy(user_buf,name);
+  printf("current user:%s,medicine type:%d",user_buf,medicine);
+}
+
+
 /**
 * @brief Function implementing the HX711_TASK thread.
 * @param argument: Not used
@@ -635,6 +678,7 @@ void HX711_Task(void *argument)
     .Tailframe1 = 0x0D,
     .Tailframe2 = 0x0A
   }; 
+ set_Current_User(current_user_cb); 
   /* Infinite loop */
   for(;;)
   {

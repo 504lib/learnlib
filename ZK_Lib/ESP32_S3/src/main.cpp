@@ -10,6 +10,9 @@ const char* password = "12345678";
 
 AsyncWebServer server(80);
 
+static String current_user = "";
+
+protocol uart_protocol(0xAA,0x55,0x0D,0x0A);
 // ArduinoJson兼容性宏
 #if ARDUINOJSON_VERSION_MAJOR >= 7
     #define CREATE_JSON_ARRAY(parent, key) parent[key].to<JsonArray>()
@@ -310,14 +313,13 @@ void Setup_Web_Server() {
     // API接口 - 修复JSON警告
     server.on("/api/status", HTTP_GET, [](AsyncWebServerRequest *request){
         JsonDocument doc;
-        static String current_user;
         char buf[20] = {0};
         snprintf(buf,sizeof(buf),"%.2f",g_status.current_weight); 
         // 系统状态
         doc["system"]["current_weight"] = buf;
         doc["system"]["target_weight"] = g_status.target_weight;
         doc["system"]["system_state"] = g_status.system_state;
-        doc["system"]["medicine_type"] = g_status.medicine_type;
+        doc["system"]["medicine_type"] = static_cast<uint8_t>(g_status.medicine_type);
 
         
 
@@ -325,10 +327,6 @@ void Setup_Web_Server() {
         doc["queue"]["queue_count"] = medicineQueue.getQueueCount();
         doc["queue"]["current_user"] = medicineQueue.getCurrentUser();
         
-        if (current_user != medicineQueue.getCurrentUser())
-        {
-            current_user = medicineQueue.getCurrentUser();
-        }
         // 修复：使用兼容方法创建数组
         JsonArray queueArray = CREATE_JSON_ARRAY(doc["queue"], "queue_list");
         auto queueList = medicineQueue.getQueueList();
@@ -507,7 +505,6 @@ void Update_Test_Data() {
 }
 
 // Web服务器设置
-protocol uart_protocol(0xAA,0x55,0x0D,0x0A);
 
 void weight_callback(float weight)
 {
@@ -543,6 +540,13 @@ void loop() {
         uart_protocol.Receive_Uart_Frame(Serial1.read());
     }
 
+    if (current_user != medicineQueue.getCurrentUser())
+    {
+        // Serial.printf("%s",medicineQueue.getCurrentUser());
+        uart_protocol.Send_Uart_Frame_CURRENT_USER(medicineQueue.getCurrentUser(),g_status.medicine_type);
+        current_user = medicineQueue.getCurrentUser();
+        // uart_protocol.Send_Uart_Frame(666);
+    }
     
     delay(1);
 }
