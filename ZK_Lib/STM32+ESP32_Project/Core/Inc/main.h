@@ -75,6 +75,10 @@ void Error_Handler(void);
 #define KEY_ENTER_GPIO_Port GPIOB
 #define KEY_CANCEL_Pin GPIO_PIN_11
 #define KEY_CANCEL_GPIO_Port GPIOB
+#define HX711_SCK_Pin GPIO_PIN_14
+#define HX711_SCK_GPIO_Port GPIOB
+#define HX711_DOUT_Pin GPIO_PIN_15
+#define HX711_DOUT_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 //#define KEY_UP_EVENT    (1U << 0)

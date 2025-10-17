@@ -10,6 +10,7 @@ typedef struct
     ACK_Callback ack_callback;                      // ack信号接受的回调函数
     PASSENGER_NUM_Callback passenger_callback;      // 乘客数量接受的回调函数
     CLEAR_Callback clear_callback;                  // 清除乘客数量的回调函数
+    HX711_WEIGHT_Callback weight_callback;
 }callback_functions;
 
 // 回调函数实例 + 初始化
@@ -168,6 +169,26 @@ static void handle_CLEAR()
         .Tailframe2 = 0x0A
         };
         UART_Protocol_Clear(UART_protocol_structure);
+    }
+}
+
+
+static void handle_WEIGHT(float weight)
+{
+    if (callbacks.weight_callback) 
+    {
+        callbacks.weight_callback(weight);
+        return;
+    }
+    else
+    {
+        UART_protocol UART_protocol_structure = {
+        .Headerframe1 = 0xAA,
+        .Headerframe2 = 0x55,
+        .Tailframe1 = 0x0D,
+        .Tailframe2 = 0x0A
+        };
+        UART_Protocol_WEIGHT(UART_protocol_structure,weight);
     }
 }
 
@@ -497,6 +518,47 @@ void UART_Protocol_Clear(UART_protocol UART_protocol_structure)
     LOG_INFO("CLEAR frame has sent,checksum = 0x%04x",check);
 }
 
+void UART_Protocol_WEIGHT(UART_protocol UART_protocol_structure , float weight)
+{
+    typedef union
+    {
+        float value;
+        uint8_t value_arr[4];
+    }dataunion;
+
+    LOG_DEBUG("untion object has been built ...");
+    dataunion data;
+    data.value = weight;
+    uint8_t frame[12];
+
+    LOG_DEBUG("data frame data variable has been built ...");
+    frame[0] = UART_protocol_structure.Headerframe1;
+    frame[1] = UART_protocol_structure.Headerframe2;
+
+    LOG_DEBUG("header has been placed ...");
+    frame[2] = HX711_WEIGHT;
+    frame[3] = 4;
+
+    LOG_DEBUG("type has been placed ... , type = HX711_WEIGHT");
+    frame[4] = data.value_arr[3];
+    frame[5] = data.value_arr[2];
+    frame[6] = data.value_arr[1];
+    frame[7] = data.value_arr[0];
+
+    LOG_DEBUG("data has been placed ...");
+    uint16_t check = calculateChecksum(&frame[2],6);
+    frame[8] = (check >> 8) & 0xff;
+    frame[9] = check & 0xff;
+
+    LOG_DEBUG("checksum has been placed ... , checksum = 0x%04x",check);
+    frame[10] = UART_protocol_structure.Tailframe1;
+    frame[11] = UART_protocol_structure.Tailframe2;
+
+    LOG_DEBUG("Tailer has been placed ...");
+    HAL_UART_Transmit(&huart1,frame,sizeof(frame),HAL_MAX_DELAY);
+    // LOG_INFO("WEIGHT frame has sent,checksum = 0x%04x",check);
+}
+
 /**
  * @brief    处理数据帧函数
  * @details  处理规定帧头帧尾的数据帧
@@ -581,6 +643,18 @@ void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uin
     else if (frame_type == CLEAR && frame_len == 0)
     {
         handle_CLEAR();
+    }
+    else if (frame_type == HX711_WEIGHT && frame_len == 4)
+    {
+        union {
+            float f;
+            uint8_t b[4];
+        } u;
+        u.b[0] = payload[3];
+        u.b[1] = payload[2];
+        u.b[2] = payload[1];
+        u.b[3] = payload[0];
+        handle_WEIGHT(u.f);        
     }
 }
 
