@@ -60,6 +60,7 @@ typedef enum
 system_status system_status_var = Ready;
 char user_buf[32] = "\0";
 float target_weight = 0;
+int32_t target_weight_hardware = 0;
 Medicine current_medicine;
 extern uint8_t temp[64];                                                          // 来自main.c的缓冲区
 u8g2_t u8g2;                                                                      // u8g2对象
@@ -80,7 +81,6 @@ menu_item_t* sub5 = NULL;
 menu_item_t* sub1_sub1 = NULL;
 menu_item_t* sub1_sub2 = NULL;
 menu_item_t* sub1_sub3 = NULL;
-menu_item_t* sub1_sub4 = NULL;
 menu_item_t* sub2_sub1 = NULL;
 menu_item_t* sub2_sub2 = NULL;
 menu_item_t* main_display = NULL;
@@ -439,6 +439,19 @@ void main_display_cb(u8g2_t* u8g2, menu_data_t* menu_data)
   // 3. 状�?�卡�???
 }
 
+// void join_queue()
+// {
+//   UART_protocol UART_protocol_structure = {
+//   .Headerframe1 = 0xAA,
+//   .Headerframe2 = 0x55,
+//   .Tailframe1 = 0x0D,
+//   .Tailframe2 = 0x0A
+//   };
+//   UART_Protocol_CURRENT_USER(UART_protocol_structure,String_Option[index],(Medicine)index,strlen(String_Option[index]));
+//   LOG_INFO("%d",strlen(String_Option[index]));
+
+// }
+
 /**
   * @brief  Function implementing the U8G2_TASK thread.
   * @param  argument: Not used
@@ -452,37 +465,25 @@ void U8g2_Task(void *argument)
   LOG_INFO("u8g2 init has been finished...");
   u8g2_FirstPage(&u8g2);
   root = create_submenu_item("main_menu",NULL,NULL);
-  sub1 = create_submenu_item("param_int",NULL,NULL);
-  sub2 = create_submenu_item("param_enum",NULL,NULL);
-  sub3 = create_toggle_item("toggle",&toggle);
+  sub1 = create_submenu_item("choose_medicine",NULL,NULL);
+  sub2 = create_toggle_item("toggle",&toggle);
   sub4 = create_submenu_item("Clock_Set",set_RTC_TEMP,NULL);
-  sub5 = create_submenu_item("Set_passenger",NULL,NULL);
-  sub1_sub1 = create_function_item("SendUART_INT", test);
-  sub1_sub2 = create_param_int_item("Change_int", &test_var, 0, 100, 1);
-  sub1_sub3 = create_function_item("SendUART_FLOAT", test2);
-  sub1_sub4 = create_function_item("SendUART_ACK", test3);
-  sub2_sub1 = create_param_enum_item("Change_param",&index,String_Option,5);
+  sub1_sub1 = create_param_enum_item("Change_param",&index,String_Option,5);
+  sub1_sub2 = create_param_int_item("target weight", &target_weight_hardware, 0, 1000, 1);
+  // sub1_sub3 = create_function_item("Urgent_join",join_queue);
   sub4_sub1 = create_param_int_item("seconds", &Clock.seconds, 0, 59, 1);
-  sub4_sub2 = create_param_int_item("minutes", &Clock.minutes, 0,59, 1);
-  sub4_sub3 = create_param_int_item("hours", &Clock.hours, 0, 23, 1);
-  sub4_sub4 = create_param_int_item("years", &Clock.year, 0, 99, 1);
+  sub4_sub1 = create_param_int_item("minutes", &Clock.minutes, 0,59, 1);
+  sub4_sub2 = create_param_int_item("hours", &Clock.hours, 0, 23, 1);
+  sub4_sub3 = create_param_int_item("years", &Clock.year, 0, 99, 1);
   sub4_sub5 = create_param_int_item("monthes", &Clock.month, 1, 12, 1);
   sub4_sub6 = create_param_int_item("days", &Clock.day, 1, 31, 1);
   sub4_sub7 = create_function_item("Set_time",RTC_Set_Time);
-  sub5_sub1 = create_param_int_item("Set_Passenger",&passenger_num,0,255,1);
-  sub5_sub2 = create_function_item("SendUART_Passenger",Send_Passenger);
-  sub5_sub3 = create_function_item("clear",Send_Clear);
   main_display = create_main_item("main",root, main_display_cb);
   Link_Parent_Child(root, sub1);
   Link_next_sibling(sub1, sub2);
-  Link_next_sibling(sub2, sub3);
   Link_next_sibling(sub3, sub4);
-  Link_next_sibling(sub4, sub5);
   Link_Parent_Child(sub1, sub1_sub1);
   Link_next_sibling(sub1_sub1, sub1_sub2);
-  Link_next_sibling(sub1_sub2, sub1_sub3);
-  Link_next_sibling(sub1_sub3, sub1_sub4);
-  Link_Parent_Child(sub2, sub2_sub1);
   Link_Parent_Child(sub4, sub4_sub1);
   Link_next_sibling(sub4_sub1, sub4_sub2);
   Link_next_sibling(sub4_sub2, sub4_sub3);
@@ -490,9 +491,6 @@ void U8g2_Task(void *argument)
   Link_next_sibling(sub4_sub4, sub4_sub5);
   Link_next_sibling(sub4_sub5, sub4_sub6);
   Link_next_sibling(sub4_sub6, sub4_sub7);
-  Link_Parent_Child(sub5,sub5_sub1);
-  Link_next_sibling(sub5_sub1,sub5_sub2);
-  Link_next_sibling(sub5_sub2,sub5_sub3);
   menu_data_ptr = menu_data_init(main_display);
   LOG_INFO("menu Nodes is has been inited ...");
   LOG_INFO("u8g2 task has been init...");
@@ -700,18 +698,19 @@ void uart_task(void *argument)
 }
 
 /* USER CODE BEGIN Header_HX711_Task */
-void current_user_cb(char* name,Medicine medicine,uint8_t size)
+void current_user_cb(char* name,Medicine medicine,float weight,uint8_t size)
 {
   strcpy(user_buf,name);
   current_medicine = medicine;
-  printf("current user:%s,medicine type:%d\n",user_buf,medicine);
+  // target_weight = weight;
+  printf("current user:%s,target_weight = %.2f,medicine type:%d\n",user_buf,weight,medicine);
 }
 
-void Target_Weight_CB(float weight)
-{
-  target_weight = weight;
-  printf("target_weight:%f",weight);
-}
+// void Target_Weight_CB(float weight)
+// {
+//   target_weight = weight;
+//   printf("target_weight:%f",weight);
+// }
 
 
 /**
@@ -730,7 +729,6 @@ void HX711_Task(void *argument)
     .Tailframe1 = 0x0D,
     .Tailframe2 = 0x0A
   }; 
-  set_Target_Weight_Callback(Target_Weight_CB);
  set_Current_User(current_user_cb); 
  uint32_t last_tick = 0;
   /* Infinite loop */
@@ -762,6 +760,12 @@ void HX711_Task(void *argument)
       }
       
     }
+    // if (osKernelGetTickCount() - last_tick >= 5000)
+    // {
+    //   UART_Protocol_CURRENT_USER(UART_protocol_structure,"test",Medicine1,3.3,sizeof("test"));
+    //   last_tick = osKernelGetTickCount();
+    // }
+    
 
     
     osDelay(100);

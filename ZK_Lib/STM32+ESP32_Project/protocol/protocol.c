@@ -196,11 +196,11 @@ static void handle_WEIGHT(float weight)
     }
 }
 
-static void handle_CURRENT_USER(char* name,Medicine medicine,uint8_t size)
+static void handle_CURRENT_USER(char* name,Medicine medicine,float weight,uint8_t size)
 {
     if (callbacks.current_user_callback) 
     {
-        callbacks.current_user_callback(name,medicine,size);
+        callbacks.current_user_callback(name,medicine,weight,size);
         return;
     }
     else
@@ -211,7 +211,7 @@ static void handle_CURRENT_USER(char* name,Medicine medicine,uint8_t size)
         .Tailframe1 = 0x0D,
         .Tailframe2 = 0x0A
         };
-        UART_Protocol_CURRENT_USER(UART_protocol_structure,name,medicine,size);
+        UART_Protocol_CURRENT_USER(UART_protocol_structure,name,medicine,weight,size);
     }
 }
 
@@ -254,24 +254,24 @@ static void handle_Motor_Ready(void)
 }
 
 
-static void handle_Target_Weight(float value)
-{
-    if (callbacks.target_weight_callback) 
-    {
-        callbacks.target_weight_callback(value);
-        return;
-    }
-    else
-    {
-        UART_protocol UART_protocol_structure = {
-        .Headerframe1 = 0xAA,
-        .Headerframe2 = 0x55,
-        .Tailframe1 = 0x0D,
-        .Tailframe2 = 0x0A
-        };
-        UART_Protocol_TARGET_WEIGHT(UART_protocol_structure,value);
-    }
-}
+//static void handle_Target_Weight(float value)
+//{
+//    if (callbacks.target_weight_callback) 
+//    {
+//        callbacks.target_weight_callback(value);
+//        return;
+//    }
+//    else
+//    {
+//        UART_protocol UART_protocol_structure = {
+//        .Headerframe1 = 0xAA,
+//        .Headerframe2 = 0x55,
+//        .Tailframe1 = 0x0D,
+//        .Tailframe2 = 0x0A
+//        };
+//        UART_Protocol_TARGET_WEIGHT(UART_protocol_structure,value);
+//    }
+//}
 
 /**
  * @brief    环形缓冲区初始化
@@ -660,15 +660,24 @@ void UART_Protocol_WEIGHT(UART_protocol UART_protocol_structure , float weight)
     // LOG_INFO("WEIGHT frame has sent,checksum = 0x%04x",check);
 }
 
-void UART_Protocol_CURRENT_USER(UART_protocol UART_protocol_structure,char* name,Medicine medicine,uint8_t size)
+void UART_Protocol_CURRENT_USER(UART_protocol UART_protocol_structure,char* name,Medicine medicine,float weight,uint8_t size)
 {
-    uint16_t frame_size = size + 9;
+    uint16_t frame_size = size + 13;
     uint8_t* frame = (uint8_t*)malloc(frame_size);
     
     if (frame == NULL) 
     {
         return;
     }
+    typedef union
+    {
+        float value;
+        uint8_t value_arr[4];
+    }dataunion;
+
+    LOG_DEBUG("untion object has been built ...");
+    dataunion data;
+    data.value = weight;
 
     uint16_t index = 0;
 
@@ -678,7 +687,7 @@ void UART_Protocol_CURRENT_USER(UART_protocol UART_protocol_structure,char* name
 
     // 类型和长度
     frame[index++] = CURRENT_USER;
-    frame[index++] = size + 1;
+    frame[index++] = size + 5;
 
     frame[index++] = medicine;
 
@@ -687,9 +696,13 @@ void UART_Protocol_CURRENT_USER(UART_protocol UART_protocol_structure,char* name
     {
         frame[index++] = name[i];
     }
+    frame[index++] = data.value_arr[3];
+    frame[index++] = data.value_arr[2];
+    frame[index++] = data.value_arr[1];
+    frame[index++] = data.value_arr[0];
 
     // 校验和（从类型开始到数据结束）
-    uint16_t check = calculateChecksum(&frame[2], size + 2);
+    uint16_t check = calculateChecksum(&frame[2], size + 7);
     frame[index++] = (check >> 8) & 0xff;
     frame[index++] = check & 0xff;
 
@@ -697,8 +710,9 @@ void UART_Protocol_CURRENT_USER(UART_protocol UART_protocol_structure,char* name
     frame[index++] = UART_protocol_structure.Tailframe1;
     frame[index++] = UART_protocol_structure.Tailframe2;
 
-    HAL_UART_Transmit(&huart1,frame,sizeof(frame),HAL_MAX_DELAY);
+    HAL_UART_Transmit(&huart1,frame,frame_size,HAL_MAX_DELAY);
     // 释放内存
+    LOG_INFO("check_sum:0x%2x",check);
     free(frame);
 }
 
@@ -757,45 +771,6 @@ void UART_Protocol_MOTOR_READY(UART_protocol UART_protocol_structure)
 }
 
 
-void UART_Protocol_TARGET_WEIGHT(UART_protocol UART_protocol_structure , float weight)
-{
-    typedef union
-    {
-        float value;
-        uint8_t value_arr[4];
-    }dataunion;
-
-    LOG_DEBUG("untion object has been built ...");
-    dataunion data;
-    data.value = weight;
-    uint8_t frame[12];
-
-    LOG_DEBUG("data frame data variable has been built ...");
-    frame[0] = UART_protocol_structure.Headerframe1;
-    frame[1] = UART_protocol_structure.Headerframe2;
-
-    LOG_DEBUG("header has been placed ...");
-    frame[2] = TARGET_WEIGHT;
-    frame[3] = 4;
-
-    LOG_DEBUG("type has been placed ... , type = TARGET_WEIGHT");
-    frame[4] = data.value_arr[3];
-    frame[5] = data.value_arr[2];
-    frame[6] = data.value_arr[1];
-    frame[7] = data.value_arr[0];
-
-    LOG_DEBUG("data has been placed ...");
-    uint16_t check = calculateChecksum(&frame[2],6);
-    frame[8] = (check >> 8) & 0xff;
-    frame[9] = check & 0xff;
-
-    LOG_DEBUG("checksum has been placed ... , checksum = 0x%04x",check);
-    frame[10] = UART_protocol_structure.Tailframe1;
-    frame[11] = UART_protocol_structure.Tailframe2;
-
-    LOG_DEBUG("Tailer has been placed ...");
-    HAL_UART_Transmit(&huart1,frame,sizeof(frame),HAL_MAX_DELAY);
-}
 /**
  * @brief    处理数据帧函数
  * @details  处理规定帧头帧尾的数据帧
@@ -830,6 +805,11 @@ void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uin
     if(size != (frame_len + 8))
     {
         LOG_DEBUG("Length mismatch: expected %d, got %d", frame_len + 8, size);
+        LOG_INFO("abanddoned data:");
+        for (uint8_t i = 0; i < size; i++)
+        {
+            LOG_INFO("0x%.2x ",data[i]);
+        }
         return;
     } 
     LOG_DEBUG("length matched.");
@@ -900,14 +880,33 @@ void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uin
     }
     else if (frame_type == CURRENT_USER)
     {
+        union {
+            float f;
+            uint8_t b[4];
+        } u;
         char buf[32] = {0};
         Medicine medicine = (Medicine)payload[0];
-        for (uint8_t i = 0; i < frame_len - 1; i++)
-        {
-            buf[i] = payload[i + 1];
+        
+        // 安全地复制用户名
+        uint8_t name_len = frame_len - 5;
+        if (name_len >= sizeof(buf)) {
+            name_len = sizeof(buf) - 1;
         }
-        handle_CURRENT_USER(buf,medicine,strlen(buf));
-                
+        
+        for (uint8_t i = 0; i < name_len; i++)
+        {
+            buf[i] = payload[i + 1];  // +1 跳过medicine字节
+        }
+        buf[name_len] = '\0';
+        
+        // 解析重量（大端字节序）
+        uint8_t weight_start = 1 + name_len;  // medicine + name
+        for (uint8_t j = 0; j < 4; j++)
+        {
+            u.b[3 - j] = payload[weight_start + j];  // 大端转小端
+        }
+        
+        handle_CURRENT_USER(buf, medicine, u.f, name_len);
     }
     else if (frame_type == MOTOR_READY && frame_len == 0)
     {
@@ -916,19 +915,6 @@ void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uin
     else if (frame_type == MOTOR_STOP && frame_len == 0)
     {
         handle_Motor_Stop();
-    }
-    else if(frame_type == TARGET_WEIGHT && frame_len == 4)
-    {
-        union {
-            float f;
-            uint8_t b[4];
-        } u;
-        u.b[0] = payload[3];
-        u.b[1] = payload[2];
-        u.b[2] = payload[1];
-        u.b[3] = payload[0];
-        handle_Target_Weight(u.f);
-        // HAL_UART_Transmit_DMA(&huart1,data,size);
     }
 }
 

@@ -647,6 +647,7 @@ void setup() {
 
 void loop() {
     static String lastUser = "";
+    static uint32_t last_tick = 0;
     String currentUser = medicineQueue.getCurrentUserId();
     
     // 处理自动队列
@@ -659,17 +660,18 @@ void loop() {
 
     // 用户变化时发送用户信息
     if (currentUser != lastUser) {
-    float targetWeight = medicineQueue.getCurrentUserTargetWeight();
-    if (targetWeight > 0) {
-        uart_protocol.Send_Uart_Frame_TARGET_WEIGHT(targetWeight);
-    }
-    delay(100);
-    uart_protocol.Send_Uart_Frame_CURRENT_USER(currentUser, g_status.medicine_type);
+
     //     // 同时发送目标重量
         lastUser = currentUser;
     }
 
-
+    
+    if (millis() - last_tick >= 5000)
+    {
+        uart_protocol.Send_Uart_Frame_CURRENT_USER("test",3.3,static_cast<Medicine>(0));
+        last_tick = millis();
+    }
+    
     
     delay(1);
 }
