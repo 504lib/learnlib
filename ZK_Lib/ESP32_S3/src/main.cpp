@@ -214,6 +214,7 @@ void Setup_Web_Server() {
         .btn { padding: 10px 15px; margin: 5px; border: none; border-radius: 5px; cursor: pointer; background: #4CAF50; color: white; }
         .btn:disabled { background: #cccccc; cursor: not-allowed; }
         .btn-warning { background: #ff9800; }
+        .btn-danger { background: #dc3545; }
         .status { padding: 8px; border-radius: 4px; font-weight: bold; }
         .status-waiting { background: #fff3cd; color: #856404; }
         .status-running { background: #d4edda; color: #155724; }
@@ -227,6 +228,8 @@ void Setup_Web_Server() {
         .motor-ready { background: #d4edda; color: #155724; }
         .motor-stopped { background: #f8d7da; color: #721c24; }
         .medicine-select { padding: 8px; margin: 5px; border: 1px solid #ddd; border-radius: 4px; }
+        .user-medicines { margin-top: 10px; }
+        .medicine-badge { display: inline-block; padding: 4px 8px; margin: 2px; background: #e9ecef; border-radius: 12px; font-size: 12px; }
     </style>
 </head>
 <body>
@@ -256,7 +259,7 @@ void Setup_Web_Server() {
         </div>
         
         <div class="card">
-            <h3>👤 加入队列</h3>
+            <h3>👤 用户管理</h3>
             <div>
                 <label>目标重量 (g): </label>
                 <input type="number" id="weightInput" min="1" max="500" value="100" style="padding: 5px; margin: 5px;">
@@ -266,10 +269,17 @@ void Setup_Web_Server() {
                     <option value="1">桂枝</option>
                 </select>
                 <button class="btn" onclick="joinQueue()" id="joinBtn">加入队列</button>
-                <button class="btn btn-warning" onclick="leaveQueue()" id="leaveBtn" style="display: none;">离开队列</button>
             </div>
+            
+            <div class="user-medicines">
+                <h4>我的排队记录:</h4>
+                <div id="userMedicinesList">
+                    <div style="color: #666; font-size: 14px;">暂无排队记录</div>
+                </div>
+            </div>
+            
             <div style="margin-top: 10px; color: #666; font-size: 14px;">
-                提示: 同一药品类型只能排队一次
+                提示: 同一用户可以为不同药品排队，但每种药品只能排队一次
             </div>
         </div>
         
@@ -281,8 +291,7 @@ void Setup_Web_Server() {
 
     <script>
         let currentUserId = 'USER_' + Math.random().toString(36).substr(2, 5).toUpperCase();
-        let userInQueue = false;
-        let userCurrentMedicine = -1; // 当前用户选择的药品
+        let userMedicines = new Map(); // 记录用户当前排队的药品 {medicineType: true}
         
         function updateStatus(data) {
             // 更新系统状态
@@ -349,64 +358,74 @@ void Setup_Web_Server() {
                 queueList.innerHTML = '<div style="text-align: center; color: #666; padding: 10px;">队列为空</div>';
             }
             
-            // 修复问题2：检查当前用户是否还在队列中
-            checkUserInQueue(data);
+            // 更新用户药品状态
+            updateUserMedicines(data);
             
             // 更新按钮状态
-            updateButtonStates(data);
+            updateButtonStates();
         }
         
-        function checkUserInQueue(data) {
-            // 检查当前用户是否还在队列中
-            let found = false;
-            if (data.queue.queue_list && data.queue.queue_list.length > 0) {
-                for (let item of data.queue.queue_list) {
-                    if (item.includes(currentUserId)) {
-                        found = true;
-                        break;
-                    }
-                }
+        function updateUserMedicines(data) {
+            const userMedicinesList = document.getElementById('userMedicinesList');
+            
+            // 清空当前显示
+            userMedicinesList.innerHTML = '';
+            
+            if (userMedicines.size === 0) {
+                userMedicinesList.innerHTML = '<div style="color: #666; font-size: 14px;">暂无排队记录</div>';
+                return;
             }
             
-            // 如果用户不在队列中，重置状态
-            if (!found && userInQueue) {
-                userInQueue = false;
-                userCurrentMedicine = -1;
-                addLog('您已完成取药，可以重新排队');
+            // 检查哪些药品还在队列中
+            let foundInQueue = new Map();
+            
+            if (data.queue.queue_list && data.queue.queue_list.length > 0) {
+                data.queue.queue_list.forEach(item => {
+                    userMedicines.forEach((_, medicineType) => {
+                        if (item.includes(currentUserId) && item.includes(getMedicineName(parseInt(medicineType)))) {
+                            foundInQueue.set(medicineType, true);
+                        }
+                    });
+                });
+            }
+            
+            // 移除不在队列中的药品
+            userMedicines.forEach((_, medicineType) => {
+                if (!foundInQueue.has(medicineType)) {
+                    userMedicines.delete(medicineType);
+                }
+            });
+            
+            // 更新显示
+            if (userMedicines.size === 0) {
+                userMedicinesList.innerHTML = '<div style="color: #666; font-size: 14px;">暂无排队记录</div>';
+            } else {
+                userMedicines.forEach((_, medicineType) => {
+                    const badge = document.createElement('div');
+                    badge.className = 'medicine-badge';
+                    badge.innerHTML = `${getMedicineName(parseInt(medicineType))} 
+                        <button class="btn btn-danger" style="padding: 2px 6px; margin-left: 5px; font-size: 10px;" 
+                                onclick="leaveQueue(${medicineType})">离开</button>`;
+                    userMedicinesList.appendChild(badge);
+                });
             }
         }
         
-        function updateButtonStates(data) {
+        function updateButtonStates() {
             const joinBtn = document.getElementById('joinBtn');
-            const leaveBtn = document.getElementById('leaveBtn');
             const weightInput = document.getElementById('weightInput');
             const medicineSelect = document.getElementById('medicineSelect');
             
-            // 检查重量是否有效
             const weight = parseInt(weightInput.value);
             const medicine = parseInt(medicineSelect.value);
             
-            // 检查该药品是否已经在队列中
-            let medicineInQueue = false;
-            if (data.queue.queue_list && data.queue.queue_list.length > 0) {
-                for (let item of data.queue.queue_list) {
-                    // 检查是否包含当前用户和药品
-                    if (item.includes(currentUserId) && item.includes(getMedicineName(medicine))) {
-                        medicineInQueue = true;
-                        break;
-                    }
-                }
-            }
+            // 检查是否已经在排队该药品
+            const alreadyInQueue = userMedicines.has(medicine.toString());
             
-            // 设置按钮状态
-            joinBtn.disabled = weight <= 0 || userInQueue || medicineInQueue;
-            leaveBtn.style.display = userInQueue ? 'inline-block' : 'none';
+            joinBtn.disabled = weight <= 0 || alreadyInQueue;
             
-            // 更新按钮文本提示
-            if (medicineInQueue) {
+            if (alreadyInQueue) {
                 joinBtn.title = '您已在该药品队列中';
-            } else if (userInQueue) {
-                joinBtn.title = '您已在其他药品队列中';
             } else {
                 joinBtn.title = '';
             }
@@ -434,23 +453,31 @@ void Setup_Web_Server() {
                 .then(r => r.json())
                 .then(data => {
                     if (data.success) {
-                        userInQueue = true;
-                        userCurrentMedicine = parseInt(medicine);
-                        addLog('加入队列成功，目标重量: ' + weight + 'g，药品: ' + getMedicineName(userCurrentMedicine) + '，位置: ' + data.position);
+                        // 记录用户排队状态
+                        userMedicines.set(medicine, true);
+                        addLog('加入队列成功，目标重量: ' + weight + 'g，药品: ' + getMedicineName(parseInt(medicine)) + '，位置: ' + data.position);
+                        updateButtonStates();
                     } else {
                         addLog('加入队列失败: ' + data.message);
                     }
                 });
         }
         
-        function leaveQueue() {
-            fetch('/api/leave_queue?user_id=' + currentUserId + '&medicine=' + userCurrentMedicine)
+        function leaveQueue(medicineType) {
+            if (medicineType === undefined) {
+                const medicineSelect = document.getElementById('medicineSelect');
+                medicineType = medicineSelect.value;
+            }
+            
+            fetch('/api/leave_queue?user_id=' + currentUserId + '&medicine=' + medicineType)
                 .then(r => r.json())
                 .then(data => {
                     if (data.success) {
-                        userInQueue = false;
-                        userCurrentMedicine = -1;
-                        addLog('已离开队列');
+                        userMedicines.delete(medicineType.toString());
+                        addLog('已离开 ' + getMedicineName(parseInt(medicineType)) + ' 队列');
+                        updateButtonStates();
+                    } else {
+                        addLog('离开队列失败: ' + data.message);
                     }
                 });
         }
@@ -471,10 +498,14 @@ void Setup_Web_Server() {
         // 初始化
         addLog('系统启动 - 用户ID: ' + currentUserId);
         addLog('提示: 设置目标重量大于0后选择药品类型点击"加入队列"');
+        
+        // 监听输入变化
+        document.getElementById('weightInput').addEventListener('input', updateButtonStates);
+        document.getElementById('medicineSelect').addEventListener('change', updateButtonStates);
     </script>
 </body>
 </html>
-        )rawliteral";
+      )rawliteral";
         request->send(200, "text/html", html);
     });
 
