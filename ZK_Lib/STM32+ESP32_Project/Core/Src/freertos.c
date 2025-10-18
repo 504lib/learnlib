@@ -65,7 +65,7 @@ Medicine current_medicine;
 extern uint8_t temp[64];                                                          // 来自main.c的缓冲区
 u8g2_t u8g2;                                                                      // u8g2对象
 int index = 0;                                                                    // String_Option的字符串数组索引
-const char* String_Option[] = {"begin","test1","test2","test3","end"};            // 测试的字符串
+const char* String_Option[] = {"Ephedra","Cinnamon Twig"};            // 测试的字符串
 bool toggle = false;                                                              // 测试bool节点的变�?
 int32_t passenger_num = 0;                                                        // 存储乘�?�的变�??
 float weight = 0.0;
@@ -91,7 +91,7 @@ menu_item_t* sub4_sub4 = NULL;
 menu_item_t* sub4_sub5 = NULL;
 menu_item_t* sub4_sub6 = NULL;
 menu_item_t* sub4_sub7 = NULL;
-menu_item_t* sub5_sub1 = NULL;
+menu_item_t* sub1_sub4 = NULL;
 menu_item_t* sub5_sub2 = NULL;
 menu_item_t* sub5_sub3 = NULL;
 menu_item_t* sub5_sub4 = NULL;
@@ -439,18 +439,22 @@ void main_display_cb(u8g2_t* u8g2, menu_data_t* menu_data)
   // 3. 状�?�卡�???
 }
 
-// void join_queue()
-// {
-//   UART_protocol UART_protocol_structure = {
-//   .Headerframe1 = 0xAA,
-//   .Headerframe2 = 0x55,
-//   .Tailframe1 = 0x0D,
-//   .Tailframe2 = 0x0A
-//   };
-//   UART_Protocol_CURRENT_USER(UART_protocol_structure,String_Option[index],(Medicine)index,strlen(String_Option[index]));
-//   LOG_INFO("%d",strlen(String_Option[index]));
+void join_queue()
+{
+  static uint16_t count = 0;
+  UART_protocol UART_protocol_structure = {
+  .Headerframe1 = 0xAA,
+  .Headerframe2 = 0x55,
+  .Tailframe1 = 0x0D,
+  .Tailframe2 = 0x0A
+  };
+  char buf[16] = {0};
+  snprintf(buf,sizeof(buf),"HARDWARE_%d",count++);
+  float Send_target_weight = target_weight_hardware;
+  UART_Protocol_CURRENT_USER(UART_protocol_structure,buf,(Medicine)index,Send_target_weight,strlen(buf));
+  LOG_INFO("%d",strlen(String_Option[index]));
 
-// }
+}
 
 /**
   * @brief  Function implementing the U8G2_TASK thread.
@@ -468,9 +472,9 @@ void U8g2_Task(void *argument)
   sub1 = create_submenu_item("choose_medicine",NULL,NULL);
   sub2 = create_toggle_item("toggle",&toggle);
   sub4 = create_submenu_item("Clock_Set",set_RTC_TEMP,NULL);
-  sub1_sub1 = create_param_enum_item("Change_param",&index,String_Option,5);
+  sub1_sub1 = create_param_enum_item("Change_param",&index,String_Option,2);
   sub1_sub2 = create_param_int_item("target weight", &target_weight_hardware, 0, 1000, 1);
-  // sub1_sub3 = create_function_item("Urgent_join",join_queue);
+  sub1_sub3 = create_function_item("join_queue", join_queue);
   sub4_sub1 = create_param_int_item("seconds", &Clock.seconds, 0, 59, 1);
   sub4_sub1 = create_param_int_item("minutes", &Clock.minutes, 0,59, 1);
   sub4_sub2 = create_param_int_item("hours", &Clock.hours, 0, 23, 1);
@@ -481,9 +485,10 @@ void U8g2_Task(void *argument)
   main_display = create_main_item("main",root, main_display_cb);
   Link_Parent_Child(root, sub1);
   Link_next_sibling(sub1, sub2);
-  Link_next_sibling(sub3, sub4);
+  Link_next_sibling(sub2, sub4);
   Link_Parent_Child(sub1, sub1_sub1);
   Link_next_sibling(sub1_sub1, sub1_sub2);
+  Link_next_sibling(sub1_sub2,sub1_sub3);
   Link_Parent_Child(sub4, sub4_sub1);
   Link_next_sibling(sub4_sub1, sub4_sub2);
   Link_next_sibling(sub4_sub2, sub4_sub3);

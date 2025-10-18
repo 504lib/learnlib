@@ -625,6 +625,16 @@ void motor_ready_callback()
     Serial.println("▶️ 收到MOTOR_READY: 电机就绪，队列继续");
 }
 
+void hardware_add_queue(String name,float target_weight,Medicine medicine)
+{
+    if (target_weight <= 0)
+    {
+        return;
+    }
+    
+    medicineQueue.addUser(name,target_weight,medicine);
+}
+
 void setup() {
     Serial.begin(115200);
     
@@ -632,6 +642,7 @@ void setup() {
     uart_protocol.setWeightCallback(weight_callback);
     uart_protocol.setMotorStopCallback(motor_stop_callback);
     uart_protocol.setMotorReadyCallback(motor_ready_callback);
+    uart_protocol.setCurrentUserCallback(hardware_add_queue);
     
     // 启动AP
     WiFi.softAP(ssid, password);
