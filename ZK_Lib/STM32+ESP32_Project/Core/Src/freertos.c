@@ -59,7 +59,6 @@ typedef enum
 /* USER CODE BEGIN Variables */
 system_status system_status_var = Ready;
 char user_buf[32] = "\0";
-bool display_flag = false;
 float target_weight = 0;
 Medicine current_medicine;
 extern uint8_t temp[64];                                                          // 鏉ヨ嚜main.c鐨勭紦鍐插尯
@@ -348,28 +347,39 @@ void main_display_cb(u8g2_t* u8g2, menu_data_t* menu_data)
   // 1. 椤堕儴澶ф椂闂存樉锟???
   if (system_status_var == Runing)
   {
-        u8g2_SetFont(u8g2, u8g2_font_9x15B_tf);
+ u8g2_SetFont(u8g2, u8g2_font_9x15B_tf);
         
         // 顶部状态栏
-        u8g2_DrawBox(u8g2, 0, 0, 128, 20);
-        u8g2_SetDrawColor(u8g2, 0); // 白色文字
-        u8g2_DrawStr(u8g2, 5, 15, "ACTIVE USER");
-        u8g2_SetDrawColor(u8g2, 1); // 恢复黑色
+        u8g2_DrawBox(u8g2, 0, 0, 128, 12);
+        u8g2_SetDrawColor(u8g2, 0);
+        u8g2_DrawStr(u8g2, 40, 13, "WEIGHING");
+        u8g2_SetDrawColor(u8g2, 1);
         
-        // 用户ID - 大字体显示
-        u8g2_SetFont(u8g2, u8g2_font_10x20_me);
+        // 用户信息
+        u8g2_SetFont(u8g2, u8g2_font_9x15_tf);
         snprintf(buf, sizeof(buf), "%s", user_buf);
-        u8g2_DrawStr(u8g2, 5, 35, buf);
+        u8g2_DrawStr(u8g2, 5, 28, buf);
         
-        // 重量信息 - 突出显示
-        u8g2_SetFont(u8g2, u8g2_font_logisoso18_tn);
+        // 当前重量 - 大字体
+        u8g2_SetFont(u8g2, u8g2_font_logisoso20_tn);
         snprintf(buf, sizeof(buf), "%.1f g", weight);
         uint8_t weight_width = u8g2_GetStrWidth(u8g2, buf);
-        u8g2_DrawStr(u8g2, (128 - weight_width) / 2, 55, buf);
+        u8g2_DrawStr(u8g2, (128 - weight_width) / 2, 50, buf);
         
-        // 底部状态指示
+        // 进度条
+        float progress = (weight / target_weight) * 100.0f;
+        if (progress > 100.0f) progress = 100.0f;
+        
+        // 进度条背景
+        u8g2_DrawFrame(u8g2, 10, 55, 108, 8);
+        // 进度条填充
+        uint8_t bar_width = (uint8_t)((progress / 100.0f) * 106);
+        u8g2_DrawBox(u8g2, 11, 56, bar_width, 6);
+        
+        // 进度百分比
         u8g2_SetFont(u8g2, u8g2_font_6x10_tf);
-        u8g2_DrawStr(u8g2, 5, 62, "READY");
+        snprintf(buf, sizeof(buf), "%.0f%%", progress);
+        u8g2_DrawStr(u8g2, 120 - u8g2_GetStrWidth(u8g2, buf), 62, buf);
   }
   else if(system_status_var == Ready)
   {
@@ -396,6 +406,8 @@ void main_display_cb(u8g2_t* u8g2, menu_data_t* menu_data)
         // 底部提示信息
         u8g2_SetFont(u8g2, u8g2_font_6x10_tf);
         u8g2_DrawStr(u8g2, 20, 62, "WAITING FOR USER");
+
+
   }
   else if (system_status_var == Stop)
   {
@@ -408,15 +420,18 @@ void main_display_cb(u8g2_t* u8g2, menu_data_t* menu_data)
         u8g2_DrawStr(u8g2, 5, 15, buf);
         u8g2_SetDrawColor(u8g2, 1); // 恢复黑色
         
+        snprintf(buf,sizeof(buf),"medicine:%d",current_medicine);
+        u8g2_DrawStr(u8g2, 5, 30, buf);
+
         // 重量信息 - 突出显示
         u8g2_SetFont(u8g2, u8g2_font_9x15B_tf);
         snprintf(buf, sizeof(buf), "Please take it");
         uint8_t weight_width = u8g2_GetStrWidth(u8g2, buf);
         u8g2_DrawStr(u8g2, 0, 45, buf);
         
-
         snprintf(buf,sizeof(buf),"away...");
-        u8g2_DrawStr(u8g2, 0, 60, buf);
+        weight_width = u8g2_GetStrWidth(u8g2,buf);
+        u8g2_DrawStr(u8g2, (120 - weight_width) / 2, 60, buf);
         // 底部状态指示
   }
   
@@ -687,8 +702,8 @@ void uart_task(void *argument)
 /* USER CODE BEGIN Header_HX711_Task */
 void current_user_cb(char* name,Medicine medicine,uint8_t size)
 {
-  display_flag = true;
   strcpy(user_buf,name);
+  current_medicine = medicine;
   printf("current user:%s,medicine type:%d\n",user_buf,medicine);
 }
 

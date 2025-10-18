@@ -34,57 +34,85 @@ struct SystemStatus {
 SystemStatus g_status;
 
 // 用户信息结构
+// 修改 UserInfo 结构体
 struct UserInfo {
     String id;
-    float target_weight;
+    int32_t target_weight;
+    Medicine medicine_type;
 };
 
-// 队列系统
+// 修改 UserQueue 类
 class UserQueue {
 private:
     std::queue<UserInfo> userQueue;
-    std::map<String, bool> userInQueue;
-    UserInfo currentUser;
+    static const int MAX_USERS = 20; // 最大用户数
+    struct UserMedicine {
+        String userId;
+        Medicine medicine;
+    };
+    UserMedicine userMedicines[MAX_USERS]; // 用户药品记录
+    int userCount = 0;
     
 public:
-    bool addUser(const String& userId, int32_t weight) {
-        if (userInQueue.find(userId) != userInQueue.end()) {
-            return false; // 用户已在队列中
-        }
-        
-        if (weight <= 0) {
-            return false; // 重量必须大于0
+    bool addUser(const String& userId, int32_t weight, Medicine medicine) {
+        // 检查用户是否已经在同一药品队列中
+        for (int i = 0; i < userCount; i++) {
+            if (userMedicines[i].userId == userId && userMedicines[i].medicine == medicine) {
+                return false; // 用户已在该药品队列中
+            }
         }
         
         UserInfo user;
         user.id = userId;
         user.target_weight = weight;
+        user.medicine_type = medicine;
         
         userQueue.push(user);
-        userInQueue[userId] = true;
-        Serial.printf("用户 %s 加入队列，目标重量: %dg，位置: %d\n", 
-                     userId.c_str(), weight, userQueue.size());
+        
+        // 记录用户的药品（如果还有空间）
+        if (userCount < MAX_USERS) {
+            userMedicines[userCount].userId = userId;
+            userMedicines[userCount].medicine = medicine;
+            userCount++;
+        }
+        
+        Serial.printf("用户 %s 加入队列，药品: %d, 目标重量: %dg，位置: %d\n", 
+                     userId.c_str(), static_cast<int>(medicine), weight, userQueue.size());
         return true;
     }
     
-    bool removeUser(const String& userId) {
-        if (userInQueue.find(userId) == userInQueue.end()) {
+    bool removeUser(const String& userId, Medicine medicine) {
+        bool found = false;
+        
+        // 从用户药品记录中移除
+        for (int i = 0; i < userCount; i++) {
+            if (userMedicines[i].userId == userId && userMedicines[i].medicine == medicine) {
+                // 移动后面的元素覆盖当前位置
+                for (int j = i; j < userCount - 1; j++) {
+                    userMedicines[j] = userMedicines[j + 1];
+                }
+                userCount--;
+                found = true;
+                break;
+            }
+        }
+        
+        if (!found) {
             return false;
         }
         
-        // 重建队列（排除要删除的用户）
+        // 重建队列（排除要删除的用户和药品组合）
         std::queue<UserInfo> newQueue;
         while (!userQueue.empty()) {
             UserInfo user = userQueue.front();
             userQueue.pop();
-            if (user.id != userId) {
+            if (!(user.id == userId && user.medicine_type == medicine)) {
                 newQueue.push(user);
             }
         }
         userQueue = newQueue;
-        userInQueue.erase(userId);
         
-        Serial.printf("用户 %s 离开队列\n", userId.c_str());
+        Serial.printf("用户 %s 离开队列，药品: %d\n", userId.c_str(), static_cast<int>(medicine));
         return true;
     }
     
@@ -96,33 +124,48 @@ public:
         
         currentUser = userQueue.front();
         userQueue.pop();
-        userInQueue.erase(currentUser.id);
         
-        Serial.printf("开始服务用户: %s, 目标重量: %dg\n", 
-                     currentUser.id.c_str(), currentUser.target_weight);
+        // 从用户药品记录中移除
+        removeUser(currentUser.id, currentUser.medicine_type);
+        
+        Serial.printf("开始服务用户: %s, 药品: %d, 目标重量: %dg\n", 
+                     currentUser.id.c_str(), static_cast<int>(currentUser.medicine_type), 
+                     currentUser.target_weight);
         return currentUser;
     }
     
     String getCurrentUserId() { return currentUser.id; }
     int32_t getCurrentUserTargetWeight() { return currentUser.target_weight; }
+    Medicine getCurrentUserMedicine() { return currentUser.medicine_type; }
     int getQueueCount() { return userQueue.size(); }
     
-    // 清空当前用户
     void clearCurrentUser() {
         currentUser = UserInfo();
     }
     
-    // 获取队列列表（用于显示）
     std::vector<String> getQueueList() {
         std::vector<String> list;
         std::queue<UserInfo> temp = userQueue;
         
         while (!temp.empty()) {
             UserInfo user = temp.front();
-            list.push_back(user.id + " (" + String(user.target_weight) + "g)");
+            String display = user.id + " (" + getMedicineName(user.medicine_type) + " - " + 
+                           String(user.target_weight) + "g)";
+            list.push_back(display);
             temp.pop();
         }
         return list;
+    }
+    
+private:
+    UserInfo currentUser;
+    
+    String getMedicineName(Medicine medicine) {
+        switch(medicine) {
+            case Medicine::Medicine1: return "药品A";
+            case Medicine::Medicine2: return "药品B";
+            default: return "未知药品";
+        }
     }
 };
 
@@ -183,6 +226,7 @@ void Setup_Web_Server() {
         .motor-status { display: inline-block; padding: 4px 8px; border-radius: 4px; margin-left: 10px; }
         .motor-ready { background: #d4edda; color: #155724; }
         .motor-stopped { background: #f8d7da; color: #721c24; }
+        .medicine-select { padding: 8px; margin: 5px; border: 1px solid #ddd; border-radius: 4px; }
     </style>
 </head>
 <body>
@@ -197,6 +241,7 @@ void Setup_Web_Server() {
                 <div id="progressFill" class="progress-fill" style="width: 0%"></div>
             </div>
             <p>当前用户: <span id="currentUser">无</span></p>
+            <p>当前药品: <span id="currentMedicine">无</span></p>
             <p>电机状态: 
                 <span id="motorStatus" class="motor-status motor-ready">就绪</span>
                 <span id="queueStatus" style="margin-left: 10px;"></span>
@@ -215,11 +260,16 @@ void Setup_Web_Server() {
             <div>
                 <label>目标重量 (g): </label>
                 <input type="number" id="weightInput" min="1" max="500" value="100" style="padding: 5px; margin: 5px;">
+                <label>药品类型: </label>
+                <select id="medicineSelect" class="medicine-select">
+                    <option value="0">药品A</option>
+                    <option value="1">药品B</option>
+                </select>
                 <button class="btn" onclick="joinQueue()" id="joinBtn">加入队列</button>
                 <button class="btn btn-warning" onclick="leaveQueue()" id="leaveBtn" style="display: none;">离开队列</button>
             </div>
             <div style="margin-top: 10px; color: #666; font-size: 14px;">
-                提示: 目标重量必须大于0才能加入队列
+                提示: 同一药品类型只能排队一次
             </div>
         </div>
         
@@ -232,12 +282,18 @@ void Setup_Web_Server() {
     <script>
         let currentUserId = 'USER_' + Math.random().toString(36).substr(2, 5).toUpperCase();
         let userInQueue = false;
+        let userCurrentMedicine = -1; // 当前用户选择的药品
         
         function updateStatus(data) {
             // 更新系统状态
             document.getElementById('currentWeight').textContent = data.system.current_weight;
             document.getElementById('targetWeight').textContent = data.system.target_weight;
             document.getElementById('currentUser').textContent = data.queue.current_user || '无';
+            if (data.queue.current_user && data.queue.current_user !== '无') {
+                document.getElementById('currentMedicine').textContent = getMedicineName(data.system.medicine_type);
+            } else {
+                document.getElementById('currentMedicine').textContent = '无';
+            }
             
             // 更新进度条
             const progress = data.system.target_weight > 0 ? 
@@ -293,32 +349,94 @@ void Setup_Web_Server() {
                 queueList.innerHTML = '<div style="text-align: center; color: #666; padding: 10px;">队列为空</div>';
             }
             
+            // 修复问题2：检查当前用户是否还在队列中
+            checkUserInQueue(data);
+            
             // 更新按钮状态
+            updateButtonStates(data);
+        }
+        
+        function checkUserInQueue(data) {
+            // 检查当前用户是否还在队列中
+            let found = false;
+            if (data.queue.queue_list && data.queue.queue_list.length > 0) {
+                for (let item of data.queue.queue_list) {
+                    if (item.includes(currentUserId)) {
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            
+            // 如果用户不在队列中，重置状态
+            if (!found && userInQueue) {
+                userInQueue = false;
+                userCurrentMedicine = -1;
+                addLog('您已完成取药，可以重新排队');
+            }
+        }
+        
+        function updateButtonStates(data) {
             const joinBtn = document.getElementById('joinBtn');
             const leaveBtn = document.getElementById('leaveBtn');
             const weightInput = document.getElementById('weightInput');
+            const medicineSelect = document.getElementById('medicineSelect');
             
             // 检查重量是否有效
             const weight = parseInt(weightInput.value);
-            joinBtn.disabled = weight <= 0 || userInQueue;
+            const medicine = parseInt(medicineSelect.value);
             
-            // 显示/隐藏离开队列按钮
+            // 检查该药品是否已经在队列中
+            let medicineInQueue = false;
+            if (data.queue.queue_list && data.queue.queue_list.length > 0) {
+                for (let item of data.queue.queue_list) {
+                    // 检查是否包含当前用户和药品
+                    if (item.includes(currentUserId) && item.includes(getMedicineName(medicine))) {
+                        medicineInQueue = true;
+                        break;
+                    }
+                }
+            }
+            
+            // 设置按钮状态
+            joinBtn.disabled = weight <= 0 || userInQueue || medicineInQueue;
             leaveBtn.style.display = userInQueue ? 'inline-block' : 'none';
+            
+            // 更新按钮文本提示
+            if (medicineInQueue) {
+                joinBtn.title = '您已在该药品队列中';
+            } else if (userInQueue) {
+                joinBtn.title = '您已在其他药品队列中';
+            } else {
+                joinBtn.title = '';
+            }
+        }
+        
+        function getMedicineName(medicineType) {
+            const medicines = {
+                0: '药品A',
+                1: '药品B'
+            };
+            return medicines[medicineType] || '未知药品';
         }
         
         function joinQueue() {
             const weight = document.getElementById('weightInput').value;
+            const medicineSelect = document.getElementById('medicineSelect');
+            const medicine = medicineSelect.value;
+            
             if (weight <= 0) {
                 addLog('错误: 目标重量必须大于0');
                 return;
             }
             
-            fetch('/api/join_queue?user_id=' + currentUserId + '&weight=' + weight)
+            fetch('/api/join_queue?user_id=' + currentUserId + '&weight=' + weight + '&medicine=' + medicine)
                 .then(r => r.json())
                 .then(data => {
                     if (data.success) {
                         userInQueue = true;
-                        addLog('加入队列成功，目标重量: ' + weight + 'g，位置: ' + data.position);
+                        userCurrentMedicine = parseInt(medicine);
+                        addLog('加入队列成功，目标重量: ' + weight + 'g，药品: ' + getMedicineName(userCurrentMedicine) + '，位置: ' + data.position);
                     } else {
                         addLog('加入队列失败: ' + data.message);
                     }
@@ -326,11 +444,12 @@ void Setup_Web_Server() {
         }
         
         function leaveQueue() {
-            fetch('/api/leave_queue?user_id=' + currentUserId)
+            fetch('/api/leave_queue?user_id=' + currentUserId + '&medicine=' + userCurrentMedicine)
                 .then(r => r.json())
                 .then(data => {
                     if (data.success) {
                         userInQueue = false;
+                        userCurrentMedicine = -1;
                         addLog('已离开队列');
                     }
                 });
@@ -351,7 +470,7 @@ void Setup_Web_Server() {
         
         // 初始化
         addLog('系统启动 - 用户ID: ' + currentUserId);
-        addLog('提示: 设置目标重量大于0后点击"加入队列"');
+        addLog('提示: 设置目标重量大于0后选择药品类型点击"加入队列"');
     </script>
 </body>
 </html>
@@ -386,43 +505,47 @@ void Setup_Web_Server() {
         request->send(200, "application/json", json);
     });
     
-    server.on("/api/join_queue", HTTP_GET, [](AsyncWebServerRequest *request){
-        if (request->hasParam("user_id") && request->hasParam("weight")) {
-            String userId = request->getParam("user_id")->value();
-            int32_t weight = request->getParam("weight")->value().toInt();
-            
-            JsonDocument doc;
-            if (weight <= 0) {
-                doc["success"] = false;
-                doc["message"] = "目标重量必须大于0";
-            } else if (medicineQueue.addUser(userId, weight)) {
-                doc["success"] = true;
-                doc["position"] = medicineQueue.getQueueCount();
-                doc["message"] = "加入队列成功";
-            } else {
-                doc["success"] = false;
-                doc["message"] = "用户已在队列中";
-            }
-            
-            String json;
-            serializeJson(doc, json);
-            request->send(200, "application/json", json);
+// 修改加入队列接口
+server.on("/api/join_queue", HTTP_GET, [](AsyncWebServerRequest *request){
+    if (request->hasParam("user_id") && request->hasParam("weight") && request->hasParam("medicine")) {
+        String userId = request->getParam("user_id")->value();
+        int32_t weight = request->getParam("weight")->value().toInt();
+        uint8_t medicine = request->getParam("medicine")->value().toInt();
+        
+        JsonDocument doc;
+        if (weight <= 0) {
+            doc["success"] = false;
+            doc["message"] = "目标重量必须大于0";
+        } else if (medicineQueue.addUser(userId, weight, static_cast<Medicine>(medicine))) {
+            doc["success"] = true;
+            doc["position"] = medicineQueue.getQueueCount();
+            doc["message"] = "加入队列成功";
+        } else {
+            doc["success"] = false;
+            doc["message"] = "您已在该药品队列中";
         }
-    });
-    
-    server.on("/api/leave_queue", HTTP_GET, [](AsyncWebServerRequest *request){
-        if (request->hasParam("user_id")) {
-            String userId = request->getParam("user_id")->value();
-            
-            JsonDocument doc;
-            doc["success"] = medicineQueue.removeUser(userId);
-            doc["message"] = doc["success"] ? "已离开队列" : "用户不在队列中";
-            
-            String json;
-            serializeJson(doc, json);
-            request->send(200, "application/json", json);
-        }
-    });
+        
+        String json;
+        serializeJson(doc, json);
+        request->send(200, "application/json", json);
+    }
+});
+
+// 修改离开队列接口
+server.on("/api/leave_queue", HTTP_GET, [](AsyncWebServerRequest *request){
+    if (request->hasParam("user_id") && request->hasParam("medicine")) {
+        String userId = request->getParam("user_id")->value();
+        uint8_t medicine = request->getParam("medicine")->value().toInt();
+        
+        JsonDocument doc;
+        doc["success"] = medicineQueue.removeUser(userId, static_cast<Medicine>(medicine));
+        doc["message"] = doc["success"] ? "已离开队列" : "用户不在该药品队列中";
+        
+        String json;
+        serializeJson(doc, json);
+        request->send(200, "application/json", json);
+    }
+});
 
     server.begin();
     Serial.println("HTTP服务器已启动");
