@@ -29,7 +29,10 @@ typedef enum
     PASSENGER_NUM,          // 乘客数量
     CLEAR,                  // 清理指令
     HX711_WEIGHT,
-    CURRENT_USER
+    CURRENT_USER,
+    MOTOR_STOP,
+    MOTOR_READY,
+    TARGET_WEIGHT,
 }CmdType;
 
 typedef enum
@@ -53,6 +56,9 @@ typedef void (*PASSENGER_NUM_Callback)(uint8_t value);      // 乘客回调函�
 typedef void (*CLEAR_Callback)(void);                       // 清理指令回调函数模板
 typedef void (*HX711_WEIGHT_Callback)(float weight);
 typedef void (*CURRENT_USER_Callback)(char* name,Medicine medicine,uint8_t size);
+typedef void (*MOTOR_STOP_Callback)(void);
+typedef void (*MOTOR_READY_Callback)(void);
+typedef void (*TARGET_WEIGHT_Callback)(float weight);
 typedef struct {
     uint16_t Size;                                          // 当前数据帧的大小
     RingBuffer ring_buffer;                                 // 环形缓冲区
@@ -69,6 +75,9 @@ void UART_Protocol_Passenger(UART_protocol UART_protocol_structure,uint8_t value
 void UART_Protocol_Clear(UART_protocol UART_protocol_structure);
 void UART_Protocol_WEIGHT(UART_protocol UART_protocol_structure , float weight);
 void UART_Protocol_CURRENT_USER(UART_protocol UART_protocol_structure,char* name,Medicine medicine,uint8_t size);
+void UART_Protocol_MOTOR_STOP(UART_protocol UART_protocol_structure);
+void UART_Protocol_MOTOR_READY(UART_protocol UART_protocol_structure);
+void UART_Protocol_TARGET_WEIGHT(UART_protocol UART_protocol_structure , float weight);
 void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uint16_t size);
 
 /************************ 设置自定义功能 *********************** */
@@ -78,6 +87,9 @@ void set_ACK_Callback(ACK_Callback cb);
 void set_PASSENGER_Callback(PASSENGER_NUM_Callback cb);
 void set_Clear_Callback(CLEAR_Callback cb);
 void set_Current_User(CURRENT_USER_Callback cb);
+void set_Motor_Stop_Callback(MOTOR_STOP_Callback cb);
+void set_Motor_Ready_Callback(MOTOR_READY_Callback cb);
+void set_Target_Weight_Callback(TARGET_WEIGHT_Callback cb);
 
 /************************ 环形缓冲区接收/放置 *********************** */
 UartFrame* Get_Uart_Frame_Buffer(void);

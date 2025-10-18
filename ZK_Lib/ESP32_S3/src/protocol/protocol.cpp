@@ -223,6 +223,80 @@ void protocol::Send_Uart_Frame_CURRENT_USER(String name,Medicine medicine)
     free(frame);
 }
 
+
+void protocol::Send_Uart_Frame_MOTOR_READY()
+{
+    uint8_t frame[8];
+
+    frame[0] = Headerframe1;
+    frame[1] = Headerframe2;
+
+    frame[2] = static_cast<uint8_t>(CmdType::MOTOR_READY);
+    frame[3] = 0;
+
+    uint16_t check = calculateChecksum(&frame[2],2);
+    frame[4] = (check >> 8) & 0xff;
+    frame[5] = check & 0xff;
+
+    frame[6] = Tailframe1;
+    frame[7] = Tailframe2;
+
+    Serial1.write(frame,sizeof(frame));
+}
+
+void protocol::Send_Uart_Frame_MOTOR_STOP()
+{
+    uint8_t frame[8];
+
+    frame[0] = Headerframe1;
+    frame[1] = Headerframe2;
+
+    frame[2] = static_cast<uint8_t>(CmdType::MOTOR_STOP);
+    frame[3] = 0;
+
+    uint16_t check = calculateChecksum(&frame[2],2);
+    frame[4] = (check >> 8) & 0xff;
+    frame[5] = check & 0xff;
+
+    frame[6] = Tailframe1;
+    frame[7] = Tailframe2;
+
+    Serial1.write(frame,sizeof(frame));
+}
+
+void protocol::Send_Uart_Frame_TARGET_WEIGHT(float value)
+{
+    union dataunion
+    {
+        float value;
+        uint8_t value_arr[4];
+    };
+
+    dataunion data;
+    data.value = value;
+    uint8_t frame[12];
+
+    frame[0] = Headerframe1;
+    frame[1] = Headerframe2;
+
+    frame[2] = static_cast<uint8_t>(CmdType::TARGET_WEIGHT);
+    frame[3] = 4;
+
+    frame[4] = data.value_arr[3];
+    frame[5] = data.value_arr[2];
+    frame[6] = data.value_arr[1];
+    frame[7] = data.value_arr[0];
+
+    uint16_t check = calculateChecksum(&frame[2],6);
+    frame[8] = (check >> 8) & 0xff;
+    frame[9] = check & 0xff;
+
+    frame[10] = Tailframe1;
+    frame[11] = Tailframe2;
+
+    Serial1.write(frame,sizeof(frame));
+}
+
 void protocol::Receive_Uart_Frame(uint8_t data)
 {
     static enum { WAIT_HEADER1, WAIT_HEADER2, WAIT_TYPE, WAIT_LEN, WAIT_DATA, WAIT_CHECK1, WAIT_CHECK2, WAIT_TAIL1, WAIT_TAIL2 } state = WAIT_HEADER1;
@@ -374,7 +448,6 @@ void protocol::Receive_Uart_Frame(uint8_t data)
                        }
                         
                     }
-                   // 校验成功 - 这里添加 CURRENT_USER 处理（和其他类型并列）
                     else if(frame_type == static_cast<uint8_t>(CmdType::CURRENT_USER) && frame_len >= 2)
                     {
                         String userName = "";
@@ -394,6 +467,50 @@ void protocol::Receive_Uart_Frame(uint8_t data)
                             Serial.print("Medicine: ");
                             Serial.println((uint8_t)data_buf[0]);
                         }
+                    }
+                    else if(frame_type == static_cast<uint8_t>(CmdType::MOTOR_READY) && frame_len == 0)
+                    {
+                        if(motor_ready_callback)
+                        {
+                            motor_ready_callback();
+                        }
+                        else
+                        {
+                            Serial.println("Received MOTOR_READY");
+                        }
+                    }
+                    else if(frame_type == static_cast<uint8_t>(CmdType::MOTOR_STOP) && frame_len == 0)
+                    {
+                        if(motor_stop_callback)
+                        {
+                            motor_stop_callback();
+                        }
+                        else
+                        {
+                            Serial.println("Received MOTOR_STOP");
+                        }
+                    }
+                    else if (frame_type = static_cast<uint8_t>(CmdType::TARGET_WEIGHT) && frame_len == 4)
+                    {
+                        union {
+                            float f;
+                            uint8_t b[4];
+                        } u;
+                        u.b[0] = data_buf[3];
+                        u.b[1] = data_buf[2];
+                        u.b[2] = data_buf[1];
+                        u.b[3] = data_buf[0];
+                        float value = u.f;
+                       if (target_weight_callback)
+                       {
+                            target_weight_callback(value);
+                       }
+                       else
+                       {
+
+                            Serial.printf("Received Target_Weight:%f",value);
+                       }
+                        
                     }
                 }
                 else
@@ -441,4 +558,20 @@ void protocol::setWeightCallback(HX711_WEIGHT_Callback cb)
 void protocol::setCurrentUserCallback(CURRENT_USER_Callback cb)
 {
     current_user_callback = cb;
+}
+
+
+void protocol::setMotorReadyCallback(MOTOR_READY_Callback cb)
+{
+    motor_ready_callback = cb;
+}
+
+void protocol::setMotorStopCallback(MOTOR_STOP_Callback cb)
+{
+    motor_stop_callback = cb;
+}
+
+void protocol::setTargetWeightCallback(TARGET_WEIGHT_Callback cb)
+{
+    target_weight_callback = cb;
 }

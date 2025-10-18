@@ -12,6 +12,9 @@ typedef struct
     CLEAR_Callback clear_callback;                  // 清除乘客数量的回调函数
     HX711_WEIGHT_Callback weight_callback;
     CURRENT_USER_Callback current_user_callback;
+    MOTOR_READY_Callback motor_ready_callback;
+    MOTOR_STOP_Callback motor_stop_callback;
+    TARGET_WEIGHT_Callback target_weight_callback;
 }callback_functions;
 
 // 回调函数实例 + 初始化
@@ -211,6 +214,65 @@ static void handle_CURRENT_USER(char* name,Medicine medicine,uint8_t size)
         UART_Protocol_CURRENT_USER(UART_protocol_structure,name,medicine,size);
     }
 }
+
+static void handle_Motor_Stop(void)
+{
+    if (callbacks.motor_stop_callback) 
+    {
+        callbacks.motor_stop_callback();
+        return;
+    }
+    else
+    {
+        UART_protocol UART_protocol_structure = {
+        .Headerframe1 = 0xAA,
+        .Headerframe2 = 0x55,
+        .Tailframe1 = 0x0D,
+        .Tailframe2 = 0x0A
+        };
+        UART_Protocol_MOTOR_STOP(UART_protocol_structure);
+    }
+}
+
+static void handle_Motor_Ready(void)
+{
+    if (callbacks.motor_ready_callback) 
+    {
+        callbacks.motor_ready_callback();
+        return;
+    }
+    else
+    {
+        UART_protocol UART_protocol_structure = {
+        .Headerframe1 = 0xAA,
+        .Headerframe2 = 0x55,
+        .Tailframe1 = 0x0D,
+        .Tailframe2 = 0x0A
+        };
+        UART_Protocol_MOTOR_READY(UART_protocol_structure);
+    }
+}
+
+
+static void handle_Target_Weight(float value)
+{
+    if (callbacks.target_weight_callback) 
+    {
+        callbacks.target_weight_callback(value);
+        return;
+    }
+    else
+    {
+        UART_protocol UART_protocol_structure = {
+        .Headerframe1 = 0xAA,
+        .Headerframe2 = 0x55,
+        .Tailframe1 = 0x0D,
+        .Tailframe2 = 0x0A
+        };
+        UART_Protocol_TARGET_WEIGHT(UART_protocol_structure,value);
+    }
+}
+
 /**
  * @brief    环形缓冲区初始化
  * @param    rb        环形缓冲区指针
@@ -346,6 +408,21 @@ void set_Clear_Callback(CLEAR_Callback cb)
 void set_Current_User(CURRENT_USER_Callback cb)
 {
    callbacks.current_user_callback = cb; 
+}
+
+void set_Motor_Stop_Callback(MOTOR_STOP_Callback cb)
+{
+    callbacks.motor_stop_callback = cb;
+}
+
+void set_Motor_Ready_Callback(MOTOR_READY_Callback cb)
+{
+    callbacks.motor_ready_callback = cb;
+}
+
+void set_Target_Weight_Callback(TARGET_WEIGHT_Callback cb)
+{
+    callbacks.target_weight_callback = cb;
 }
 
 /**
@@ -625,6 +702,100 @@ void UART_Protocol_CURRENT_USER(UART_protocol UART_protocol_structure,char* name
     free(frame);
 }
 
+
+void UART_Protocol_MOTOR_STOP(UART_protocol UART_protocol_structure)
+{
+
+    uint8_t frame[8];
+
+    LOG_DEBUG("data frame data variable has been built ...");
+    frame[0] = UART_protocol_structure.Headerframe1;
+    frame[1] = UART_protocol_structure.Headerframe2;
+
+    LOG_DEBUG("header has been placed ...");
+    frame[2] = MOTOR_STOP;
+    frame[3] = 0;
+
+    LOG_DEBUG("type has been placed ... , type = MOTOR_STOP");
+    uint16_t check = calculateChecksum(&frame[2],2);
+    frame[4] = (check >> 8) & 0xff;
+    frame[5] = check & 0xff;
+
+    LOG_DEBUG("checksum has been placed ... , checksum = 0x%04x",check);
+    frame[6] = UART_protocol_structure.Tailframe1;
+    frame[7] = UART_protocol_structure.Tailframe2;
+
+    LOG_DEBUG("Tailer has been placed ...");
+    HAL_UART_Transmit(&huart1,frame,sizeof(frame),HAL_MAX_DELAY);
+    LOG_INFO("MOTOR_STOP frame has sent,checksum = 0x%04x",check);
+}
+
+void UART_Protocol_MOTOR_READY(UART_protocol UART_protocol_structure)
+{
+    uint8_t frame[8];
+
+    LOG_DEBUG("data frame data variable has been built ...");
+    frame[0] = UART_protocol_structure.Headerframe1;
+    frame[1] = UART_protocol_structure.Headerframe2;
+
+    LOG_DEBUG("header has been placed ...");
+    frame[2] = MOTOR_READY;
+    frame[3] = 0;
+
+    LOG_DEBUG("type has been placed ... , type = MOTOR_READY");
+    uint16_t check = calculateChecksum(&frame[2],2);
+    frame[4] = (check >> 8) & 0xff;
+    frame[5] = check & 0xff;
+
+    LOG_DEBUG("checksum has been placed ... , checksum = 0x%04x",check);
+    frame[6] = UART_protocol_structure.Tailframe1;
+    frame[7] = UART_protocol_structure.Tailframe2;
+
+    LOG_DEBUG("Tailer has been placed ...");
+    HAL_UART_Transmit(&huart1,frame,sizeof(frame),HAL_MAX_DELAY);
+    LOG_INFO("MOTOR_READY frame has sent,checksum = 0x%04x",check);
+}
+
+
+void UART_Protocol_TARGET_WEIGHT(UART_protocol UART_protocol_structure , float weight)
+{
+    typedef union
+    {
+        float value;
+        uint8_t value_arr[4];
+    }dataunion;
+
+    LOG_DEBUG("untion object has been built ...");
+    dataunion data;
+    data.value = weight;
+    uint8_t frame[12];
+
+    LOG_DEBUG("data frame data variable has been built ...");
+    frame[0] = UART_protocol_structure.Headerframe1;
+    frame[1] = UART_protocol_structure.Headerframe2;
+
+    LOG_DEBUG("header has been placed ...");
+    frame[2] = TARGET_WEIGHT;
+    frame[3] = 4;
+
+    LOG_DEBUG("type has been placed ... , type = TARGET_WEIGHT");
+    frame[4] = data.value_arr[3];
+    frame[5] = data.value_arr[2];
+    frame[6] = data.value_arr[1];
+    frame[7] = data.value_arr[0];
+
+    LOG_DEBUG("data has been placed ...");
+    uint16_t check = calculateChecksum(&frame[2],6);
+    frame[8] = (check >> 8) & 0xff;
+    frame[9] = check & 0xff;
+
+    LOG_DEBUG("checksum has been placed ... , checksum = 0x%04x",check);
+    frame[10] = UART_protocol_structure.Tailframe1;
+    frame[11] = UART_protocol_structure.Tailframe2;
+
+    LOG_DEBUG("Tailer has been placed ...");
+    HAL_UART_Transmit(&huart1,frame,sizeof(frame),HAL_MAX_DELAY);
+}
 /**
  * @brief    处理数据帧函数
  * @details  处理规定帧头帧尾的数据帧
@@ -737,6 +908,27 @@ void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uin
         }
         handle_CURRENT_USER(buf,medicine,strlen(buf));
                 
+    }
+    else if (frame_type == MOTOR_READY && frame_len == 0)
+    {
+        handle_Motor_Ready();        
+    }
+    else if (frame_type == MOTOR_STOP && frame_len == 0)
+    {
+        handle_Motor_Stop();
+    }
+    else if(frame_type == TARGET_WEIGHT && frame_len == 4)
+    {
+        union {
+            float f;
+            uint8_t b[4];
+        } u;
+        u.b[0] = payload[3];
+        u.b[1] = payload[2];
+        u.b[2] = payload[1];
+        u.b[3] = payload[0];
+        handle_Target_Weight(u.f);
+        // HAL_UART_Transmit_DMA(&huart1,data,size);
     }
 }
 

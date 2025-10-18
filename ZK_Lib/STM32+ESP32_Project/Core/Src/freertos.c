@@ -37,7 +37,12 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+typedef enum
+{
+  Runing,
+  Stop,
+  Ready
+}system_status;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -52,7 +57,10 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
+system_status system_status_var = Ready;
 char user_buf[32] = "\0";
+bool display_flag = false;
+float target_weight = 0;
 Medicine current_medicine;
 extern uint8_t temp[64];                                                          // 鏉ヨ嚜main.c鐨勭紦鍐插尯
 u8g2_t u8g2;                                                                      // u8g2瀵硅薄
@@ -338,7 +346,7 @@ void main_display_cb(u8g2_t* u8g2, menu_data_t* menu_data)
   
   char buf[32];
   // 1. 椤堕儴澶ф椂闂存樉锟???
-  if (strlen(user_buf) != 0)
+  if (system_status_var == Runing)
   {
         u8g2_SetFont(u8g2, u8g2_font_9x15B_tf);
         
@@ -363,7 +371,7 @@ void main_display_cb(u8g2_t* u8g2, menu_data_t* menu_data)
         u8g2_SetFont(u8g2, u8g2_font_6x10_tf);
         u8g2_DrawStr(u8g2, 5, 62, "READY");
   }
-  else
+  else if(system_status_var == Ready)
   {
 
         u8g2_SetFont(u8g2, u8g2_font_logisoso26_tn);
@@ -388,6 +396,28 @@ void main_display_cb(u8g2_t* u8g2, menu_data_t* menu_data)
         // 底部提示信息
         u8g2_SetFont(u8g2, u8g2_font_6x10_tf);
         u8g2_DrawStr(u8g2, 20, 62, "WAITING FOR USER");
+  }
+  else if (system_status_var == Stop)
+  {
+        u8g2_SetFont(u8g2, u8g2_font_9x15B_tf);
+        
+        // 顶部状态栏
+        u8g2_DrawBox(u8g2, 0, 0, 128, 20);
+        u8g2_SetDrawColor(u8g2, 0); // 白色文字
+        snprintf(buf,sizeof(buf),"%s",user_buf);
+        u8g2_DrawStr(u8g2, 5, 15, buf);
+        u8g2_SetDrawColor(u8g2, 1); // 恢复黑色
+        
+        // 重量信息 - 突出显示
+        u8g2_SetFont(u8g2, u8g2_font_9x15B_tf);
+        snprintf(buf, sizeof(buf), "Please take it");
+        uint8_t weight_width = u8g2_GetStrWidth(u8g2, buf);
+        u8g2_DrawStr(u8g2, 0, 45, buf);
+        
+
+        snprintf(buf,sizeof(buf),"away...");
+        u8g2_DrawStr(u8g2, 0, 60, buf);
+        // 底部状态指示
   }
   
   
@@ -657,8 +687,15 @@ void uart_task(void *argument)
 /* USER CODE BEGIN Header_HX711_Task */
 void current_user_cb(char* name,Medicine medicine,uint8_t size)
 {
+  display_flag = true;
   strcpy(user_buf,name);
-  printf("current user:%s,medicine type:%d",user_buf,medicine);
+  printf("current user:%s,medicine type:%d\n",user_buf,medicine);
+}
+
+void Target_Weight_CB(float weight)
+{
+  target_weight = weight;
+  printf("target_weight:%f",weight);
 }
 
 
@@ -678,7 +715,9 @@ void HX711_Task(void *argument)
     .Tailframe1 = 0x0D,
     .Tailframe2 = 0x0A
   }; 
+  set_Target_Weight_Callback(Target_Weight_CB);
  set_Current_User(current_user_cb); 
+ uint32_t last_tick = 0;
   /* Infinite loop */
   for(;;)
   {
@@ -688,6 +727,28 @@ void HX711_Task(void *argument)
       UART_Protocol_WEIGHT(UART_protocol_structure,weight_temp);
     }
     weight = weight_temp;
+    if (system_status_var == Stop && weight < 0.2)
+    {
+      system_status_var = Ready;
+      UART_Protocol_MOTOR_READY(UART_protocol_structure);
+    }
+    else if (system_status_var == Ready && target_weight != 0.0f)
+    {
+      system_status_var = Runing;
+    }
+    else if(target_weight <= weight && target_weight != 0.0f && system_status_var == Runing)
+    {
+      system_status_var = Stop;
+      target_weight = 0.0f;
+      if (osKernelGetTickCount() - last_tick >= 5000)
+      {
+        UART_Protocol_MOTOR_STOP(UART_protocol_structure);
+        last_tick = osKernelGetTickCount();
+      }
+      
+    }
+
+    
     osDelay(100);
   }
   /* USER CODE END HX711_Task */
