@@ -162,8 +162,8 @@ private:
     
     String getMedicineName(Medicine medicine) {
         switch(medicine) {
-            case Medicine::Medicine1: return "药品A";
-            case Medicine::Medicine2: return "药品B";
+            case Medicine::Medicine1: return "麻黄";
+            case Medicine::Medicine2: return "桂枝";
             default: return "未知药品";
         }
     }
@@ -187,7 +187,7 @@ void ProcessAutoQueue() {
                 g_status.system_state = 1;
                 g_status.current_weight = 0;
                 g_status.target_weight = nextUser.target_weight;
-                
+                 g_status.medicine_type = nextUser.medicine_type;  // 添加这行
                 // 发送协议命令
                 // uart_protocol.Send_Uart_Frame_TARGET_WEIGHT(g_status.target_weight);
                 
@@ -262,8 +262,8 @@ void Setup_Web_Server() {
                 <input type="number" id="weightInput" min="1" max="500" value="100" style="padding: 5px; margin: 5px;">
                 <label>药品类型: </label>
                 <select id="medicineSelect" class="medicine-select">
-                    <option value="0">药品A</option>
-                    <option value="1">药品B</option>
+                    <option value="0">麻黄</option>
+                    <option value="1">桂枝</option>
                 </select>
                 <button class="btn" onclick="joinQueue()" id="joinBtn">加入队列</button>
                 <button class="btn btn-warning" onclick="leaveQueue()" id="leaveBtn" style="display: none;">离开队列</button>
@@ -414,8 +414,8 @@ void Setup_Web_Server() {
         
         function getMedicineName(medicineType) {
             const medicines = {
-                0: '药品A',
-                1: '药品B'
+                0: '麻黄',
+                1: '桂枝'
             };
             return medicines[medicineType] || '未知药品';
         }
@@ -483,7 +483,9 @@ void Setup_Web_Server() {
         JsonDocument doc;
         
         // 系统状态
-        doc["system"]["current_weight"] = g_status.current_weight;
+        char buf[32];
+        snprintf(buf,sizeof(buf),"%.1f",g_status.current_weight);
+        doc["system"]["current_weight"] = buf;
         doc["system"]["target_weight"] = g_status.target_weight;
         doc["system"]["system_state"] = g_status.system_state;
         doc["system"]["medicine_type"] = static_cast<uint8_t>(g_status.medicine_type);
