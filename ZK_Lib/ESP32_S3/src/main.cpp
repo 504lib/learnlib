@@ -661,16 +661,17 @@ void loop() {
     // 用户变化时发送用户信息
     if (currentUser != lastUser) {
 
+        uart_protocol.Send_Uart_Frame_CURRENT_USER(currentUser,medicineQueue.getCurrentUserTargetWeight(),g_status.medicine_type);
     //     // 同时发送目标重量
         lastUser = currentUser;
     }
 
     
-    if (millis() - last_tick >= 5000)
-    {
-        uart_protocol.Send_Uart_Frame_CURRENT_USER("test",3.3,static_cast<Medicine>(0));
-        last_tick = millis();
-    }
+    // if (millis() - last_tick >= 5000)
+    // {
+    //     uart_protocol.Send_Uart_Frame_CURRENT_USER("test",3.3,static_cast<Medicine>(0));
+    //     last_tick = millis();
+    // }
     
     
     delay(1);

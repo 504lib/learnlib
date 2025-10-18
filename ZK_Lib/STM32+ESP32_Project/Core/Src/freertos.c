@@ -702,15 +702,9 @@ void current_user_cb(char* name,Medicine medicine,float weight,uint8_t size)
 {
   strcpy(user_buf,name);
   current_medicine = medicine;
-  // target_weight = weight;
-  printf("current user:%s,target_weight = %.2f,medicine type:%d\n",user_buf,weight,medicine);
+  target_weight = weight;
+  printf("current user:%s,target_weight = %.2f,medicine type:%d\n",user_buf,target_weight,medicine);
 }
-
-// void Target_Weight_CB(float weight)
-// {
-//   target_weight = weight;
-//   printf("target_weight:%f",weight);
-// }
 
 
 /**
