@@ -33,6 +33,8 @@
 #include "rtc.h"
 #include "multikey.h"
 #include "HX711.h"
+#include "Motor.h"
+#include "tim.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -57,6 +59,10 @@ typedef enum
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
+Motor_Init_Struct motor1;
+Motor_Init_Struct motor2;
+bool Motor1_Ephedra = false;
+bool Motor2_Cinnamon = false;
 system_status system_status_var = Ready;
 char user_buf[32] = "\0";
 float target_weight = 0;
@@ -65,7 +71,7 @@ Medicine current_medicine;
 extern uint8_t temp[64];                                                          // 来自main.c的缓冲区
 u8g2_t u8g2;                                                                      // u8g2对象
 int index = 0;                                                                    // String_Option的字符串数组索引
-const char* String_Option[] = {"Ephedra","Cinnamon Twig"};            // 测试的字符串
+const char* String_Option[] = {"Ephedra","Cinnamon"};            // 测试的字符串
 bool toggle = false;                                                              // 测试bool节点的变�?
 int32_t passenger_num = 0;                                                        // 存储乘�?�的变�??
 float weight = 0.0;
@@ -420,7 +426,7 @@ void main_display_cb(u8g2_t* u8g2, menu_data_t* menu_data)
         u8g2_DrawStr(u8g2, 5, 15, buf);
         u8g2_SetDrawColor(u8g2, 1); // �ָ���ɫ
         
-        snprintf(buf,sizeof(buf),"medicine:%d",current_medicine);
+        snprintf(buf,sizeof(buf),"%s",String_Option[(uint8_t)current_medicine]);
         u8g2_DrawStr(u8g2, 5, 30, buf);
 
         // ������Ϣ - ͻ����ʾ
@@ -472,7 +478,7 @@ void U8g2_Task(void *argument)
   sub1 = create_submenu_item("choose_medicine",NULL,NULL);
   sub2 = create_toggle_item("toggle",&toggle);
   sub4 = create_submenu_item("Clock_Set",set_RTC_TEMP,NULL);
-  sub1_sub1 = create_param_enum_item("Change_param",&index,String_Option,2);
+  sub1_sub1 = create_param_enum_item("medicine",&index,String_Option,2);
   sub1_sub2 = create_param_int_item("target weight", &target_weight_hardware, 0, 1000, 1);
   sub1_sub3 = create_function_item("join_queue", join_queue);
   sub4_sub1 = create_param_int_item("seconds", &Clock.seconds, 0, 59, 1);
@@ -689,7 +695,7 @@ void uart_task(void *argument)
         UART_Protocol_Passenger(UART_protocol_structure,passenger_num);
         passenger_temp = passenger_num;                               // 保持同�??
       }
-      // 超时，�?��?ORE标志
+      // 超时，�??�?ORE标志
       if (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_ORE))                // ORE异常，需要马上恢复缓冲区,否则DMA会瘫�?
       {
           LOG_WARN("ORE detected in task, recovering...");
@@ -712,6 +718,33 @@ void current_user_cb(char* name,Medicine medicine,float weight,uint8_t size)
 }
 
 
+void Motor1_IN1_Write(bool state)
+{
+  HAL_GPIO_WritePin(AIN1_GPIO_Port,AIN1_Pin,(GPIO_PinState)state);
+}
+
+void Motor1_IN2_Write(bool state)
+{
+  HAL_GPIO_WritePin(BIN1_GPIO_Port,BIN1_Pin,(GPIO_PinState)state);
+}
+
+void Motor1_PWM_Start(bool state)
+{
+  if (state)
+  {
+    HAL_TIM_PWM_Start(&htim2,TIM_CHANNEL_2);
+  }
+  else
+  {
+    HAL_TIM_PWM_Stop(&htim2,TIM_CHANNEL_1);
+  }
+}
+
+void Motor_SetDuty(uint32_t duty)
+{
+  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2,duty);
+}
+
 /**
 * @brief Function implementing the HX711_TASK thread.
 * @param argument: Not used
@@ -728,6 +761,15 @@ void HX711_Task(void *argument)
     .Tailframe1 = 0x0D,
     .Tailframe2 = 0x0A
   }; 
+  // Motor_Init(TT_Motor,
+  //   &motor1,
+  //   Motor1_IN1_Write,
+  //   NULL,
+  //   Motor1_PWM_Start,
+  //   Motor_SetDuty
+  // ,100); 
+  HAL_TIM_PWM_Start(&htim2,TIM_CHANNEL_2);
+  HAL_TIM_PWM_Start(&htim3,TIM_CHANNEL_2);
  set_Current_User(current_user_cb); 
  uint32_t last_tick = 0;
   /* Infinite loop */
@@ -759,11 +801,49 @@ void HX711_Task(void *argument)
       }
       
     }
-    // if (osKernelGetTickCount() - last_tick >= 5000)
-    // {
-    //   UART_Protocol_CURRENT_USER(UART_protocol_structure,"test",Medicine1,3.3,sizeof("test"));
-    //   last_tick = osKernelGetTickCount();
-    // }
+    if (system_status_var == Runing)
+    {
+      if (current_medicine == Medicine1)
+      {
+        Motor1_Ephedra = true;
+      }
+      else if (current_medicine == Medicine2)
+      {
+        Motor2_Cinnamon = true;
+      }
+    }
+    else if (system_status_var == Ready || system_status_var == Stop)
+    {
+      Motor1_Ephedra = false;
+      Motor2_Cinnamon = false;
+    }
+    if (Motor1_Ephedra)
+    {
+      // Motor_Excute(&motor1,Motor_Forward,30);
+      HAL_GPIO_WritePin(AIN1_GPIO_Port,AIN1_Pin,GPIO_PIN_SET);
+      __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2,80);
+    }
+    else
+    {
+
+     HAL_GPIO_WritePin(AIN1_GPIO_Port,AIN1_Pin,GPIO_PIN_RESET);
+      __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_2,0);
+
+    }
+	 if (Motor2_Cinnamon)
+    {
+      // Motor_Excute(&motor1,Motor_Forward,30);
+      HAL_GPIO_WritePin(BIN1_GPIO_Port,BIN1_Pin,GPIO_PIN_SET);
+      __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2,80);
+    }
+    else
+    {
+
+     HAL_GPIO_WritePin(BIN1_GPIO_Port,BIN1_Pin,GPIO_PIN_RESET);
+      __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_2,0);
+
+    }
+
     
 
     
