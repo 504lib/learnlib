@@ -47,23 +47,18 @@ flowchart TD
 当前项目分为了很多模块，包括菜单模块(`menu.c`)、按键模块(`multikey.c`)、协议模块(`protocol.c`)、日志模块(`Log.c`)
 
 + 菜单模块:提供树状链表的数据结构 + u8g2图形库的支持，目前以完成了基本的菜单需求，包含很多节点类型
-
-  | 节点类型                             | 作用                                                         |
-  | ------------------------------------ | ------------------------------------------------------------ |
-  | 子菜单(`MENU_TYPE_SUB_MENU`)         | 作为层次桥接的重要节点，可在进入子节点时用户自定义初始化     |
-  | 功能选项(`MENU_TYPE_FUNCTION`)       | 用户可自定义的功能节点，用户可自定义                         |
+  | 节点类型                               | 作用                                                                 |
+  | -------------------------------------- | -------------------------------------------------------------------- |
+  | 子菜单(`MENU_TYPE_SUB_MENU`)         | 作为层次桥接的重要节点，可在进入子节点时用户自定义初始化             |
+  | 功能选项(`MENU_TYPE_FUNCTION`)       | 用户可自定义的功能节点，用户可自定义                                 |
   | 整形数值选项(`MENU_TYPE_PARAM_INT`)  | 用户可自定义**整形变量**范围增减量的选项(在本项目中并不会使用) |
-  | 枚举字符选项(`MENU_TYPE_PARAM_ENUM`) | 用户可自定义显示的字符串(在本项目可能会使用，待商议)         |
-  | 开关选项(`MENU_TYPE_TOGGLE`)         | 用户**可开关**的节点                                         |
-  | 主界面(`MENU_TYPE_MAIN`)             | 用户可自定义的主界面渲染(需要用户会使用u8g2图形库)           |
-  | 仅显示信息节点(`MENU_TYPE_DISPLAY`)  | 暂未实现                                                     |
-
+  | 枚举字符选项(`MENU_TYPE_PARAM_ENUM`) | 用户可自定义显示的字符串(在本项目可能会使用，待商议)                 |
+  | 开关选项(`MENU_TYPE_TOGGLE`)         | 用户**可开关**的节点                                           |
+  | 主界面(`MENU_TYPE_MAIN`)             | 用户可自定义的主界面渲染(需要用户会使用u8g2图形库)                   |
+  | 仅显示信息节点(`MENU_TYPE_DISPLAY`)  | 暂未实现                                                             |
 + 按键模块：提供按键防抖、点按、长按等操作，检测时间可自由更改，可运行时更改
-
 + 协议模块：用于区分数据类型和检测数据完整性
-
 + 日志模块：基于串口的日式输出模块，不可在程序中更改，可自由更改显示等级
-
   | 日志类型 | 等级 | 使用场景                             |
   | -------- | ---- | ------------------------------------ |
   | DEBUG    | 4    | 新功能调试常用，生产环境慎用         |
@@ -118,30 +113,30 @@ flowchart TD
 	sub5 --> sub5_sub3
 ```
 
-| 菜单节点       | 节点名称           | 类型             | 简介           |
-| -------------- | ------------------ | ---------------- | -------------- |
-| `main_display` | `main`             | `MENU_TYPE_MAIN` | 作为主界面渲染 |
-| `root`         | main_menu          |                  |                |
-| sub1           | param_int          |                  |                |
-| sub2           | param_enum         |                  |                |
-| sub3           | toggle             |                  |                |
-| sub4           | Clock_Set          |                  |                |
-| sub5           | Set_passenger      |                  |                |
-| sub1_sub1      | SendUART_INT       |                  |                |
-| sub1_sub2      | Change_int         |                  |                |
-| sub1_sub3      | SendUART_FLOAT     |                  |                |
-| sub1_sub4      | SendUART_ACK       |                  |                |
-| sub2_sub1      | Change_param       |                  |                |
-| sub4_sub1      | seconds            |                  |                |
-| sub4_sub2      | minutes            |                  |                |
-| sub4_sub3      | hours              |                  |                |
-| sub4_sub4      | years              |                  |                |
-| sub4_sub5      | monthes            |                  |                |
-| sub4_sub6      | days               |                  |                |
-| sub4_sub7      | Set_time           |                  |                |
-| sub5_sub1      | Set_Passenger      |                  |                |
-| sub5_sub2      | SendUART_Passenger |                  |                |
-| sub5_sub3      | clear              |                  |                |
+| 菜单节点         | 节点名称               | 类型                    | 简介               |
+| ---------------- | ---------------------- | ----------------------- | ------------------ |
+| `main_display` | `main`               | `MENU_TYPE_MAIN`      | 作为主界面渲染     |
+| `root`         | `main_menu`          | `MENU_TYPE_SUB_MENU`  | 作为根目录         |
+| `sub1`         | `param_int`          | `MENU_TYPE_SUB_MENU`  | 作为整形数据测试   |
+| `sub2`         | `param_enum`         | `MENU_TYPE_SUB_MENU`  | 作为字符串枚举测试 |
+| `sub3`         | `toggle`             | `MENU_TYPE_TOGGL`     | 作为开关测试       |
+| `sub4`         | `Clock_Set`          | `MENU_TYPE_SUB_MENU`  | 时钟配置菜单       |
+| `sub5`         | `Set_passenger`      | `MENU_TYPE_FUNCTION`  | 乘客发送菜单       |
+| `sub1_sub1`    | `SendUART_INT`       | `MENU_TYPE_FUNCTION`  | 整形数据通信测试   |
+| `sub1_sub2`    | `Change_int`         | `MENU_TYPE_PARAM_INT` | 整形数据修改菜单   |
+| `sub1_sub3`    | `SendUART_FLOAT`     | `MENU_TYPE_FUNCTION`  | 浮点数数据通信测试 |
+| `sub1_sub4`    | `SendUART_ACK`       | `MENU_TYPE_FUNCTION`  | ACK信号测试        |
+| `sub2_sub1`    | `Change_param`       | `MENU_TYPE_FUNCTION`  | 字符串数据测试菜单 |
+| `sub4_sub1`    | `seconds`            | `MENU_TYPE_PARAM_INT` | 设置秒             |
+| `sub4_sub2`    | `minutes`            | `MENU_TYPE_PARAM_INT` | 设置分             |
+| `sub4_sub3`    | `hours`              | `MENU_TYPE_PARAM_INT` | 设置时             |
+| `sub4_sub4`    | `years`              | `MENU_TYPE_PARAM_INT` | 设置年             |
+| `sub4_sub5`    | `monthes`            | `MENU_TYPE_PARAM_INT` | 设置月             |
+| `sub4_sub6`    | `days`               | `MENU_TYPE_PARAM_INT` | 设置日             |
+| `sub4_sub7`    | `Set_time`           | `MENU_TYPE_FUNCTION`  | 设置时间           |
+| `sub5_sub1`    | `Set_Passenger`      | `MENU_TYPE_PARAM_INT` | 设置乘客数量       |
+| `sub5_sub2`    | `SendUART_Passenger` | `MENU_TYPE_FUNCTION`  | 发送乘客数量       |
+| `sub5_sub3`    | `clear`              | `MENU_TYPE_FUNCTION`  | 清理乘客数量       |
 
 ## 快速开始
 

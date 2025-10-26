@@ -817,11 +817,12 @@ void navigate_back(menu_data_t* menu_data)
     }
     if(menu_data->current_menu->parent)
     {
-        if (menu_data->current_menu->on_leave)
-        {
-            menu_data->current_menu->on_leave(menu_data->current_menu);
-        }
         menu_data->current_menu = menu_data->current_menu->parent;
+        if (menu_data->current_menu->parent->type == MENU_TYPE_SUB_MENU 
+            && menu_data->current_menu->parent->on_leave)
+        {
+            menu_data->current_menu->parent->on_leave(menu_data->current_menu);
+        }
         menu_data->selected_item = menu_data->current_menu->first_child;
         menu_data->first_visible = menu_data->selected_item;
         

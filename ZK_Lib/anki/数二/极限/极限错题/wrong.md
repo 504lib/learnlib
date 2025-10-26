@@ -1,4 +1,11 @@
-## 求极限 $\lim_{x \to \infty}(\sqrt{x^2 + x} - \sqrt{x^2 - x})$
+## 求极限0
+
+<!-- notecardId: 1761300487602 -->
+
+
+$\lim_{x \to \infty}(\sqrt{x^2 + x} - \sqrt{x^2 - x})$
+
+
 
 重点：共轭式
 
@@ -12,7 +19,15 @@ $$
 \end{split}
 $$
 
-## 求极限 $\lim_{x\to 0}\frac{(1 - \frac{1}{2}x^2)^{\frac{2}{3}}-1}{x\ln (1+x)}$
+
+## 求极限1
+
+<!-- notecardId: 1761300583645 -->
+
+
+$\lim_{x\to 0}\frac{(1 - \frac{1}{2}x^2)^{\frac{2}{3}}-1}{x\ln (1+x)}$
+
+
 
 重点：等价无穷小
 
@@ -28,7 +43,14 @@ $$
    \end{split} 
 $$
 
-## 求极限 $\lim_{x\to 0}(1 + 3\tan^2x)^{\cot^2 x}$
+
+## 求极限2
+
+<!-- notecardId: 1761300742791 -->
+
+
+$\lim_{x\to 0}(1 + 3\tan^2x)^{\cot^2 x}$
+
 
 
 重点：两个重要极限
@@ -44,7 +66,13 @@ $$
     \end{split}
 $$
 
-## 求极限 $\lim_{x\to \infty}(\frac{3+x}{6+x})^{\frac{x-1}{2}}$
+## 求极限3
+
+<!-- notecardId: 1761300765808 -->
+
+
+$\lim_{x\to \infty}(\frac{3+x}{6+x})^{\frac{x-1}{2}}$
+
 
 
 重点：两个重要极限
@@ -63,7 +91,14 @@ $$
 $$
 
 
-## 求极限 $\lim_{x\to 0}\frac{\sqrt{1 + \tan x} - \sqrt{1 + \sin x}}{x\sqrt{1 + \sin x} - x}$
+## 求极限4
+
+<!-- notecardId: 1761300765821 -->
+
+
+$\lim_{x\to 0}\frac{\sqrt{1 + \tan x} - \sqrt{1 + \sin x}}{x\sqrt{1 + \sin x} - x}$
+
+
 
 重点：共轭式、重要极限与等价无穷小
 
@@ -78,13 +113,20 @@ $$
         \lim_{x\to 0}\frac{\sqrt{1 + \tan x} - \sqrt{1 + \sin x}}{x\sqrt{1 + \sin x} - x} &= \lim_{x\to 0}\frac{(\sqrt{1 + \tan x} - \sqrt{1 + \sin x})\cdot (\sqrt{1 + \tan x} + \sqrt{1 + \sin x})}{(x\sqrt{1 + \sin^2 x} - x)\cdot (\sqrt{1 + \tan x} + \sqrt{1 + \sin x})}\\
         &= \lim_{x\to 0}\frac{1 + \tan x - 1 - \sin x}{x(\sqrt{1 + \sin^2 x } - 1)\cdot (\sqrt{1 + \tan x} + \sqrt{1 + \sin x})}\\
         &= \lim_{x\to 0}\frac{\sin x}{x} \cdot \lim_{x\to 0}\frac{\sec x - 1}{\sqrt{1 + \sin^2 x } - 1}\cdot \lim_{x\to 0}\frac{1}{\sqrt{1 + \tan x} + \sqrt{1 + \sin x}}\\
-        &= 1 \cdot \lim_{x\to 0}\frac{1 - \cos x}{(1 + \sin^2 x)^{\frac{1}{2}} - 1} \cdot \frac{1}{2}\\
+        &= 1 \cdot \lim_{x\to 0}\frac{(1 - \cos x)\cdot \frac{1}{\cos x}}{(1 + \sin^2 x)^{\frac{1}{2}} - 1} \cdot \frac{1}{2}\\
         &= 1 \cdot \frac{\frac{1}{2}x^2}{\frac{1}{2}\sin^2 x} \cdot \frac{1}{2}\\
         &= 1 \cdot 1 \cdot \frac{1}{2} = \frac{1}{2}\\
     \end{split}
 $$
 
-## 求极限 $\lim_{x\to e}\frac{\ln x - 1}{x - e}$
+## 求极限5
+
+<!-- notecardId: 1761300765827 -->
+
+
+$\lim_{x\to e}\frac{\ln x - 1}{x - e}$
+
+
 
 重点：等价无穷小
 $$
