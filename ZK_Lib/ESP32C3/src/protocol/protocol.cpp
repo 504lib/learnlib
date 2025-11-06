@@ -4,7 +4,7 @@ protocol::protocol(uint8_t header1, uint8_t header2, uint8_t tail1, uint8_t tail
     : Headerframe1(header1), Headerframe2(header2), Tailframe1(tail1), Tailframe2(tail2)
 {
     Serial.begin(115200);
-    Serial1.begin(115200, SERIAL_8N1, 16, 17);
+    Serial1.begin(115200, SERIAL_8N1, 5, 4);
      // RX1=16, TX1=17
 }
 
@@ -209,7 +209,6 @@ void protocol::Receive_Uart_Frame(uint8_t data)
                         if(intCallback)
                         {
                             intCallback(value);
-                            Send_Uart_Frame_ACK();
                         }
                         else
                         {
@@ -232,7 +231,6 @@ void protocol::Receive_Uart_Frame(uint8_t data)
                         if(floatCallback)
                         {
                             floatCallback(value);
-                            Send_Uart_Frame_ACK();
                         }
                         else
                         {
@@ -245,7 +243,6 @@ void protocol::Receive_Uart_Frame(uint8_t data)
                         if(ackCallback)
                         {
                             ackCallback();
-                            Send_Uart_Frame_ACK();
                         }
                         else
                         {
@@ -258,7 +255,6 @@ void protocol::Receive_Uart_Frame(uint8_t data)
                         if(passengerNumCallback)
                         {
                             passengerNumCallback(value);
-                            Send_Uart_Frame_ACK();
                         }
                         else
                         {
@@ -271,7 +267,6 @@ void protocol::Receive_Uart_Frame(uint8_t data)
                        if(clearcallback) 
                        {
                             clearcallback();
-                            Send_Uart_Frame_ACK();
                        }
                        else
                        {

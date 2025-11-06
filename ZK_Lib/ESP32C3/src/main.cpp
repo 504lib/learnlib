@@ -165,14 +165,14 @@ void STA_Task(void* pvParameters)
 void setup() 
 {
   
-  pinMode(LED_Pin,OUTPUT);
+  pinMode(12,OUTPUT);
   uart_protocol.setPassengerNumCallback(set_passenger);
   uart_protocol.setClearCallback(clear_passenger);
   Serial.println("正在启动 AP 模式...");
   
   // 启动 AP
   #if AP_MODE == 1
-  if (WiFi.softAP(ssid, password,1,0,10,false)) {
+  if (WiFi.softAP(ssid, password)) {
     Serial.println("AP 模式启动成功!");
     
     // 获取 AP 的 IP 地址
@@ -300,12 +300,20 @@ void setup()
     }
   xTaskCreate(STA_Task,"sta_task",3072,NULL,1,NULL);
   #endif
-  xUartRxQueue = xQueueCreate(32,sizeof(uint8_t)); 
+ xUartRxQueue = xQueueCreate(32,sizeof(uint8_t)); 
   xTaskCreate(Rx_Task,"rx_task",2048,NULL,3,NULL);
   xTaskCreate(Serial_Task,"serial_task",1024,NULL,2,NULL);
 }
 
-void loop() 
-{
-
+void loop() {
+  digitalWrite(12, HIGH);
+  delay(500);
+  digitalWrite(12, LOW);
+  delay(500);
+  
+  static uint32_t counter = 0;
+  if (++counter % 20 == 0) {
+    Serial.printf("🔁 主循环 - 计数: %lu, 内存: %d\n", 
+                  counter, ESP.getFreeHeap());
+  }
 }

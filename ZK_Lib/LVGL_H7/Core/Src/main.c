@@ -26,8 +26,9 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "lcd.h"
 //#include "LED.h"
-#include "ili9341.h"
+//#include "ili9341.h"
 #include <stdio.h>
 #include <string.h>
 /* USER CODE END Includes */
@@ -54,14 +55,64 @@
 volatile uint8_t flag = 0;
  uint8_t chr[50] = {0};
  uint8_t chr_single = 0;
- /* USER CODE END PV */
+/* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MPU_Config(void);
 /* USER CODE BEGIN PFP */
+
+/* USER CODE END PFP */
+
+/* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+// 简单的FPS测试函数
+void LCD_FPS_Test(void)
+{
+    printf("=== FPS测试 ===\r\n");
+    
+    uint32_t start_time = HAL_GetTick();
+    uint32_t frame_count = 0;
+    uint16_t test_colors[] = {RED, GREEN, BLUE, YELLOW, CYAN, MAGENTA};
+    uint8_t color_count = 6;
+    
+    // 测试10秒
+    while((HAL_GetTick() - start_time) < 10000) {
+        LCD_Clear(test_colors[frame_count % color_count]);
+        frame_count++;
+        
+        // 每100帧输出一次状态
+        if(frame_count % 100 == 0) {
+            uint32_t current_time = HAL_GetTick() - start_time;
+            float fps = (float)frame_count * 1000 / current_time;
+            printf("帧数: %lu, 时间: %lums, 实时FPS: %.1f\r\n", 
+                   frame_count, current_time, fps);
+        }
+    }
+    
+    float avg_fps = (float)frame_count * 1000 / 10000;
+    printf("测试完成! 总帧数: %lu, 平均FPS: %.1f\r\n", frame_count, avg_fps);
+}
+
+// 快速功能验证
+void LCD_Quick_Test(void)
+{
+    printf("快速测试: 红->绿->蓝->白->黑\r\n");
+    
+    LCD_Clear(RED);
+    HAL_Delay(500);
+    LCD_Clear(GREEN);
+    HAL_Delay(500);
+    LCD_Clear(BLUE);
+    HAL_Delay(500);
+    LCD_Clear(WHITE);
+    HAL_Delay(500);
+    LCD_Clear(BLACK);
+    HAL_Delay(500);
+    
+    printf("快速测试完成!\r\n");
+}
 /* USER CODE END 0 */
 
 /**
@@ -99,11 +150,11 @@ int main(void)
   MX_DMA_Init();
   MX_USART1_UART_Init();
   MX_SPI1_Init();
-  HAL_UART_Receive_IT(&huart1,&chr_single,1);
   /* USER CODE BEGIN 2 */
   LCD_Init();
+  LCD_Clear(CYAN);
   /* USER CODE END 2 */
-
+  LCD_Quick_Test();
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
@@ -111,18 +162,13 @@ int main(void)
     HAL_Delay(1000);
     HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
     /* USER CODE END WHILE */
-
+    LCD_FPS_Test();
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
 }
 
 /**
-
-
-
-
-
   * @brief System Clock Configuration
   * @retval None
   */

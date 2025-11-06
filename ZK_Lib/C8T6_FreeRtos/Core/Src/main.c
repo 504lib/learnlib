@@ -54,7 +54,7 @@ extern osEventFlagsId_t UART_EVENTHandle;
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-// 空闲中断缓冲区
+// 空闲中断缓冲�?
 uint8_t temp[16] = {0};
 extern DMA_HandleTypeDef hdma_usart1_rx;
 /* USER CODE END PV */
@@ -190,7 +190,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
     osEventFlagsSet(UART_EVENTHandle,UART_RECEIVE_EVENT );
 	  HAL_UARTEx_ReceiveToIdle_DMA(&huart1,temp,sizeof(temp));
     Uart_Buffer_Put_frame(frame, temp, Size);
-	  __HAL_DMA_DISABLE_IT(&hdma_usart1_rx,DMA_IT_HT);      //过半中断，为了保证数据完整性，必须开启它
+	  __HAL_DMA_DISABLE_IT(&hdma_usart1_rx,DMA_IT_HT);      //过半中断，为了保证数据完整�?�，必须�?启它
   }
   
 
