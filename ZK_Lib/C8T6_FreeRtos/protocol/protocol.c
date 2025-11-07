@@ -555,6 +555,7 @@ void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uin
     {
         int32_t value = (payload[0] << 24) | (payload[1] << 16) | (payload[2] << 8) | payload[3];
         handle_INT(value);
+        UART_Protocol_ACK(UART_protocol_structure);
     }
     else if(frame_type == FLOAT && frame_len == 4)
     {
@@ -567,7 +568,7 @@ void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uin
         u.b[2] = payload[1];
         u.b[3] = payload[0];
         handle_FLOAT(u.f);
-        // HAL_UART_Transmit_DMA(&huart1,data,size);
+        UART_Protocol_ACK(UART_protocol_structure);
     }
     else if(frame_type == ACK && frame_len == 0)
     {
@@ -577,10 +578,12 @@ void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uin
     {
         uint8_t value = *payload;
         handle_PASSENGER(value); 
+        UART_Protocol_ACK(UART_protocol_structure);
     }
     else if (frame_type == CLEAR && frame_len == 0)
     {
         handle_CLEAR();
+        UART_Protocol_ACK(UART_protocol_structure);
     }
 }
 
