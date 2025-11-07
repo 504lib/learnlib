@@ -1,4 +1,3 @@
-/* USER CODE BEGIN Header */
 /**
   ******************************************************************************
   * @file           : main.h
@@ -84,6 +83,7 @@ void Error_Handler(void);
 //#define KEY_FUNCTION_EVENT  (1U << 4)
 
 #define UART_RECEIVE_EVENT  (1U << 0)
+#define UART_RECEIVE_ACK_EVENT  (1U << 1)
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

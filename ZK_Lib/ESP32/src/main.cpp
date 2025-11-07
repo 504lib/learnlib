@@ -4,26 +4,44 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
-// #include "
-#define AP_MODE 1 
-const char* ssid = "ESP32-Access-Point"; // AP 鍚嶇О
-const char* password = "12345678"; // AP 瀵嗙爜
-const char* station_server = "http://192.168.4.1";
+
+typedef struct
+{
+  CmdType type;
+  union
+  {
+    int32_t int_value;
+    float   float_value;
+  }value;
+}ACK_Queue_t;
+
+
+EventGroupHandle_t evt;
+
+#define UART_ACK_REQUIRED (1 << 0u)
 
 #define LED_Pin GPIO_NUM_48
+#define AP_MODE 1 
+
+const char* ssid            = "ESP32-Access-Point"; // AP 鍚嶇О
+const char* password        = "12345678"; // AP 瀵嗙爜
+const char* station_server  = "http://192.168.4.1";
+
 AsyncWebServer server(80);
-static int count = 0;
-static float fcount = 0.0;
-uint32_t lastPrint = 0;
-bool Flag_INT = false;
-bool Flag_FLOAT = false;
-bool Flag_ACK = false;
-uint8_t passenger_num = 0;
-String station_ch = "normal university";
-String station_name = "师范学院";
+static int count            = 0;
+static float fcount         = 0.0;
+uint32_t lastPrint          = 0;
+bool Flag_INT               = false;
+bool Flag_FLOAT             = false;
+bool Flag_ACK               = false;
+uint8_t passenger_num       = 0;
+String station_ch           = "normal university";
+String station_name         = "师范学院";
 
 QueueHandle_t xUartRxQueue;
 QueueHandle_t xPassengerUpdateQueue;
+QueueHandle_t xCommandQueue;
+
 
 protocol uart_protocol(0xAA,0x55,0x0D,0x0A);
 void set_passenger(uint8_t value)
@@ -62,6 +80,37 @@ void Serial_Task(void* p)
     vTaskDelay(5 / portTICK_PERIOD_MS); 
   }
 }
+
+void ACK_Task(void* pvParameters)
+{
+  ACK_Queue_t ack_queue_t;
+  for(;;)
+  {
+    if (xQueueReceive(xCommandQueue,&ack_queue_t,portMAX_DELAY))
+    {
+      bool ACK_required = true;
+      for (uint8_t i = 0; i < 3 && ACK_required; i++)
+      {
+        switch (ack_queue_t.type)
+        {
+        case CmdType::INT:
+          uart_protocol.Send_Uart_Frame(ack_queue_t.value.int_value);
+          break;
+        case CmdType::FLOAT:
+          uart_protocol.Send_Uart_Frame(ack_queue_t.value.float_value);
+        case CmdType::PASSENGER_NUM:
+          uart_protocol.Send_Uart_Frame_PASSENGER_NUM(ack_queue_t.value.int_value);
+        case CmdType::CLEAR:
+          uart_protocol.Send_Uart_Frame_CLEAR();
+        default:
+          break;
+        }
+      }
+    }
+    vTaskDelay(10 / portTICK_PERIOD_MS);
+  }
+}
+
 #if AP_MODE == 1
 void AP_Task(void* pvParameters)
 {
@@ -301,8 +350,10 @@ void setup()
   xTaskCreate(STA_Task,"sta_task",3072,NULL,1,NULL);
   #endif
   xUartRxQueue = xQueueCreate(32,sizeof(uint8_t)); 
+  xCommandQueue = xQueueCreate(32,sizeof(ACK_Queue_t));
   xTaskCreate(Rx_Task,"rx_task",2048,NULL,3,NULL);
   xTaskCreate(Serial_Task,"serial_task",1024,NULL,2,NULL);
+  evt = xEventGroupCreate();
 }
 
 void loop() 

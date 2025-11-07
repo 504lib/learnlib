@@ -53,21 +53,21 @@
 /* USER CODE BEGIN Variables */
 typedef struct{
   CmdType type;
-  union value
+  union 
   {
     int32_t int_value;
     float float_value;
-  };
+  }value;
   
 }Ack_Queue_t;
 extern uint8_t temp[16];                                                          // 来自main.c的缓冲区
 u8g2_t u8g2;                                                                      // u8g2对象
 int index = 0;                                                                    // String_Option的字符串数组索引
 const char* String_Option[] = {"begin","test1","test2","test3","end"};            // 测试的字符串
-bool toggle = false;                                                              // 测试bool节点的变�?
-int32_t passenger_num = 0;                                                        // 存储乘客的变�?
+bool toggle = false;                                                              // 测试bool节点的变�??
+int32_t passenger_num = 0;                                                        // 存储乘客的变�??
 
-// 用于跟踪菜单信息的数据结构体指指�?
+// 用于跟踪菜单信息的数据结构体指指�??
 menu_data_t* menu_data_ptr;
 // 节点指针
 menu_item_t* root = NULL;
@@ -95,19 +95,19 @@ menu_item_t* sub5_sub2 = NULL;
 menu_item_t* sub5_sub3 = NULL;
 menu_item_t* sub5_sub4 = NULL;
 
-// RTC内部结构�?
+// RTC内部结构�??
   RTC_DateTypeDef sDate = {0};
   RTC_TimeTypeDef sTime = {0};
 typedef struct
 {
-  int32_t seconds;                  // 暂存�?
-  int32_t minutes;                  // 暂存�?
-  int32_t hours;                    // 暂存�?
-  int32_t day;                      // 暂存�?
-  int32_t month;                    // 暂存�?
-  int32_t year;                     // 暂存�?
+  int32_t seconds;                  // 暂存�??
+  int32_t minutes;                  // 暂存�??
+  int32_t hours;                    // 暂存�??
+  int32_t day;                      // 暂存�??
+  int32_t month;                    // 暂存�??
+  int32_t year;                     // 暂存�??
 }Clock_t;
-Clock_t Clock = {0};                // 暂存时间结构�?
+Clock_t Clock = {0};                // 暂存时间结构�??
 /* USER CODE END Variables */
 /* Definitions for U8G2_TASK */
 osThreadId_t U8G2_TASKHandle;
@@ -129,6 +129,13 @@ const osThreadAttr_t UART_TASK_attributes = {
   .name = "UART_TASK",
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for ACK_Task */
+osThreadId_t ACK_TaskHandle;
+const osThreadAttr_t ACK_Task_attributes = {
+  .name = "ACK_Task",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityBelowNormal,
 };
 /* Definitions for ACK_Queue */
 osMessageQueueId_t ACK_QueueHandle;
@@ -154,6 +161,7 @@ const osEventFlagsAttr_t UART_EVENT_attributes = {
 void U8g2_Task(void *argument);
 void KEY_Task(void *argument);
 void uart_task(void *argument);
+void ACK_TASK(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -200,6 +208,9 @@ void MX_FREERTOS_Init(void) {
   /* creation of UART_TASK */
   UART_TASKHandle = osThreadNew(uart_task, NULL, &UART_TASK_attributes);
 
+  /* creation of ACK_Task */
+  ACK_TaskHandle = osThreadNew(ACK_TASK, NULL, &ACK_Task_attributes);
+
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
@@ -216,55 +227,72 @@ void MX_FREERTOS_Init(void) {
 /* USER CODE BEGIN Header_U8g2_Task */
 
 
-static int test_var = 0;                                            // INT类型的变�?
+static int test_var = 0;                                            // INT类型的变�??
 
 /**
- * @brief    作为sub1_sub1的回调函�?
+ * @brief    作为sub1_sub1的回调函�??
  */
 void test()
 {
-  UART_protocol UART_protocol_structure = {
-    .Headerframe1 = 0xAA,
-    .Headerframe2 = 0x55,
-    .Tailframe1 = 0x0D,
-    .Tailframe2 = 0x0A
+  Ack_Queue_t ack_queue_t = {
+    .type = INT,
+    .value.int_value = test_var
   };
-  UART_Protocol_INT(UART_protocol_structure,test_var);
+  osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
+  // UART_protocol UART_protocol_structure = {
+  //   .Headerframe1 = 0xAA,
+  //   .Headerframe2 = 0x55,
+  //   .Tailframe1 = 0x0D,
+  //   .Tailframe2 = 0x0A
+  // };
+  // UART_Protocol_INT(UART_protocol_structure,test_var);
+  
 }
 
 
 /**
- * @brief    作为sub1_sub3的回调函�?
+ * @brief    作为sub1_sub3的回调函�??
  */
 void test2()
 {
-  UART_protocol UART_protocol_structure = {
-    .Headerframe1 = 0xAA,
-    .Headerframe2 = 0x55,
-    .Tailframe1 = 0x0D,
-    .Tailframe2 = 0x0A
+  Ack_Queue_t ack_queue_t = {
+    .type = FLOAT,
+    .value.float_value = 3.3
   };
-  UART_Protocol_FLOAT(UART_protocol_structure,3.3);
+  osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
+  // UART_protocol UART_protocol_structure = {
+  //   .Headerframe1 = 0xAA,
+  //   .Headerframe2 = 0x55,
+  //   .Tailframe1 = 0x0D,
+  //   .Tailframe2 = 0x0A
+  // };
+  // UART_Protocol_FLOAT(UART_protocol_structure,3.3);
+  
 }
 
 /**
- * @brief    作为sub1_sub4的回调函�?
+ * @brief    作为sub1_sub4的回调函�??
  */
 void test3()
 {
-  UART_protocol UART_protocol_structure = {
-    .Headerframe1 = 0xAA,
-    .Headerframe2 = 0x55,
-    .Tailframe1 = 0x0D,
-    .Tailframe2 = 0x0A
+  Ack_Queue_t ack_queue_t = {
+    .type = ACK,
+    .value.int_value = 0
   };
-  UART_Protocol_ACK(UART_protocol_structure);
+  osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
+  // UART_protocol UART_protocol_structure = {
+  //   .Headerframe1 = 0xAA,
+  //   .Headerframe2 = 0x55,
+  //   .Tailframe1 = 0x0D,
+  //   .Tailframe2 = 0x0A
+  // };
+  // UART_Protocol_ACK(UART_protocol_structure);
 }
 
 
 /**
- * @brief    作为sub4的进入回调函�?,目的暂存进入当前任务的时�?
- * @param    item      当前节点信息，用户无�?了解
+ * @brief    作为sub4的进入回调函�??,目的暂存进入当前任务的时�??
+ * @param    item      当前节点信息，用户无�??了解
  */
 void set_RTC_TEMP(menu_item_t* item)
 {
@@ -307,29 +335,48 @@ void RTC_Set_Time()
  */
 void Send_Passenger()
 {
-  UART_protocol UART_protocol_structure = {
-    .Headerframe1 = 0xAA,
-    .Headerframe2 = 0x55,
-    .Tailframe1 = 0x0D,
-    .Tailframe2 = 0x0A
+  Ack_Queue_t ack_queue_t = {
+    .type = PASSENGER_NUM,
+    .value.int_value = passenger_num
   };
-  UART_Protocol_Passenger(UART_protocol_structure,++passenger_num);
+  osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
+  // UART_protocol UART_protocol_structure = {
+  //   .Headerframe1 = 0xAA,
+  //   .Headerframe2 = 0x55,
+  //   .Tailframe1 = 0x0D,
+  //   .Tailframe2 = 0x0A
+  // };
+  // if (osMutexAcquire(UART_TXMuteHandle, osWaitForever) == osOK)
+  // {
+  //   UART_Protocol_Passenger(UART_protocol_structure,++passenger_num);
+  //   osMutexRelease(UART_TXMuteHandle);
+  // }
 }
 
 
 /**
- * @brief    作为sub5_sub3的回调函数，目的是向esp32发�?�清空当前乘客数量指�?
+ * @brief    作为sub5_sub3的回调函数，目的是向esp32发�?�清空当前乘客数量指�??
  */
 void Send_Clear()
 {
-  UART_protocol UART_protocol_structure = {
-    .Headerframe1 = 0xAA,
-    .Headerframe2 = 0x55,
-    .Tailframe1 = 0x0D,
-    .Tailframe2 = 0x0A
+  Ack_Queue_t ack_queue_t = {
+    .type = CLEAR,
+    .value.int_value = 0
   };
-  passenger_num = 0;
-  UART_Protocol_Clear(UART_protocol_structure);
+  osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
+  // UART_protocol UART_protocol_structure = {
+  //   .Headerframe1 = 0xAA,
+  //   .Headerframe2 = 0x55,
+  //   .Tailframe1 = 0x0D,
+  //   .Tailframe2 = 0x0A
+  // };
+  // Ack_Queue_t ack_queue_t = {
+  //   .type = CLEAR,
+  //   .value.int_value = 0
+  // };
+  // passenger_num = 0;
+  // UART_Protocol_Clear(UART_protocol_structure);
+  // osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,100);
 }
 
 /**
@@ -342,7 +389,7 @@ void main_display_cb(u8g2_t* u8g2, menu_data_t* menu_data)
   
   char buf[32];
   
-  // 1. 顶部大时间显�???
+  // 1. 顶部大时间显�????
   u8g2_SetFont(u8g2, u8g2_font_logisoso26_tn);
   snprintf(buf, sizeof(buf), "%02d:%02d", sTime.Hours, sTime.Minutes);
   uint8_t time_width = u8g2_GetStrWidth(u8g2, buf);
@@ -358,10 +405,10 @@ void main_display_cb(u8g2_t* u8g2, menu_data_t* menu_data)
   snprintf(buf, sizeof(buf), "%02d", sTime.Seconds);
   u8g2_DrawStr(u8g2, time_width + 5, 30, buf);
   
-  // 3. 状�?�卡�???
+  // 3. 状�?�卡�????
   u8g2_DrawFrame(u8g2, 5, 43, 118, 20);  // 卡片外框
   
-  // 卡片内部分隔�???
+  // 卡片内部分隔�????
   u8g2_DrawVLine(u8g2, 42, 45, 17);
   u8g2_DrawVLine(u8g2, 79, 45, 17);
   
@@ -468,9 +515,9 @@ void U8g2_Task(void *argument)
 
 /* USER CODE BEGIN Header_KEY_Task */
 /**
- * @brief    UP按键的按键检测函�?,用于按键对象回调
+ * @brief    UP按键的按键检测函�??,用于按键对象回调
  * @param    key       按键对象句柄,回调函数固定参数
- * @return   uint8_t   按键状�??,只有0�?1两个参数
+ * @return   uint8_t   按键状�??,只有0�??1两个参数
  */
 uint8_t Key_UP_ReadPin(MulitKey_t* key)
 {
@@ -478,9 +525,9 @@ uint8_t Key_UP_ReadPin(MulitKey_t* key)
 }	
 
 /**
- * @brief    DOWN按键的按键检测函�?,用于按键对象回调
+ * @brief    DOWN按键的按键检测函�??,用于按键对象回调
  * @param    key       按键对象句柄,回调函数固定参数
- * @return   uint8_t   按键状�??,只有0�?1两个参数
+ * @return   uint8_t   按键状�??,只有0�??1两个参数
  */
 uint8_t Key_DOWN_ReadPin(MulitKey_t* key)
 {
@@ -488,9 +535,9 @@ uint8_t Key_DOWN_ReadPin(MulitKey_t* key)
 }
 
 /**
- * @brief    ENTER按键的按键检测函�?,用于按键对象回调
+ * @brief    ENTER按键的按键检测函�??,用于按键对象回调
  * @param    key       按键对象句柄,回调函数固定参数
- * @return   uint8_t   按键状�??,只有0�?1两个参数
+ * @return   uint8_t   按键状�??,只有0�??1两个参数
  */
 uint8_t Key_ENTER_ReadPin(MulitKey_t* key)
 {
@@ -498,9 +545,9 @@ uint8_t Key_ENTER_ReadPin(MulitKey_t* key)
 }
  
 /**
- * @brief    CANCEL按键的按键检测函�?,用于按键对象回调
+ * @brief    CANCEL按键的按键检测函�??,用于按键对象回调
  * @param    key       按键对象句柄,回调函数固定参数
- * @return   uint8_t   按键状�??,只有0�?1两个参数
+ * @return   uint8_t   按键状�??,只有0�??1两个参数
  */
 uint8_t Key_CANCEL_ReadPin(MulitKey_t* key)
 {
@@ -508,7 +555,7 @@ uint8_t Key_CANCEL_ReadPin(MulitKey_t* key)
 }
 
 /**
- * @brief    UP键触发回�?
+ * @brief    UP键触发回�??
  * @attention 注意，该函数已经被单按和长按同时调用
  * @param    key       按键对象句柄,回调函数固定参数
  */
@@ -518,7 +565,7 @@ void KEY_UP_Pressed(MulitKey_t* key)
 }
 
 /**
- * @brief    DOWN键触发回�?
+ * @brief    DOWN键触发回�??
  * @attention 注意，该函数已经被单按和长按同时调用
  * @param    key       按键对象句柄,回调函数固定参数
  */
@@ -528,7 +575,7 @@ void KEY_DOWN_Pressed(MulitKey_t* key)
 }
 
 /**
- * @brief    ENTER键触发回�?
+ * @brief    ENTER键触发回�??
  * @attention 注意，该函数已经被单按和长按同时调用
  * @param    key       按键对象句柄,回调函数固定参数
  */
@@ -538,7 +585,7 @@ void KEY_ENTER_Pressed(MulitKey_t* key)
 }
 
 /**
- * @brief    CANCEL键触发回�?
+ * @brief    CANCEL键触发回�??
  * @attention 注意，该函数已经被单按和长按同时调用
  * @param    key       按键对象句柄,回调函数固定参数
  */
@@ -548,12 +595,32 @@ void KEY_CANCEL_Pressed(MulitKey_t* key)
 }
 
 /**
- * @brief    该函数是收到PASSENGER信息的回调函�?
+ * @brief    该函数是收到PASSENGER信息的回调函�??
  * @param    value     function of param
  */
 void synchronized_passengers(uint8_t value)
-{
+{ 
+  UART_protocol UART_protocol_structure = {
+    .Headerframe1 = 0xAA,
+    .Headerframe2 = 0x55,
+    .Tailframe1 = 0x0D,
+    .Tailframe2 = 0x0A
+  }; 
   passenger_num = value;
+  if (osMutexAcquire(UART_TXMuteHandle,osWaitForever))
+  {
+    UART_Protocol_ACK(UART_protocol_structure);
+  }
+  
+}
+
+void ACK_Event_mutex()
+{
+  if (UART_TXMuteHandle != NULL)
+  {
+    osEventFlagsSet(UART_EVENTHandle, UART_RECEIVE_ACK_EVENT);
+  }
+  
 }
 /**
 * @brief Function implementing the KEY_TASK thread.
@@ -601,12 +668,14 @@ void uart_task(void *argument)
     .Tailframe1 = 0x0D,
     .Tailframe2 = 0x0A
   }; 
-  uint8_t data[32] = {0};                                             // 暂存数据帧的缓冲�?
+  Ack_Queue_t ack_queue_t = {0};
+  uint8_t data[32] = {0};                                             // 暂存数据帧的缓冲�??
   UartFrame* frame_buffer = Get_Uart_Frame_Buffer();                  // 获得环形环形缓冲区的指针
-  uint32_t flags;                                                     // 事件�?
-  uint8_t passenger_temp = 0;                                         // 暂存passenger的数量的变量，一旦与实际passenger不同，立刻向esp32发�?�信�?
+  uint32_t flags;                                                     // 事件�??
+  uint8_t passenger_temp = 0;                                         // 暂存passenger的数量的变量，一旦与实际passenger不同，立刻向esp32发�?�信�??
   LOG_INFO("UART_RX task has been init ...");
   set_PASSENGER_Callback(synchronized_passengers);
+  set_ACK_Callback(ACK_Event_mutex);
   /* Infinite loop */
   for(;;)
   {
@@ -616,18 +685,20 @@ void uart_task(void *argument)
       LOG_INFO("data frame is has came ... , Size = %d",frame_buffer->Size);
       memset(data,0,sizeof(data));                                    // 防止有残留数据帧，清空缓冲区
       uint16_t size = frame_buffer->Size;                             // 获得该帧长度
-      Uart_Buffer_Get_frame(frame_buffer,data);                       // 从环形缓冲区提取出帧数据，方便处�?
+      Uart_Buffer_Get_frame(frame_buffer,data);                       // 从环形缓冲区提取出帧数据，方便处�??
       Receive_Uart_Frame(UART_protocol_structure,data,size);          // 处理数据
     }
     else
     {
-      if(passenger_temp != passenger_num)                             // �?旦与实际passenger不同，立刻向esp32发�?�信�?
+      if(passenger_temp != passenger_num)                             // �??旦与实际passenger不同，立刻向esp32发�?�信�??
       {
-        UART_Protocol_Passenger(UART_protocol_structure,passenger_num);
+        ack_queue_t.type = PASSENGER_NUM;
+        ack_queue_t.value.int_value = passenger_num;
+        osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
         passenger_temp = passenger_num;                               // 保持同步
       }
       // 超时，检查ORE标志
-      if (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_ORE))                // ORE异常，需要马上恢复缓冲区,否则DMA会瘫�?
+      if (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_ORE))                // ORE异常，需要马上恢复缓冲区,否则DMA会瘫�??
       {
           LOG_WARN("ORE detected in task, recovering...");
           __HAL_UART_CLEAR_OREFLAG(&huart1);
@@ -637,6 +708,79 @@ void uart_task(void *argument)
     }
   }
   /* USER CODE END uart_task */
+}
+
+/* USER CODE BEGIN Header_ACK_TASK */
+/**
+* @brief Function implementing the ACK_Task thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_ACK_TASK */
+void ACK_TASK(void *argument)
+{
+  /* USER CODE BEGIN ACK_TASK */
+  Ack_Queue_t ack_queue_t = {0};
+  UART_protocol UART_protocol_structure = {
+    .Headerframe1 = 0xAA,
+    .Headerframe2 = 0x55,
+    .Tailframe1 = 0x0D,
+    .Tailframe2 = 0x0A
+  }; 
+  LOG_INFO("ACK task has been init ...");
+  /* Infinite loop */
+  for(;;)
+  {
+    if (osMessageQueueGet(ACK_QueueHandle,&ack_queue_t,NULL,osWaitForever) == osOK)
+    {
+      const uint32_t timeout_ms = 200;
+      bool ACK_required = true;
+      for (size_t i = 0; i < 3 && ACK_required; i++)
+      {
+        if (osMutexAcquire(UART_TXMuteHandle,osWaitForever) != osOK)
+        {
+          LOG_WARN("Failed to acquire UART_TXMute mutex");
+          continue;
+        }
+        switch (ack_queue_t.type)
+        {
+          case INT:
+            UART_Protocol_INT(UART_protocol_structure,ack_queue_t.value.int_value);
+            break;
+          case FLOAT:
+            UART_Protocol_FLOAT(UART_protocol_structure,ack_queue_t.value.float_value);
+            break;
+          case PASSENGER_NUM:
+            UART_Protocol_Passenger(UART_protocol_structure,ack_queue_t.value.int_value);
+            break;
+          case CLEAR:
+            UART_Protocol_Clear(UART_protocol_structure);
+            break;
+          default:
+            LOG_WARN("Unknown command type in ACK task");
+            break;
+        }
+        osMutexRelease(UART_TXMuteHandle); 
+        uint32_t flags = osEventFlagsWait(UART_EVENTHandle,UART_RECEIVE_ACK_EVENT,osFlagsWaitAny,timeout_ms);
+        if (flags & UART_RECEIVE_ACK_EVENT)
+        {
+          ACK_required = false; // 收到ACK，跳出重发循环
+          LOG_INFO("ACK received for command type %d", ack_queue_t.type);
+        }
+        else
+        {
+          LOG_WARN("ACK timeout for command type %d, retrying... (%d/3)", ack_queue_t.type, i + 1);
+          if (i >= 2)
+          {
+            LOG_WARN("Failed to receive ACK after 3 attempts for command type %d", ack_queue_t.type);
+          }
+        }
+        
+      }
+    }
+    osDelay(1);
+  }
+  /* USER CODE END ACK_TASK */
 }
 
 /* Private application code --------------------------------------------------*/
