@@ -607,10 +607,10 @@ void synchronized_passengers(uint8_t value)
     .Tailframe2 = 0x0A
   }; 
   passenger_num = value;
-  if (osMutexAcquire(UART_TXMuteHandle,osWaitForever))
-  {
-    UART_Protocol_ACK(UART_protocol_structure);
-  }
+  // if (osMutexAcquire(UART_TXMuteHandle,osWaitForever))
+  // {
+  //   UART_Protocol_ACK(UART_protocol_structure);
+  // }
   
 }
 

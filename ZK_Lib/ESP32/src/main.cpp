@@ -322,7 +322,11 @@ void setup()
     json += "}";
     request->send(200, "application/json", json);
   });
-
+  server.on("/api/clear",HTTP_GET,[](AsyncWebServerRequest *request){
+    uart_protocol.Send_Uart_Frame_CLEAR();
+    passenger_num = 0;
+    request->send(200,"text/html","success");
+  });
   // 启动服务器
   server.begin();
   Serial.println("HTTP 服务器已启动");
