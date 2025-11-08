@@ -358,5 +358,14 @@ void setup()
 
 void loop() 
 {
-
+  digitalWrite(LED_Pin, HIGH);
+  delay(500);
+  digitalWrite(LED_Pin, LOW);
+  delay(500);
+  
+  static uint32_t counter = 0;
+  if (++counter % 20 == 0) {
+    Serial.printf("🔁 主循环 - 计数: %lu, 内存: %d\n", 
+                  counter, ESP.getFreeHeap());
+  }
 }

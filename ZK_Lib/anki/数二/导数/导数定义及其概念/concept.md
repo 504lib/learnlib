@@ -10,17 +10,14 @@ $若\lim_{\Delta x \to 0}\frac{f(x + \Delta x) - f(x)}{\Delta x}存在，则称f
 
 $$
 \begin{split}
-    f'(x_0) &= y'|_{x = x_0}\\
-    &= \frac{dy}{dx}|_{x=x_0}\\
+    f'(x_0) &= y'\mid_{x = x_0}\\
+    &= \frac{dy}{dx}\mid_{x=x_0}\\
     &= \lim_{\Delta x \to 0}\frac{f(x_0 + \Delta x) - f(x_0)}{\Delta x}\\
     &= \lim_{x\to x_0}\frac{f(x) - f(x_0)}{x - x_0}
 \end{split}
 $$
 
-$$
-若以上极限不存在，则称f(x)在x_0处\_\_\_\_\_\_\\
-若极限为无穷大，则称f(x)在x_0处\_\_\_\_\_\_
-$$
+$若以上极限不存在，则称f(x)在x_0处$_____,$若极限为无穷大，则称f(x)在x_0处 \_\_\_\_\_$
 
 %
 
@@ -47,16 +44,15 @@ $$
 
 %
 
+$$
 左导数:
-
-$$
-    f'_{-}(x) = \lim_{\Delta x \to 0^-}\frac{f(x_0 + \Delta x) - f(x_0)}{\Delta x} = \lim_{x \to x_0^-}\frac{f(x) - f(x_0)}{x - x_0} 
+    f'^{-}(x) = \lim_{\Delta x \to 0^-}\frac{f(x_0 + \Delta x) - f(x_0)}{\Delta x} = \lim_{x \to x_0^-}\frac{f(x) - f(x_0)}{x - x_0} 
 $$
 
+
+$$
 右导数:
-
-$$
-    f'_{+}(x) = \lim_{\Delta x \to 0^+}\frac{f(x_0 + \Delta x) - f(x_0)}{\Delta x} = \lim_{x \to x_0^+}\frac{f(x) - f(x_0)}{x - x_0} 
+    f'^{+}(x)' = \lim_{\Delta x \to 0^+}\frac{f(x_0 + \Delta x) - f(x_0)}{\Delta x} = \lim_{x \to x_0^+}\frac{f(x) - f(x_0)}{x - x_0}
 $$
 
 ## 区间上可导条件与导函数
