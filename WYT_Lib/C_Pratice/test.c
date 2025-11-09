@@ -9,4 +9,5 @@ int main()
     printf("www");
     printf("zzz");
     printf("aaa");
+    printf("ok");
 }
