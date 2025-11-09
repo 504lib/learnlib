@@ -8,4 +8,5 @@ int main()
     printf("zk");
     printf("www");
     printf("zzz");
+    printf("aaa");
 }
