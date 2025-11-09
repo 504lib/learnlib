@@ -7,4 +7,5 @@ int main()
     printf("wyt\n");
     printf("zk");
     printf("www");
+    printf("zzz");
 }
