@@ -6,4 +6,5 @@ int main()
     printf("hello!\n");
     printf("wyt\n");
     printf("zk");
+    printf("www");
 }
