@@ -159,6 +159,7 @@ void set_animation_target(u8g2_t* u8g2 ,menu_data_t* menu_data, menu_item_t* sel
 static void adjust_type_visible(u8g2_t* u8g2,menu_data_t* menu_data,uint16_t x, uint16_t y, menu_item_t* item,bool isSelected)
 {
 	char buffer[20];//暂时的缓冲区
+    char buffer_temp[20];
     uint16_t str_width = 0;//当前子选项字符长度的大小变量
      if (isSelected && menu_data->animation.isNeedUpdata) 
      {
@@ -198,7 +199,8 @@ static void adjust_type_visible(u8g2_t* u8g2,menu_data_t* menu_data,uint16_t x, 
         break;
     case MENU_TYPE_PARAM_INT://整形枚举选项
 
-        sprintf(buffer, "%d", item->data.param_int.temp);
+        sprintf(buffer, "%d", *(item->data.param_int.value_ptr));
+        sprintf(buffer_temp, "%d", item->data.param_int.temp);
         str_width = u8g2_GetStrWidth(u8g2, buffer); // 需要u8g2实例
         if(isSelected)//选中
         {
@@ -210,7 +212,7 @@ static void adjust_type_visible(u8g2_t* u8g2,menu_data_t* menu_data,uint16_t x, 
                 u8g2_DrawBox(u8g2, menu_data->animation.current_x,menu_data->animation.current_y, menu_data->animation.current_width, menu_data->animation.current_heigh);
                 u8g2_DrawStr(u8g2, x, y, item->text);
                 u8g2_SetDrawColor(u8g2, 0);
-                u8g2_DrawStr(u8g2, 120 - str_width, y, buffer); // 只显示数值部分
+                u8g2_DrawStr(u8g2, 120 - str_width, y,buffer_temp); // 只显示数值部分
                 u8g2_SetDrawColor(u8g2, 1);
 
             }

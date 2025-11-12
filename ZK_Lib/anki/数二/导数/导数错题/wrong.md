@@ -211,3 +211,228 @@ $$
     \end{cases}\\
     \therefore f_{-}'(0)与f_{+}'(0)存在，但f'(0)不存在
 $$
+
+## w9
+
+<!-- notecardId: 1762772000245 -->
+
+求$y = \tan x^2$导数
+
+%
+
+$$
+    \begin{split}
+        y' &= \sec^2 x^2 \cdot 2x \\
+        &= 2x\sec^2 x^2
+    \end{split}
+$$
+
+## w10
+
+<!-- notecardId: 1762773496258 -->
+
+求$y = e^{-\frac{x}{2}}\cdot \cos 3x$导数
+
+%
+
+$$
+    \begin{split}
+        y' &= e^{-\frac{x}{2}}\cdot \cos 3x \cdot -\frac{1}{2} + e^{-\frac{x}{2}} \cdot (-\sin 3x) \cdot 3\\
+        &= e^{-\frac{x}{2}} \cdot (-\frac{1}{2}\cdot \cos 3x - 3 \cdot \sin 3x)
+    \end{split}
+$$
+
+## w11
+
+<!-- notecardId: 1762773840080 -->
+
+求$y = \arcsin\sqrt{x}$导数
+
+%
+
+$$
+    \begin{split}
+        y' &= \frac{1}{\sqrt{1 - x}}\cdot \frac{1}{2\sqrt{x}}
+    \end{split}
+$$
+
+
+## w12
+
+<!-- notecardId: 1762774001731 -->
+
+
+求$y = (\arcsin \frac{x}{2})^2$导数
+
+%
+
+$$
+    \begin{split}
+        y' = 2\arcsin \frac{x}{2} \cdot \frac{1}{\sqrt{1 - (\frac{x}{2})^2}}
+    \end{split}
+$$
+
+## w13
+
+<!-- notecardId: 1762774102242 -->
+
+
+求$y = \sqrt{1 + \ln^2 x}$导数
+
+%
+
+$$
+    \begin{split}
+        y' &= \frac{1}{2\sqrt{1 + \ln^2 x}}\cdot 2\ln x \cdot \frac{1}{x}
+    \end{split}
+$$
+
+## w14
+
+<!-- notecardId: 1762774236350 -->
+
+
+求$y = \sin^n x\cos nx$导数
+
+%
+
+$$
+    \begin{split}
+        y' &= n\sin^{n-1} x\cdot \cos x \cdot \cos nx + \sin^n x\cdot (-\sin nx) \cdot n
+    \end{split}
+$$
+
+
+## w15
+
+<!-- notecardId: 1762774397037 -->
+
+
+求$y = \sin^n x\cos nx$导数
+
+%
+
+$$
+    \begin{split}
+        y' &= n\sin^{n-1} x\cdot \cos x \cdot \cos nx + \sin^n x\cdot (-\sin nx) \cdot n
+    \end{split}
+$$
+
+## w16
+
+<!-- notecardId: 1762774421512 -->
+
+
+求$y = \frac{\sqrt{1 + x} - \sqrt{1 - x}}{\sqrt{1 + x} + \sqrt{1 - x}}$导数
+
+%
+
+$$
+    \begin{split}
+        y' &= \frac{(\frac{1}{2\sqrt{1 + x}} - \frac{1}{2\sqrt{1 - x}})\cdot (\sqrt{1 + x} + \sqrt{1 - x}) - (\frac{1}{2\sqrt{1 + x}} + \frac{1}{2\sqrt{1 - x}})\cdot (\sqrt{1 + x} - \sqrt{1 - x})}{(\sqrt{\sqrt{1 + x} + \sqrt{1 - x}})^2}
+    \end{split}
+$$
+
+## w17
+
+<!-- notecardId: 1762774901809 -->
+
+求$y = \sqrt{f^2(x) + g^2(x)} (f^2(x) + g^2(x) \neq 0)$导数
+
+%
+
+$$
+    \begin{split}
+        y' &= \frac{1}{2\sqrt{f^2(x) + g^2(x)}} \cdot (2\cdot f(x) \cdot f'(x) + 2\cdot g(x) \cdot g'(x))
+    \end{split}
+$$
+
+## w18
+
+<!-- notecardId: 1762775477982 -->
+
+设函数$f(x)$满足以下条件：
+1. $f(x + y) = f(x)\cdot f(y),对一切x,y\in R$
+2. $f(x) = 1 + xg(x),而\lim_{x\to 0}g(x) = 1$
+
+试证明$f(x)$在$R$上处处可导，且$f'(x) = f(x)$
+
+%
+
+$$
+当x = 0时，f(y) = f(0) \cdot f(y),即f(0) = 1\\
+    \begin{split}
+        \lim_{\Delta x\to 0}\frac{f(x + \Delta x) - f(x)}{\Delta x} &= \lim_{\Delta x \to 0}\frac{f(x)f(\Delta x) - f(x)}{\Delta x}\\
+        &= \lim_{\Delta x \to 0}\frac{f(x)[f(\Delta x ) - 1]}{\Delta x}\\
+        &= \lim_{\Delta x \to 0}\frac{f(x)[1 + \Delta x g(\Delta x) - 1] }{\Delta x}\\
+        &= \lim_{\Delta x \to 0}\frac{f(x)\cdot\Delta x\cdot g(\Delta x) }{\Delta x}\\
+        &= \lim_{\Delta x \to 0}f(x)\cdot g(\Delta x)\\
+        &= f(x)
+    \end{split}
+$$
+
+
+## w19
+
+<!-- notecardId: 1762940350827 -->
+
+
+已知$\frac{dx}{dy} = \frac{1}{y'},求\frac{d^2x}{dy^2},\frac{d^3x}{dy^3}$
+
+%
+
+$$
+    \begin{split}
+        \frac{d^2x}{dy^2} &= \frac{d}{dy}\cdot \frac{dx}{dy}\\
+        &= \frac{d}{dy}\cdot \frac{1}{y'}\\
+        &= \frac{d}{dx}\cdot(\frac{1}{y'})\frac{dx}{dy}\\
+        &= -\frac{y''}{(y')2}\cdot \frac{1}{y'}\\
+        &= -\frac{y''}{(y')^3}
+    \end{split}\\
+    \begin{split}
+        \frac{d^3x}{dy^3} &= \frac{d}{dy}\cdot\frac{d^2x}{dy^2}\\
+        &= \frac{d}{dx}\cdot(-\frac{y''}{(y')^3})\cdot \frac{dx}{dy}\\
+        &= -\frac{y'''\cdot (y')^3 - 3\cdot(y')^2\cdot (y'')^2}{(y')^6}\cdot \frac{1}{y'}\\
+        &= -\frac{y'''\cdot (y')^3 - 3\cdot(y')^2\cdot (y'')^2}{(y')^5}\\
+        &= -\frac{y'''\cdot y' - 3\cdot (y'')^2}{(y')^3}\\
+    \end{split}
+$$
+
+## w20
+
+<!-- notecardId: 1762944667131 -->
+
+$y = x^2\sin 2x,求y^{(50)}$
+
+%
+
+$$
+    (\sin x)^{(n)} = 2^n \sin (2x + n\frac{\pi}{2})\\
+    \begin{split}
+        (x^2\sin 2x)^{(50)}  &= \sum_{k = 0}^{n = 50}C_{50}^{k}(x^2)^{(k)}\cdot (\sin x)^{(n - k)}\\
+        &= x^2 \cdot (\sin 2x)^{(50)} + 50\cdot 2x \cdot (\sin x)^{(49)} + C_{50}^{2}\cdot 2 \cdot (\sin x)^{(48)} \\
+        &= -x^2 \cdot 2^{50} \cdot (\sin 2x) + 50\cdot 2x \cdot 2^{49} \cdot(\cos 2x) + C_{50}^{2}\cdot 2 \cdot 2^{48} \cdot (\sin 2x) \\
+        &= 2^{50}\cdot (-x^2\sin x + 50x\cos 2x + \frac{1225}{2}\sin 2x)
+    \end{split}
+$$
+
+
+## w21
+
+<!-- notecardId: 1762945620888 -->
+
+
+$y = x\ln x,求y^{(n)}$
+
+%
+
+$$
+    \begin{split}
+        y &= x\ln x\\
+        y' &= \ln x + 1\\
+        y'' &= x^{-1}\\
+        y'''& = -x^{(-2)}\\
+        ...\\
+        y^{(n)} &= \frac{(1)^{n-2}\cdot (n-2)!}{x^{n-1}}
+    \end{split}
+$$
