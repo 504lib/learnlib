@@ -101,3 +101,37 @@ $$
     可导\implies 连续\\
 $$
 
+## 若$f^{(n)}(x)在区间上连续，称f(x)在I上n阶连续可导$
+
+<!-- notecardId: 1762939575051 -->
+
+## 定理
+
+<!-- notecardId: 1762939587773 -->
+
+设$u,v$都是$n$阶可导
+1. $(u \pm v)^{(n)} = $
+2. 莱布尼兹公式：
+
+%
+
+1. $(u \pm v)^{(n)} = u^{(n)}\pm v^{(n)}$
+2. 莱布尼兹公式：$(uv)^{(n)} = \sum_{k = 0}^{n}C_{n}^{k}u^{(n-k)}v^k$
+
+## 高阶导数定义
+
+<!-- notecardId: 1762939849669 -->
+
+$$
+    \begin{split}
+        f^{(m)}(x_0) &= \lim_{\Delta x \to 0}\frac{f^{(n-1)}(x_0 + \Delta x) - f^{(n-1)}(x_0)}{x - x_0}\\
+        & = \lim_{x \to x_0}\frac{f^{(n-1)}(x) - f^{(n-1)}(x_0)}{x - x_0}
+    \end{split}
+$$
+
+## 三角函数n阶导
+
+<!-- notecardId: 1762940115342 -->
+
+1. $(\sin x)^{(n)} = \sin (x + n \cdot \frac{\pi}{2})$
+2. $(\cos x)^{(n)} = \cos (x + n \cdot \frac{\pi}{2})$

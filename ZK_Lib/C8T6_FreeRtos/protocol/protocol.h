@@ -29,6 +29,14 @@ typedef enum
     CLEAR,                  // 清理指令
 }CmdType;
 
+typedef enum
+{
+    Route_1 = 0,
+    Route_2,
+    Route_3,
+    Ring_road
+}Rounter;
+
 typedef struct
 {
     uint8_t Headerframe1;       // 帧头一
@@ -40,8 +48,8 @@ typedef struct
 typedef void (*INT_Callback)(int32_t value);                // 整形回调函数模板
 typedef void (*FLOAT_Callback)(float value);                // 浮点回调函数模板
 typedef void (*ACK_Callback)(void);                         // ACK信号回调函数模板
-typedef void (*PASSENGER_NUM_Callback)(uint8_t value);      // 乘客回调函数模板
-typedef void (*CLEAR_Callback)(void);                       // 清理指令回调函数模板
+typedef void (*PASSENGER_NUM_Callback)(Rounter router,uint8_t value);      // 乘客回调函数模板
+typedef void (*CLEAR_Callback)(Rounter router);                       // 清理指令回调函数模板
 typedef struct {
     uint16_t Size;                                          // 当前数据帧的大小
     RingBuffer ring_buffer;                                 // 环形缓冲区
@@ -54,8 +62,8 @@ typedef struct {
 void UART_Protocol_INT(UART_protocol UART_protocol_structure,int32_t value);
 void UART_Protocol_FLOAT(UART_protocol UART_protocol_structure,float value);
 void UART_Protocol_ACK(UART_protocol UART_protocol_structure);
-void UART_Protocol_Passenger(UART_protocol UART_protocol_structure,uint8_t value);
-void UART_Protocol_Clear(UART_protocol UART_protocol_structure);
+void UART_Protocol_Passenger(UART_protocol UART_protocol_structure,Rounter router,uint8_t value);
+void UART_Protocol_Clear(UART_protocol UART_protocol_structure,Rounter router);
 void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uint16_t size);
 
 /************************ 设置自定义功能 *********************** */

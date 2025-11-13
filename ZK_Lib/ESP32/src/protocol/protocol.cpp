@@ -104,16 +104,38 @@ void protocol::Send_Uart_Frame_ACK()
     Serial1.write(frame,sizeof(frame));
 }
 
-void protocol::Send_Uart_Frame_PASSENGER_NUM(uint8_t value)
+void protocol::Send_Uart_Frame_PASSENGER_NUM(Rounter rounter,uint8_t value)
+{
+    uint8_t frame[10];
+
+    frame[0] = Headerframe1;
+    frame[1] = Headerframe2;
+
+    frame[2] = static_cast<uint8_t>(CmdType::PASSENGER_NUM);
+    frame[3] = 2;
+    frame[4] = static_cast<uint8_t>(rounter);
+    frame[5] = value;
+
+    uint16_t check = calculateChecksum(&frame[2],4);
+    frame[6] = (check >> 8) & 0xff;
+    frame[7] = check & 0xff;
+
+    frame[8] = Tailframe1;
+    frame[9] = Tailframe2;
+
+    Serial1.write(frame,sizeof(frame));
+}
+
+void protocol::Send_Uart_Frame_CLEAR(Rounter rounter)
 {
     uint8_t frame[9];
 
     frame[0] = Headerframe1;
     frame[1] = Headerframe2;
 
-    frame[2] = static_cast<uint8_t>(CmdType::PASSENGER_NUM);
+    frame[2] = static_cast<uint8_t>(CmdType::CLEAR);
     frame[3] = 1;
-    frame[4] = value;
+    frame[4] = static_cast<uint8_t>(rounter);
 
     uint16_t check = calculateChecksum(&frame[2],3);
     frame[5] = (check >> 8) & 0xff;
@@ -121,26 +143,6 @@ void protocol::Send_Uart_Frame_PASSENGER_NUM(uint8_t value)
 
     frame[7] = Tailframe1;
     frame[8] = Tailframe2;
-
-    Serial1.write(frame,sizeof(frame));
-}
-
-void protocol::Send_Uart_Frame_CLEAR()
-{
-    uint8_t frame[8];
-
-    frame[0] = Headerframe1;
-    frame[1] = Headerframe2;
-
-    frame[2] = static_cast<uint8_t>(CmdType::CLEAR);
-    frame[3] = 0;
-
-    uint16_t check = calculateChecksum(&frame[2],2);
-    frame[4] = (check >> 8) & 0xff;
-    frame[5] = check & 0xff;
-
-    frame[6] = Tailframe1;
-    frame[7] = Tailframe2;
 
     Serial1.write(frame,sizeof(frame));
 }
@@ -215,6 +217,7 @@ void protocol::Receive_Uart_Frame(uint8_t data)
                         {
                             Serial.print("Received INT: ");
                             Serial.println(value);
+                            Send_Uart_Frame_ACK();
                         }
                     }
                     else if(frame_type == static_cast<uint8_t>(CmdType::FLOAT) && frame_len == 4)
@@ -238,6 +241,7 @@ void protocol::Receive_Uart_Frame(uint8_t data)
                         {
                             Serial.print("Received FLOAT: ");
                             Serial.println(value);
+                            Send_Uart_Frame_ACK();
                         }
                     }
                     else if(frame_type == static_cast<uint8_t>(CmdType::ACK) && frame_len == 0)
@@ -245,37 +249,43 @@ void protocol::Receive_Uart_Frame(uint8_t data)
                         if(ackCallback)
                         {
                             ackCallback();
-                            Send_Uart_Frame_ACK();
                         }
                         else
                         {
                             Serial.println("Received ACK");
                         }
                     }
-                    else if(frame_type == static_cast<uint8_t>(CmdType::PASSENGER_NUM) && frame_len == 1)
+                    else if(frame_type == static_cast<uint8_t>(CmdType::PASSENGER_NUM) && frame_len == 2)
                     {
-                        uint8_t value = data_buf[0];
+                        uint8_t value = data_buf[1];
+                        Rounter rounter = static_cast<Rounter>(data_buf[0]);
                         if(passengerNumCallback)
                         {
-                            passengerNumCallback(value);
+                            passengerNumCallback(rounter,value);
                             Send_Uart_Frame_ACK();
                         }
                         else
                         {
                             Serial.print("Received PASSENGER NUM:");
                             Serial.println(value);
+                            Serial.print("Received Rounter:");
+                            Serial.println(data_buf[0]);
+                            Send_Uart_Frame_ACK();
                         }
                     }
-                    else if (frame_type == static_cast<uint8_t>(CmdType::CLEAR) && frame_len == 0)
+                    else if (frame_type == static_cast<uint8_t>(CmdType::CLEAR) && frame_len == 1)
                     {
+                        Rounter rounter = static_cast<Rounter>(data_buf[0]);
                        if(clearcallback) 
                        {
-                            clearcallback();
+                            clearcallback(rounter);
                             Send_Uart_Frame_ACK();
                        }
                        else
                        {
-                            Serial.println("Received Clear");
+                            Serial.print("Received Clear:");
+                            Serial.println(data_buf[0]);
+                            Send_Uart_Frame_ACK();
                        }
                     }
                 }

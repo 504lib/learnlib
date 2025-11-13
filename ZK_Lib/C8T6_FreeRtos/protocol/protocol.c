@@ -125,11 +125,11 @@ static void handle_ACK(void)
  * @else     执行用户定义行为
  * @param    value     为帧解包获得的值
  */
-static void handle_PASSENGER(uint8_t value)
+static void handle_PASSENGER(Rounter rounter,uint8_t value)
 {
     if (callbacks.passenger_callback) 
     {
-        callbacks.passenger_callback(value);
+        callbacks.passenger_callback(rounter,value);
         return;
     }
     else
@@ -140,7 +140,7 @@ static void handle_PASSENGER(uint8_t value)
         .Tailframe1 = 0x0D,
         .Tailframe2 = 0x0A
         };
-        UART_Protocol_Passenger(UART_protocol_structure,value);
+        UART_Protocol_Passenger(UART_protocol_structure,rounter,value);
     }
 }
 
@@ -152,11 +152,11 @@ static void handle_PASSENGER(uint8_t value)
  * @else     执行用户定义行为
  * @param    value     为帧解包获得的值
  */
-static void handle_CLEAR()
+static void handle_CLEAR(Rounter rounter)
 {
     if (callbacks.clear_callback) 
     {
-        callbacks.clear_callback();
+        callbacks.clear_callback(rounter);
         return;
     }
     else
@@ -167,7 +167,7 @@ static void handle_CLEAR()
         .Tailframe1 = 0x0D,
         .Tailframe2 = 0x0A
         };
-        UART_Protocol_Clear(UART_protocol_structure);
+        UART_Protocol_Clear(UART_protocol_structure,rounter);
     }
 }
 
@@ -348,7 +348,7 @@ void UART_Protocol_INT(UART_protocol UART_protocol_structure,int32_t value)
 
     LOG_DEBUG("Tailer has been placed ...");
     HAL_UART_Transmit(&huart1,frame,sizeof(frame),HAL_MAX_DELAY);
-    LOG_INFO("INT frame has sent,checksum = 0x%04x",check);
+    LOG_DEBUG("INT frame has sent,checksum = 0x%04x",check);
 }
 
 /**
@@ -395,7 +395,7 @@ void UART_Protocol_FLOAT(UART_protocol UART_protocol_structure,float value)
 
     LOG_DEBUG("Tailer has been placed ...");
     HAL_UART_Transmit(&huart1,frame,sizeof(frame),HAL_MAX_DELAY);
-    LOG_INFO("FLOAT frame has sent,checksum = 0x%04x",check);
+    LOG_DEBUG("FLOAT frame has sent,checksum = 0x%04x",check);
 }
 
 /**
@@ -426,7 +426,7 @@ void UART_Protocol_ACK(UART_protocol UART_protocol_structure)
 
     LOG_DEBUG("Tailer has been placed ...");
     HAL_UART_Transmit(&huart1,frame,sizeof(frame),HAL_MAX_DELAY);
-    LOG_INFO("ACK frame has sent,checksum = 0x%04x",check);
+    LOG_DEBUG("ACK frame has sent,checksum = 0x%04x",check);
 }
 
 
@@ -436,10 +436,10 @@ void UART_Protocol_ACK(UART_protocol UART_protocol_structure)
  * @param    UART_protocol_structure 帧头帧尾结构体数据
  * @param    value     一字节的数值
  */
-void UART_Protocol_Passenger(UART_protocol UART_protocol_structure,uint8_t value)
+void UART_Protocol_Passenger(UART_protocol UART_protocol_structure,Rounter router,uint8_t value)
 {
 
-    uint8_t frame[9];
+    uint8_t frame[10];
 
     LOG_DEBUG("data frame data variable has been built ...");
     frame[0] = UART_protocol_structure.Headerframe1;
@@ -447,12 +447,50 @@ void UART_Protocol_Passenger(UART_protocol UART_protocol_structure,uint8_t value
 
     LOG_DEBUG("header has been placed ...");
     frame[2] = PASSENGER_NUM;
-    frame[3] = 1;
+    frame[3] = 2;
 
-    LOG_DEBUG("type has been placed ... , type = PASSENGER_NUM");
-    frame[4] = value;
+    LOG_DEBUG("Type has been placed ... , type = PASSENGER_NUM",router);
+    frame[4] = (uint8_t)router;
+
+    LOG_DEBUG("Rounter has been placed ... , type = %d",router);
+    frame[5] = value;
 
     LOG_DEBUG("data has been placed ...");
+    uint16_t check = calculateChecksum(&frame[2],4);
+    frame[6] = (check >> 8) & 0xff;
+    frame[7] = check & 0xff;
+
+    LOG_DEBUG("checksum has been placed ... , checksum = 0x%04x",check);
+    frame[8] = UART_protocol_structure.Tailframe1;
+    frame[9] = UART_protocol_structure.Tailframe2;
+
+    LOG_DEBUG("Tailer has been placed ...");
+    HAL_UART_Transmit(&huart1,frame,sizeof(frame),HAL_MAX_DELAY);
+    LOG_DEBUG("PASSENGER frame has sent,checksum = 0x%04x",check);
+}
+
+/**
+ * @brief    发送清除顾客数量信号
+ * @warning  当前还只是车站自清理，不是http端信号！！！
+ * @param    UART_protocol_structure    帧头帧尾结构体数据
+ */
+void UART_Protocol_Clear(UART_protocol UART_protocol_structure,Rounter router)
+{
+    uint8_t frame[9];
+
+    LOG_DEBUG("data frame data variable has been built ...");
+    frame[0] = UART_protocol_structure.Headerframe1;
+    frame[1] = UART_protocol_structure.Headerframe2;
+
+    LOG_DEBUG("header has been placed ...");
+    frame[2] = CLEAR;
+    frame[3] = 1;
+
+    LOG_DEBUG("type has been placed ... , type = CLEAR");
+
+    frame[4] = (uint8_t)router;
+    LOG_DEBUG("Rounter has been placed ... , type = %d",router);
+
     uint16_t check = calculateChecksum(&frame[2],3);
     frame[5] = (check >> 8) & 0xff;
     frame[6] = check & 0xff;
@@ -463,38 +501,7 @@ void UART_Protocol_Passenger(UART_protocol UART_protocol_structure,uint8_t value
 
     LOG_DEBUG("Tailer has been placed ...");
     HAL_UART_Transmit(&huart1,frame,sizeof(frame),HAL_MAX_DELAY);
-    LOG_INFO("PASSENGER frame has sent,checksum = 0x%04x",check);
-}
-
-/**
- * @brief    发送清除顾客数量信号
- * @warning  当前还只是车站自清理，不是http端信号！！！
- * @param    UART_protocol_structure    帧头帧尾结构体数据
- */
-void UART_Protocol_Clear(UART_protocol UART_protocol_structure)
-{
-    uint8_t frame[8];
-
-    LOG_DEBUG("data frame data variable has been built ...");
-    frame[0] = UART_protocol_structure.Headerframe1;
-    frame[1] = UART_protocol_structure.Headerframe2;
-
-    LOG_DEBUG("header has been placed ...");
-    frame[2] = CLEAR;
-    frame[3] = 0;
-
-    LOG_DEBUG("type has been placed ... , type = CLEAR");
-    uint16_t check = calculateChecksum(&frame[2],2);
-    frame[4] = (check >> 8) & 0xff;
-    frame[5] = check & 0xff;
-
-    LOG_DEBUG("checksum has been placed ... , checksum = 0x%04x",check);
-    frame[6] = UART_protocol_structure.Tailframe1;
-    frame[7] = UART_protocol_structure.Tailframe2;
-
-    LOG_DEBUG("Tailer has been placed ...");
-    HAL_UART_Transmit(&huart1,frame,sizeof(frame),HAL_MAX_DELAY);
-    LOG_INFO("CLEAR frame has sent,checksum = 0x%04x",check);
+    LOG_DEBUG("CLEAR frame has sent,checksum = 0x%04x",check);
 }
 
 /**
@@ -509,7 +516,7 @@ void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uin
     // 最小帧长度检查
     if(size < 8)
     {
-        LOG_INFO("Frame too short, size=%d", size);
+        LOG_DEBUG("Frame too short, size=%d", size);
     }
     // 检查头
     if(data[0] != UART_protocol_structure.Headerframe1 ||
@@ -549,7 +556,7 @@ void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uin
         return;
     }
     LOG_DEBUG("tail matched.");
-    LOG_INFO("the frame is valid: type=%d, len=%d", frame_type, frame_len);
+    LOG_DEBUG("the frame is valid: type=%d, len=%d", frame_type, frame_len);
     // 解析数据
     if(frame_type == INT && frame_len == 4)
     {
@@ -574,15 +581,17 @@ void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uin
     {
         handle_ACK();
     }
-    else if (frame_type == PASSENGER_NUM && frame_len == 1)
+    else if (frame_type == PASSENGER_NUM && frame_len == 2)
     {
-        uint8_t value = *payload;
-        handle_PASSENGER(value); 
+        Rounter router = (uint8_t)*payload;
+        uint8_t passenger = *(payload + 1);
+        handle_PASSENGER(router,passenger); 
         UART_Protocol_ACK(UART_protocol_structure);
     }
-    else if (frame_type == CLEAR && frame_len == 0)
+    else if (frame_type == CLEAR && frame_len == 1)
     {
-        handle_CLEAR();
+        Rounter router = (uint8_t)*payload;
+        handle_CLEAR(router);
         UART_Protocol_ACK(UART_protocol_structure);
     }
 }
