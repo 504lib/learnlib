@@ -1,9 +1,9 @@
-#include <Arduino.h>
 #include "./protocol/protocol.hpp"
 #include <ESPAsyncWebServer.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+
 
 typedef struct
 {
@@ -12,8 +12,15 @@ typedef struct
   {
     int32_t int_value;
     float   float_value;
+     struct
+    {
+      Rounter router;
+      uint8_t passenger_num;
+    }passenger; 
   }value;
 }ACK_Queue_t;
+
+uint8_t passenger[static_cast<uint8_t>(Rounter::Ring_road) + 1] = {0};
 
 
 EventGroupHandle_t evt;
@@ -21,7 +28,7 @@ EventGroupHandle_t evt;
 #define UART_ACK_REQUIRED (1 << 0u)
 
 #define LED_Pin GPIO_NUM_12
-#define AP_MODE  0
+#define AP_MODE 1 
 
 const char* ssid            = "ESP32-Access-Point"; // AP 鍚嶇О
 const char* password        = "12345678"; // AP 瀵嗙爜
@@ -44,14 +51,37 @@ QueueHandle_t xCommandQueue;
 
 
 protocol uart_protocol(0xAA,0x55,0x0D,0x0A);
-void set_passenger(uint8_t value)
+void set_passenger(Rounter rounter,uint8_t value)
 {
-  passenger_num = value;
+  Serial.printf("Receive Rounter:%d,value:%d\n",static_cast<uint8_t>(rounter),value);
+  passenger[static_cast<uint8_t>(rounter)] = value;
+  uint8_t sum = 0;
+  for (size_t i = 0; i < sizeof(passenger)/sizeof(passenger[0]) ;i++)
+  {
+    sum += passenger[i];
+  }
+  passenger_num = sum;
+  
 }
 
-void clear_passenger()
+void set_ACK()
 {
-  passenger_num = 0;
+  if (evt != NULL)
+  {
+    xEventGroupSetBits(evt,UART_ACK_REQUIRED);
+  }
+}
+
+void clear_passenger(Rounter rounter)
+{
+  Serial.printf("Receive Rounter:%d\n",static_cast<uint8_t>(rounter));
+  passenger[static_cast<uint8_t>(rounter)] = 0;
+  uint8_t sum = 0;
+  for (size_t i = 0; i < sizeof(passenger)/sizeof(passenger[0]) ;i++)
+  {
+    sum += passenger[i];
+  }
+  passenger_num = sum;
 }
 
 void Rx_Task(void* pvParameters)
@@ -84,11 +114,13 @@ void Serial_Task(void* p)
 void ACK_Task(void* pvParameters)
 {
   ACK_Queue_t ack_queue_t;
+  uint32_t flags = 0;
   for(;;)
   {
     if (xQueueReceive(xCommandQueue,&ack_queue_t,portMAX_DELAY))
     {
       bool ACK_required = true;
+      const TickType_t ack_timeout = pdMS_TO_TICKS(200); // 200 ms
       for (uint8_t i = 0; i < 3 && ACK_required; i++)
       {
         switch (ack_queue_t.type)
@@ -98,13 +130,32 @@ void ACK_Task(void* pvParameters)
           break;
         case CmdType::FLOAT:
           uart_protocol.Send_Uart_Frame(ack_queue_t.value.float_value);
+          break;
         case CmdType::PASSENGER_NUM:
-          uart_protocol.Send_Uart_Frame_PASSENGER_NUM(ack_queue_t.value.int_value);
+          uart_protocol.Send_Uart_Frame_PASSENGER_NUM(ack_queue_t.value.passenger.router,ack_queue_t.value.passenger.passenger_num);
+          break;
         case CmdType::CLEAR:
-          uart_protocol.Send_Uart_Frame_CLEAR();
+          uart_protocol.Send_Uart_Frame_CLEAR(ack_queue_t.value.passenger.router);
+          break;
         default:
+          Serial.printf("unknown type!!!");
           break;
         }
+        flags = xEventGroupWaitBits(evt,UART_ACK_REQUIRED,pdTRUE,pdFALSE,ack_timeout);
+        if(flags & UART_ACK_REQUIRED)
+        {
+          ACK_required = false;
+          Serial.printf("Recived ACK for %d",static_cast<uint8_t>(ack_queue_t.type));
+        }
+        else
+        {
+          Serial.printf("time out!!! (%d/3)",i+1);
+          if (i >= 2)
+          {
+            Serial.printf("time out:%d",static_cast<uint8_t>(ack_queue_t.type));
+          }
+        }
+        
       }
     }
     vTaskDelay(10 / portTICK_PERIOD_MS);
@@ -117,10 +168,17 @@ void AP_Task(void* pvParameters)
   uint8_t pass_num = 0;
   for(;;)
   {
-    if (xQueueReceive(xPassengerUpdateQueue,&pass_num,portMAX_DELAY))
+    pass_num = 0;
+    for (size_t i = 0;i < sizeof(passenger)/sizeof(passenger[0]);i++)
     {
-      uart_protocol.Send_Uart_Frame_PASSENGER_NUM(pass_num);
+      pass_num += passenger[i];
     }
+    passenger_num = pass_num; 
+    // if (xQueueReceive(xPassengerUpdateQueue,&pass_num,portMAX_DELAY))
+    // {
+    //   uart_protocol.Send_Uart_Frame_PASSENGER_NUM(Rounter::Route_1,pass_num);
+    // }
+    vTaskDelay(500 / portTICK_PERIOD_MS);
   }
 }
 
@@ -215,6 +273,7 @@ void setup()
 {
   
   pinMode(LED_Pin,OUTPUT);
+  uart_protocol.setAckCallback(set_ACK);
   uart_protocol.setPassengerNumCallback(set_passenger);
   uart_protocol.setClearCallback(clear_passenger);
   Serial.println("正在启动 AP 模式...");
@@ -284,7 +343,7 @@ void setup()
     
     <div class="card">
         <div class="header">乘客数量</div>
-        <div class="value" id="passengers">--</div>
+        <div class="value" id="passengers_total">--</div>
     </div>
     
     <div class="card">
@@ -298,7 +357,7 @@ void setup()
                 .then(r => r.json())
                 .then(data => {
                     document.getElementById('station').textContent = data.station;
-                    document.getElementById('passengers').textContent = data.passengers;
+                    document.getElementById('passengers_total').textContent = data.passengers_total;
                     document.getElementById('connection').textContent = `IP: ${data.ip}, 设备: ${data.clients}`;
                 });
         }
@@ -312,17 +371,55 @@ void setup()
   });
 
   server.on("/api/info", HTTP_GET, [](AsyncWebServerRequest *request){
-    String json = "{";
-    json += "\"station_ch\":\"" + station_ch + "\",";
-    json += "\"station\":\"" + station_name + "\",";
-    json += "\"ip\":\"" + WiFi.softAPIP().toString() + "\",";
-    json += "\"clients\":" + String(WiFi.softAPgetStationNum()) + ",";
-    json += "\"ssid\":\"" + String(ssid) + "\",";
-    json += "\"passengers\":" + String(passenger_num);
-    json += "}";
-    request->send(200, "application/json", json);
-  });
 
+    JsonDocument doc;
+    doc["station"] = station_name;
+    doc["station_ch"] = station_ch;
+    doc["passengers_total"] = passenger_num;
+    doc["ip"] = WiFi.softAPIP().toString();
+    doc["clients"] = WiFi.softAPgetStationNum();
+    doc["ssid"] = String(ssid);
+
+    // 创建数组并填充
+    JsonArray arr = doc["passenger_list"].to<JsonArray>();
+    for (size_t i = 0; i < (sizeof(passenger)/sizeof(passenger[0])); ++i) {
+        arr.add(passenger[i]);
+    }
+
+    String out;
+    serializeJson(doc, out);
+    request->send(200, "application/json", out);
+  });
+  server.on("/api/clear",HTTP_GET,[](AsyncWebServerRequest *request){
+    Rounter rounter;
+    if (!request->hasParam("rounter"))
+    {
+      request->send(400,"text/plain","invalid input");
+      return;
+    }
+    ACK_Queue_t ack_queue_t;
+    String s = request->getParam("rounter")->value();
+    const char* str = s.c_str();
+    char* endptr = nullptr;
+    int32_t v = strtol(str,&endptr,10);
+    if(endptr == str || *endptr != '\0')
+    {
+      request->send(400,"text/plain","invalid rounter num");
+      return;
+    }
+    if (v < 0 || v > static_cast<int>(Rounter::Ring_road))
+    {
+      request->send(400,"text/plain","invalid rounter");
+      return;
+    }
+    rounter = static_cast<Rounter>(v);
+    passenger[v] = 0;
+    ack_queue_t.type = CmdType::CLEAR;
+    ack_queue_t.value.passenger.router = rounter;
+    ack_queue_t.value.passenger.passenger_num = 0;
+    xQueueSend(xCommandQueue,&ack_queue_t,0);
+    request->send(200,"text/plain","success");
+  });
   // 启动服务器
   server.begin();
   Serial.println("HTTP 服务器已启动");
@@ -351,20 +448,24 @@ void setup()
   #endif
   xUartRxQueue = xQueueCreate(32,sizeof(uint8_t)); 
   xCommandQueue = xQueueCreate(32,sizeof(ACK_Queue_t));
+  evt = xEventGroupCreate();
+  xTaskCreate(AP_Task,"ap_task",1024,NULL,1,NULL);
   xTaskCreate(Rx_Task,"rx_task",2048,NULL,3,NULL);
   xTaskCreate(Serial_Task,"serial_task",1024,NULL,2,NULL);
-  evt = xEventGroupCreate();
+  xTaskCreate(ACK_Task,"ack_task",2048,NULL,2,NULL); 
 }
 
-void loop() {
-  // digitalWrite(LED_Pin, HIGH);
-  // delay(500);
-  // digitalWrite(LED_Pin, LOW);
-  // delay(500);
-  static uint32_t last_tick = 0;
-  if (millis() - last_tick >= 3000) 
-  {
-    Serial.printf("内存: %d\n", ESP.getFreeHeap());
-    last_tick = millis();
+void loop() 
+{
+  digitalWrite(LED_Pin, HIGH);
+  delay(500);
+  digitalWrite(LED_Pin, LOW);
+  delay(500);
+  
+  static uint32_t counter = 0;
+  if (++counter % 20 == 0) {
+    // uart_protocol.Send_Uart_Frame((int32_t)counter);
+    Serial.printf("🔁 主循环 - 计数: %lu, 内存: %d\n", 
+                  counter, ESP.getFreeHeap());
   }
 }

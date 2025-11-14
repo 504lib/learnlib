@@ -28,7 +28,7 @@ EventGroupHandle_t evt;
 
 #define UART_ACK_REQUIRED (1 << 0u)
 
-#define LED_Pin GPIO_NUM_48
+#define LED_Pin LED_BUILTIN
 #define AP_MODE 1 
 
 const char* ssid            = "ESP32-Access-Point"; // AP 鍚嶇О
@@ -300,7 +300,9 @@ void setup()
   }
 
   // 设置 Web 服务器路由
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+ // 在 setup() 函数中找到 HTML 部分，替换为以下代码：
+
+server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     String html = R"rawliteral(
 <!DOCTYPE html>
 <html>
@@ -330,46 +332,134 @@ void setup()
         .header { 
             color: #666; 
             margin-bottom: 10px;
+            font-size: 1.2em;
         }
         .station-header {
             text-align: center;
             color: #333;
             margin-bottom: 30px;
         }
+        .route-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .route-item {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 4px solid #2196F3;
+            text-align: center;
+        }
+        .route-name {
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 5px;
+        }
+        .route-count {
+            font-size: 1.5em;
+            color: #e91e63;
+            font-weight: bold;
+        }
+        .status-connected {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        .status-disconnected {
+            color: #f44336;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
-    <!-- 修正的站点名称显示 -->
     <h1 class="station-header" id="station">--</h1>
     
     <div class="card">
-        <div class="header">乘客数量</div>
+        <div class="header">📊 总乘客数量</div>
         <div class="value" id="passengers_total">--</div>
     </div>
     
     <div class="card">
-        <div class="header">连接状态</div>
+        <div class="header">🚌 各路线乘客分布</div>
+        <div class="route-container" id="routes_container">
+            <!-- 路线信息将在这里动态生成 -->
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="header">🔗 连接状态</div>
         <div id="connection">--</div>
     </div>
 
     <script>
+        // 路线名称映射
+        const routeNames = {
+            0: "路线 1",
+            1: "路线 2", 
+            2: "路线 3",
+            3: "路线 4",
+            4: "环线"
+        };
+
+        function updateRouteDisplay(passengerList) {
+            const container = document.getElementById('routes_container');
+            container.innerHTML = '';
+            
+            passengerList.forEach((count, index) => {
+                const routeItem = document.createElement('div');
+                routeItem.className = 'route-item';
+                
+                const routeName = routeNames[index] || `路线 ${index + 1}`;
+                
+                routeItem.innerHTML = `
+                    <div class="route-name">${routeName}</div>
+                    <div class="route-count">${count}</div>
+                `;
+                
+                container.appendChild(routeItem);
+            });
+        }
+
         function updateData() {
             fetch('/api/info')
-                .then(r => r.json())
+                .then(response => response.json())
                 .then(data => {
+                    // 更新基本信息
                     document.getElementById('station').textContent = data.station;
                     document.getElementById('passengers_total').textContent = data.passengers_total;
-                    document.getElementById('connection').textContent = `IP: ${data.ip}, 设备: ${data.clients}`;
+                    
+                    // 更新连接状态
+                    const connectionEl = document.getElementById('connection');
+                    connectionEl.innerHTML = `
+                        <span class="status-connected">✅ 已连接</span><br>
+                        IP: ${data.ip}<br>
+                        连接设备: ${data.clients} 台<br>
+                        SSID: ${data.ssid}
+                    `;
+                    
+                    // 更新路线乘客显示
+                    if (data.passenger_list && Array.isArray(data.passenger_list)) {
+                        updateRouteDisplay(data.passenger_list);
+                    }
+                })
+                .catch(error => {
+                    console.error('获取数据失败:', error);
+                    document.getElementById('connection').innerHTML = 
+                        '<span class="status-disconnected">❌ 连接失败</span>';
                 });
         }
+
+        // 每3秒更新一次数据
         setInterval(updateData, 3000);
+        // 页面加载时立即更新
         updateData();
     </script>
 </body>
 </html>
     )rawliteral";
     request->send(200, "text/html", html);
-  });
+});
 
   server.on("/api/info", HTTP_GET, [](AsyncWebServerRequest *request){
 
@@ -421,6 +511,7 @@ void setup()
     xQueueSend(xCommandQueue,&ack_queue_t,0);
     request->send(200,"text/plain","success");
   });
+  
   // 启动服务器
   server.begin();
   Serial.println("HTTP 服务器已启动");

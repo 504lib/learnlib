@@ -124,7 +124,7 @@ $$
 
 $$
     \begin{split}
-        f^{(m)}(x_0) &= \lim_{\Delta x \to 0}\frac{f^{(n-1)}(x_0 + \Delta x) - f^{(n-1)}(x_0)}{x - x_0}\\
+        f^{(n)}(x_0) &= \lim_{\Delta x \to 0}\frac{f^{(n-1)}(x_0 + \Delta x) - f^{(n-1)}(x_0)}{x - x_0}\\
         & = \lim_{x \to x_0}\frac{f^{(n-1)}(x) - f^{(n-1)}(x_0)}{x - x_0}
     \end{split}
 $$
