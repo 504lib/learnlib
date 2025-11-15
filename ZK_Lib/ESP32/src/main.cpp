@@ -305,181 +305,850 @@ void setup()
 server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     String html = R"rawliteral(
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-    <title>设备监控</title>
     <meta charset="UTF-8">
-     <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            max-width: 800px; 
-            margin: 0 auto; 
-            padding: 20px; 
-            background: #f5f5f5;
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多线路公交站台监控系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
         }
-        .card { 
-            background: white; 
-            padding: 20px; 
-            margin: 15px 0; 
-            border-radius: 10px; 
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .value { 
-            font-size: 2em; 
-            color: #2196F3; 
-            font-weight: bold;
-        }
-        .header { 
-            color: #666; 
-            margin-bottom: 10px;
-            font-size: 1.2em;
-        }
-        .station-header {
-            text-align: center;
+        
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 20px;
             color: #333;
-            margin-bottom: 30px;
         }
-        .route-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        /* 标题栏样式 */
+        .header {
+            background-color: #5a6c7d;
+            color: white;
+            height: 40px;
+            line-height: 30px;
+            padding: 5px 15px;
+            border-radius: 8px 8px 0 0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 0;
+            animation: fadeInDown 0.8s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header-title {
+            font-size: 18px;
+        }
+        
+        .header-buttons {
+            display: flex;
             gap: 10px;
-            margin-top: 15px;
         }
-        .route-item {
-            background: #f8f9fa;
-            padding: 12px;
-            border-radius: 8px;
-            border-left: 4px solid #2196F3;
-            text-align: center;
+        
+        .header-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 5px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
         }
-        .route-name {
+        
+        .header-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        /* 主内容区域 */
+        .main-content {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        /* 左侧信息面板 */
+        .station-info {
+            flex: 1;
+            background: white;
+            border-radius: 0 0 8px 8px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            animation: fadeInLeft 0.8s ease;
+        }
+        
+        .station-name {
+            font-size: 22px;
             font-weight: bold;
-            color: #555;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .station-name::before {
+            content: "📍";
+            margin-right: 10px;
+            font-size: 24px;
+        }
+        
+        .passenger-count {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin-top: 15px;
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+            transition: all 0.3s ease;
+            animation: pulse 2s infinite;
+        }
+        
+        .passenger-count:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(52, 152, 219, 0.4);
+        }
+        
+        .passenger-label {
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        
+        .passenger-value {
+            font-size: 42px;
+            font-weight: bold;
+        }
+        
+        /* 右侧车辆状态卡片 */
+        .vehicle-status {
+            width: 300px;
+            background: white;
+            border-radius: 0 0 8px 8px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            animation: fadeInRight 0.8s ease;
+        }
+        
+        .status-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+        
+        .status-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid #3498db;
+            transition: all 0.3s ease;
+        }
+        
+        .status-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .vehicle-id {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
             margin-bottom: 5px;
         }
+        
+        .status-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .status-text {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+        }
+        
+        .indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: blink 2s infinite;
+        }
+        
+        .online {
+            background-color: #2ecc71;
+        }
+        
+        .offline {
+            background-color: #e74c3c;
+        }
+        
+        /* 线路详情区域 */
+        .routes-section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            animation: fadeInUp 0.8s ease;
+        }
+        
+        .section-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+        
+        .routes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .route-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            transition: all 0.3s ease;
+            border-top: 4px solid #3498db;
+        }
+        
+        .route-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .route-name {
+            font-size: 16px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
         .route-count {
-            font-size: 1.5em;
-            color: #e91e63;
+            font-size: 24px;
+            font-weight: bold;
+            color: #3498db;
+            transition: all 0.5s ease;
+        }
+        
+        /* 弹窗样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            animation: zoomIn 0.3s ease;
+            position: relative;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .modal-title {
+            font-size: 22px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #7f8c8d;
+            transition: color 0.3s;
+        }
+        
+        .close-btn:hover {
+            color: #e74c3c;
+        }
+        
+        .modal-body {
+            line-height: 1.6;
+            color: #555;
+        }
+        
+        .contact-info {
+            margin-top: 20px;
+        }
+        
+        .contact-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .contact-icon {
+            margin-right: 10px;
+            font-size: 18px;
+        }
+        
+        .developer-options {
+            margin-top: 20px;
+        }
+        
+        .option-item {
+            margin-bottom: 15px;
+        }
+        
+        .option-label {
+            display: block;
+            margin-bottom: 5px;
             font-weight: bold;
         }
-        .status-connected {
-            color: #4CAF50;
-            font-weight: bold;
+        
+        .option-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
         }
-        .status-disconnected {
-            color: #f44336;
-            font-weight: bold;
+        
+        .option-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .option-btn:hover {
+            background: #2980b9;
+        }
+        
+        /* 加载状态 */
+        .loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+        
+        .loading::after {
+            content: " (加载中...)";
+            color: #3498db;
+            font-weight: normal;
+        }
+        
+        /* 动画定义 */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes fadeInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        @keyframes fadeInRight {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+            }
+            50% {
+                box-shadow: 0 5px 20px rgba(52, 152, 219, 0.6);
+            }
+            100% {
+                box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+            }
+        }
+        
+        @keyframes blink {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+        
+        @keyframes zoomIn {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .vehicle-status {
+                width: 100%;
+            }
+            
+            .routes-grid {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            }
+            
+            .header {
+                flex-direction: column;
+                height: auto;
+                padding: 10px;
+            }
+            
+            .header-title {
+                margin-bottom: 10px;
+            }
+        }
+        
+        /* 数据更新时间显示 */
+        .update-time {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 14px;
+            margin-top: 20px;
         }
     </style>
 </head>
 <body>
-    <h1 class="station-header" id="station">--</h1>
-    
-    <div class="card">
-        <div class="header">📊 总乘客数量</div>
-        <div class="value" id="passengers_total">--</div>
-    </div>
-    
-    <div class="card">
-        <div class="header">🚌 各路线乘客分布</div>
-        <div class="route-container" id="routes_container">
-            <!-- 路线信息将在这里动态生成 -->
+    <div class="container">
+        <!-- 标题栏 -->
+        <div class="header">
+            <div class="header-title">多线路公交站台监控</div>
+            <div class="header-buttons">
+                <button class="header-btn" id="homeBtn">首页</button>
+                <button class="header-btn" id="contactBtn">联系我们</button>
+                <button class="header-btn" id="devBtn">开发者模式</button>
+            </div>
+        </div>
+        
+        <!-- 主内容区域 -->
+        <div class="main-content">
+            <!-- 左侧站台信息 -->
+            <div class="station-info">
+                <div class="station-name">
+                    当前所在站名：<span id="stationName">--</span>
+                </div>
+                
+                <div class="passenger-count">
+                    <div class="passenger-label">总乘客数量</div>
+                    <div class="passenger-value" id="totalPassengers">--</div>
+                </div>
+            </div>
+            
+            <!-- 右侧车辆状态 -->
+            <div class="vehicle-status">
+                <div class="status-title">连接状态</div>
+                <div class="status-card">
+                    <div class="vehicle-id">01车</div>
+                    <div class="status-line">
+                        <span class="status-text">候车中</span>
+                        <div class="status-indicator">
+                            <div class="indicator online" id="vehicleStatus"></div>
+                            <span id="statusText">在线</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 线路详情区域 -->
+        <div class="routes-section">
+            <div class="section-title">各线路乘客分布</div>
+            <div class="routes-grid" id="routesContainer">
+                <!-- 线路卡片将通过JavaScript动态生成 -->
+            </div>
+        </div>
+        
+        <!-- 数据更新时间 -->
+        <div class="update-time">
+            最后更新: <span id="lastUpdateTime">--</span>
         </div>
     </div>
-    
-    <div class="card">
-        <div class="header">🔗 连接状态</div>
-        <div id="connection">--</div>
+
+    <!-- 首页弹窗 -->
+    <div class="modal" id="homeModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">系统首页</h2>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>欢迎使用多线路公交站台监控系统！</p>
+                <p>该系统实时监控公交站台各线路的乘客数量，帮助优化公交调度。</p>
+                <p>当前版本：v2.1.0</p>
+                <p>系统状态：<span style="color: #2ecc71;">正常运行</span></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 联系我们弹窗 -->
+    <div class="modal" id="contactModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">联系我们</h2>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>如果您有任何问题或建议，请通过以下方式联系我们：</p>
+                <div class="contact-info">
+                    <div class="contact-item">
+                        <span class="contact-icon">📧</span>
+                        <span>邮箱：support@busmonitor.com</span>
+                    </div>
+                    <div class="contact-item">
+                        <span class="contact-icon">📞</span>
+                        <span>电话：400-123-4567</span>
+                    </div>
+                    <div class="contact-item">
+                        <span class="contact-icon">📍</span>
+                        <span>地址：XX市XX区XX路XX号</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 开发者模式弹窗 -->
+    <div class="modal" id="devModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">开发者模式</h2>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>警告：此功能仅供开发人员使用！</p>
+                <div class="developer-options">
+                    <div class="option-item">
+                        <label class="option-label">API端点：</label>
+                        <input type="text" class="option-input" value="/api/info">
+                    </div>
+                    <div class="option-item">
+                        <label class="option-label">数据刷新间隔（秒）：</label>
+                        <input type="number" class="option-input" value="3" min="1" max="60">
+                    </div>
+                    <div class="option-item">
+                        <label class="option-label">调试模式：</label>
+                        <input type="checkbox" id="debugMode">
+                        <label for="debugMode">启用</label>
+                    </div>
+                    <button class="option-btn">保存设置</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
-        // 路线名称映射
-        const routeNames = {
-            0: "路线 1",
-            1: "路线 2", 
-            2: "路线 3",
-            3: "路线 4",
-            4: "环线"
-        };
-
-        function updateRouteDisplay(passengerList) {
-            const container = document.getElementById('routes_container');
-            container.innerHTML = '';
+      // 从API获取真实数据
+      async function fetchData() {
+          try {
+              // 显示加载状态
+              document.getElementById('stationName').classList.add('loading');
+              
+              // 发送请求到API
+              const response = await fetch('/api/info');
+              
+              if (!response.ok) {
+                  throw new Error(`HTTP错误! 状态: ${response.status}`);
+              }
+              
+              // 解析JSON数据
+              const data = await response.json();
+              
+              // 移除加载状态
+              document.getElementById('stationName').classList.remove('loading');
+              
+              return data;
+          } catch (error) {
+              console.error('获取数据失败:', error);
+              
+              // 移除加载状态
+              document.getElementById('stationName').classList.remove('loading');
+              
+              // 返回一个包含错误信息的默认数据结构
+              return {
+                  "station": "数据获取失败",
+                  "station_ch": "error",
+                  "passengers_total": 0,
+                  "ip": "未知",
+                  "clients": 0,
+                  "ssid": "未知",
+                  "passenger_list": [0, 0, 0, 0, 0],
+                  "route_names": ["路线1", "路线2", "路线3", "路线4", "环线"]
+              };
+          }
+      }
+      
+      // 更新页面数据
+      async function updatePageData() {
+          try {
+              const data = await fetchData();
+              
+              // 更新站名
+              document.getElementById('stationName').textContent = data.station;
+              
+              // 更新总乘客数量
+              const totalElement = document.getElementById('totalPassengers');
+              const currentTotal = parseInt(totalElement.textContent) || 0;
+              const newTotal = data.passengers_total;
+              
+              // 添加数字变化动画
+              if (currentTotal !== newTotal) {
+                  totalElement.style.color = '#e74c3c';
+                  setTimeout(() => {
+                      totalElement.style.color = 'white';
+                  }, 500);
+              }
+              
+              totalElement.textContent = newTotal;
+              
+              // 更新线路详情
+              updateRoutes(data.passenger_list, data.route_names);
+              
+              // 更新车辆状态（模拟随机状态）
+              updateVehicleStatus();
+              
+              // 更新时间
+              document.getElementById('lastUpdateTime').textContent = new Date().toLocaleString();
+          } catch (error) {
+              console.error('更新页面数据失败:', error);
+              document.getElementById('stationName').textContent = '数据更新失败';
+          }
+      }
+      
+      // 更新线路详情 - 修改后的版本，过滤掉乘客数为0的路线
+      function updateRoutes(passengerList, routeNames) {
+          const container = document.getElementById('routesContainer');
+          container.innerHTML = '';
+          
+          // 检查是否所有路线乘客数量都为0
+          const allZero = passengerList.every(count => count === 0);
+          if (allZero) {
+              container.innerHTML = '<div style="text-align: center; color: #7f8c8d; grid-column: 1 / -1; padding: 20px;">当前所有路线均无乘客</div>';
+              return;
+          }
+          
+          passengerList.forEach((count, index) => {
+              // 如果乘客数量为0，则不显示该路线
+              if (count === 0) return;
+              
+              const routeCard = document.createElement('div');
+              routeCard.className = 'route-card';
+              
+              // 使用服务器提供的路线名称，如果没有则使用默认名称
+              const routeName = routeNames && routeNames[index] ? routeNames[index] : `线路 ${index + 1}`;
+              
+              routeCard.innerHTML = `
+                  <div class="route-name">${routeName}</div>
+                  <div class="route-count">${count}</div>
+                  <div style="font-size: 14px; color: #7f8c8d;">人</div>
+              `;
+              
+              container.appendChild(routeCard);
+          });
+      }
+    
+        // 更新车辆状态（模拟）
+        function updateVehicleStatus() {
+            // 模拟随机在线/离线状态
+            const isOnline = Math.random() > 0.2; // 80%概率在线
             
-            passengerList.forEach((count, index) => {
-                const routeItem = document.createElement('div');
-                routeItem.className = 'route-item';
-                
-                const routeName = routeNames[index] || `路线 ${index + 1}`;
-                
-                routeItem.innerHTML = `
-                    <div class="route-name">${routeName}</div>
-                    <div class="route-count">${count}</div>
-                `;
-                
-                container.appendChild(routeItem);
+            const statusIndicator = document.getElementById('vehicleStatus');
+            const statusText = document.getElementById('statusText');
+            
+            if (isOnline) {
+                statusIndicator.className = 'indicator online';
+                statusText.textContent = '在线';
+                statusText.style.color = '#2ecc71';
+            } else {
+                statusIndicator.className = 'indicator offline';
+                statusText.textContent = '离线';
+                statusText.style.color = '#e74c3c';
+            }
+        }
+        
+        // 弹窗控制功能
+        function setupModalControls() {
+            // 获取按钮和弹窗元素
+            const homeBtn = document.getElementById('homeBtn');
+            const contactBtn = document.getElementById('contactBtn');
+            const devBtn = document.getElementById('devBtn');
+            
+            const homeModal = document.getElementById('homeModal');
+            const contactModal = document.getElementById('contactModal');
+            const devModal = document.getElementById('devModal');
+            
+            // 获取所有关闭按钮
+            const closeBtns = document.querySelectorAll('.close-btn');
+            
+            // 首页按钮点击事件
+            homeBtn.addEventListener('click', function() {
+                homeModal.style.display = 'flex';
+            });
+            
+            // 联系我们按钮点击事件
+            contactBtn.addEventListener('click', function() {
+                contactModal.style.display = 'flex';
+            });
+            
+            // 开发者模式按钮点击事件
+            devBtn.addEventListener('click', function() {
+                devModal.style.display = 'flex';
+            });
+            
+            // 关闭按钮点击事件
+            closeBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    homeModal.style.display = 'none';
+                    contactModal.style.display = 'none';
+                    devModal.style.display = 'none';
+                });
+            });
+            
+            // 点击弹窗外部关闭弹窗
+            window.addEventListener('click', function(event) {
+                if (event.target === homeModal) {
+                    homeModal.style.display = 'none';
+                }
+                if (event.target === contactModal) {
+                    contactModal.style.display = 'none';
+                }
+                if (event.target === devModal) {
+                    devModal.style.display = 'none';
+                }
             });
         }
-
-        function updateData() {
-            fetch('/api/info')
-                .then(response => response.json())
-                .then(data => {
-                    // 更新基本信息
-                    document.getElementById('station').textContent = data.station;
-                    document.getElementById('passengers_total').textContent = data.passengers_total;
-                    
-                    // 更新连接状态
-                    const connectionEl = document.getElementById('connection');
-                    connectionEl.innerHTML = `
-                        <span class="status-connected">✅ 已连接</span><br>
-                        IP: ${data.ip}<br>
-                        连接设备: ${data.clients} 台<br>
-                        SSID: ${data.ssid}
-                    `;
-                    
-                    // 更新路线乘客显示
-                    if (data.passenger_list && Array.isArray(data.passenger_list)) {
-                        updateRouteDisplay(data.passenger_list);
-                    }
-                })
-                .catch(error => {
-                    console.error('获取数据失败:', error);
-                    document.getElementById('connection').innerHTML = 
-                        '<span class="status-disconnected">❌ 连接失败</span>';
-                });
-        }
-
-        // 每3秒更新一次数据
-        setInterval(updateData, 3000);
-        // 页面加载时立即更新
-        updateData();
+        
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
+            updatePageData();
+            setupModalControls();
+            
+            // 每3秒更新一次数据
+            setInterval(updatePageData, 3000);
+        });
     </script>
 </body>
-</html>
+</html>    
     )rawliteral";
     request->send(200, "text/html", html);
 });
 
   server.on("/api/info", HTTP_GET, [](AsyncWebServerRequest *request){
+      JsonDocument doc;
+      doc["station"] = station_name;
+      doc["station_ch"] = station_ch;
+      doc["passengers_total"] = passenger_num;
+      doc["ip"] = WiFi.softAPIP().toString();
+      doc["clients"] = WiFi.softAPgetStationNum();
+      doc["ssid"] = String(ssid);
 
-    JsonDocument doc;
-    doc["station"] = station_name;
-    doc["station_ch"] = station_ch;
-    doc["passengers_total"] = passenger_num;
-    doc["ip"] = WiFi.softAPIP().toString();
-    doc["clients"] = WiFi.softAPgetStationNum();
-    doc["ssid"] = String(ssid);
+      // 创建路线名称映射（与Rounter枚举对应）
+      const char* route_names[] = 
+      {
+          "路线1", "路线2", "路线3", "路线4", "环线"
+      };
 
-    // 创建数组并填充
-    JsonArray arr = doc["passenger_list"].to<JsonArray>();
-    for (size_t i = 0; i < (sizeof(passenger)/sizeof(passenger[0])); ++i) {
-        arr.add(passenger[i]);
-    }
+      // 创建乘客数量数组
+      JsonArray arr = doc["passenger_list"].to<JsonArray>();
+      // 创建路线名称数组
+      JsonArray route_names_arr = doc["route_names"].to<JsonArray>();
+      
+      for (size_t i = 0; i < (sizeof(passenger)/sizeof(passenger[0])); ++i) {
+          arr.add(passenger[i]);
+          route_names_arr.add(route_names[i]);
+      }
 
-    String out;
-    serializeJson(doc, out);
-    request->send(200, "application/json", out);
+      String out;
+      serializeJson(doc, out);
+      request->send(200, "application/json", out);
   });
   server.on("/api/clear",HTTP_GET,[](AsyncWebServerRequest *request){
     Rounter rounter;

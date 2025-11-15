@@ -1099,7 +1099,8 @@ void setup()
         });
     </script>
 </body>
-</html>    )rawliteral";
+</html>    
+)rawliteral";
     request->send(200, "text/html", html);
   });
 
