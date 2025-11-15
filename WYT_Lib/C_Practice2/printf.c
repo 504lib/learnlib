@@ -5,9 +5,9 @@
 int main()
 {
     int num = 0;
-    printf("è¯·è¾“å…¥ä¸€ä¸ªæ•°:");
+    printf("ÇëÊäÈëÒ»¸öÊı:");
     scanf("%d",&num);
-    printf("the num Hex is : 0x\n",num);
-    printf("the num Decimal is ï¼š0d\n",num);
+    printf("the num Hex is : 0x%X\n",num);
+    printf("the num Decimal is :0d%d\n",num);
     return 0;
 }
