@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include "./protocol/protocol.hpp"
 #include <ESPAsyncWebServer.h>
 #include <WiFi.h>
@@ -27,7 +28,7 @@ EventGroupHandle_t evt;
 
 #define UART_ACK_REQUIRED (1 << 0u)
 
-#define LED_Pin GPIO_NUM_12
+#define LED_Pin LED_BUILTIN
 #define AP_MODE 1 
 
 const char* ssid            = "ESP32-Access-Point"; // AP 鍚嶇О
@@ -48,6 +49,28 @@ String station_name         = "师范学院";
 QueueHandle_t xUartRxQueue;
 QueueHandle_t xPassengerUpdateQueue;
 QueueHandle_t xCommandQueue;
+
+// 车辆状态枚举
+enum class VehicleStatus 
+{
+  WAITING,     // 候车中
+  ARRIVING,     // 即将进站
+  LEAVING      // 离站
+};
+
+// 车辆信息结构
+struct VehicleInfo 
+{
+  Rounter route;
+  String plate;
+  VehicleStatus status;
+  uint32_t timestamp;  // 添加时间戳，用于清理过期数据
+};
+
+// 车辆信息数组，限制为10个
+#define MAX_VEHICLES 10
+VehicleInfo vehicles[MAX_VEHICLES];
+uint8_t vehicleCount = 0;
 
 
 protocol uart_protocol(0xAA,0x55,0x0D,0x0A);
@@ -82,6 +105,27 @@ void clear_passenger(Rounter rounter)
     sum += passenger[i];
   }
   passenger_num = sum;
+}
+
+void VehicleCleanupTask(void* pvParameters) {
+    for(;;) {
+        // 每30秒清理一次过期数据（超过5分钟）
+        uint32_t currentTime = millis();
+        uint32_t fiveMinutes = 5 * 60 * 1000;
+        
+        for (int i = 0; i < vehicleCount; i++) {
+            if (currentTime - vehicles[i].timestamp > fiveMinutes) {
+                // 移除过期车辆，将后面的元素前移
+                for (int j = i; j < vehicleCount - 1; j++) {
+                    vehicles[j] = vehicles[j + 1];
+                }
+                vehicleCount--;
+                i--; // 重新检查当前位置
+            }
+        }
+        
+        vTaskDelay(30000 / portTICK_PERIOD_MS); // 30秒
+    }
 }
 
 void Rx_Task(void* pvParameters)
@@ -299,7 +343,9 @@ void setup()
   }
 
   // 设置 Web 服务器路由
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+ // 在 setup() 函数中找到 HTML 部分，替换为以下代码：
+
+server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     String html = R"rawliteral(
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -673,7 +719,73 @@ void setup()
             color: #3498db;
             font-weight: normal;
         }
-        
+        .vehicle-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid #3498db;
+            transition: all 0.3s ease;
+        }
+
+        .vehicle-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .vehicle-card.arriving {
+            border-left-color: #e74c3c;
+            background: #fff5f5;
+        }
+
+        .vehicle-card.waiting {
+            border-left-color: #f39c12;
+            background: #fffbf0;
+        }
+
+        .vehicle-plate {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+        }
+
+        .vehicle-plate::before {
+            content: "🚌";
+            margin-right: 8px;
+            font-size: 16px;
+        }
+
+        .vehicle-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .vehicle-route {
+            color: #3498db;
+            font-weight: bold;
+        }
+
+        .vehicle-status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .status-arriving {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .status-waiting {
+            background: #f39c12;
+            color: white;
+        }
         /* 动画定义 */
         @keyframes fadeInDown {
             from {
@@ -822,19 +934,16 @@ void setup()
             
             <!-- 右侧车辆状态 -->
             <div class="vehicle-status">
-                <div class="status-title">连接状态</div>
-                <div class="status-card">
-                    <div class="vehicle-id">01车</div>
-                    <div class="status-line">
-                        <span class="status-text">候车中</span>
-                        <div class="status-indicator">
-                            <div class="indicator online" id="vehicleStatus"></div>
-                            <span id="statusText">在线</span>
-                        </div>
-                    </div>
+                <meta charset="UTF-8">
+                <div class="status-title">车辆状态</div>
+                <div id="vehiclesContainer">
+                    <!-- 车辆信息将通过JavaScript动态生成 -->
+                </div>
+                <div id="noVehicles" style="text-align: center; color: #7f8c8d; padding: 20px; display: none;">
+                    暂无车辆信息
                 </div>
             </div>
-        </div>
+          </div>
         
         <!-- 线路详情区域 -->
         <div class="routes-section">
@@ -923,11 +1032,22 @@ void setup()
     </div>
 
     <script>
-        // 从API获取真实数据
-        async function fetchData() {
+      const routeEnumMapping = {
+            0: "路线1",
+            1: "路线2", 
+            2: "路线3",
+            3: "环路",
+        };
+
+        // 状态映射
+      const statusMapping = {
+          "waiting": "候车中",
+          "arriving": "即将进站"
+      };
+      async function fetchData() {
             try {
                 // 显示加载状态
-                document.getElementById('stationName').classList.add('loading');
+                // document.getElementById('stationName').classList.add('loading');
                 
                 // 发送请求到API
                 const response = await fetch('/api/info');
@@ -940,7 +1060,7 @@ void setup()
                 const data = await response.json();
                 
                 // 移除加载状态
-                document.getElementById('stationName').classList.remove('loading');
+                // document.getElementById('stationName').classList.remove('loading');
                 
                 return data;
             } catch (error) {
@@ -957,7 +1077,9 @@ void setup()
                     "ip": "未知",
                     "clients": 0,
                     "ssid": "未知",
-                    "passenger_list": [0, 0, 0, 0, 0, 0]
+                    "passenger_list": [0, 0, 0, 0, 0],
+                    "route_names": ["路线1", "路线2", "路线3", "路线4", "环线"],
+                    "vehicles": []
                 };
             }
         }
@@ -986,10 +1108,10 @@ void setup()
                 totalElement.textContent = newTotal;
                 
                 // 更新线路详情
-                updateRoutes(data.passenger_list);
+                updateRoutes(data.passenger_list, data.route_names);
                 
-                // 更新车辆状态（模拟随机状态）
-                updateVehicleStatus();
+                // 更新车辆状态（使用真实数据）
+                updateVehicleStatus(data.vehicles || []);
                 
                 // 更新时间
                 document.getElementById('lastUpdateTime').textContent = new Date().toLocaleString();
@@ -1000,41 +1122,83 @@ void setup()
         }
         
         // 更新线路详情
-        function updateRoutes(passengerList) {
+        function updateRoutes(passengerList, routeNames) {
             const container = document.getElementById('routesContainer');
             container.innerHTML = '';
             
+            // 检查是否所有路线乘客数量都为0
+            const allZero = passengerList.every(count => count === 0);
+            if (allZero) {
+                container.innerHTML = '<div style="text-align: center; color: #7f8c8d; grid-column: 1 / -1; padding: 20px;">当前所有路线均无乘客</div>';
+                return;
+            }
+            
             passengerList.forEach((count, index) => {
+                // 如果乘客数量为0，则不显示该路线
+                if (count === 0) return;
+                
                 const routeCard = document.createElement('div');
                 routeCard.className = 'route-card';
                 
+                // 使用服务器提供的路线名称，如果没有则使用默认名称
+                const routeName = routeNames && routeNames[index] ? routeNames[index] : `线路 ${index + 1}`;
+                
                 routeCard.innerHTML = `
-                    <div class="route-name">线路 ${index + 1}</div>
+                    <div class="route-name">${routeName}</div>
                     <div class="route-count">${count}</div>
-                    <div class="route-label">人</div>
+                    <div style="font-size: 14px; color: #7f8c8d;">人</div>
                 `;
                 
                 container.appendChild(routeCard);
             });
         }
         
-        // 更新车辆状态（模拟）
-        function updateVehicleStatus() {
-            // 模拟随机在线/离线状态
-            const isOnline = Math.random() > 0.2; // 80%概率在线
+        // 更新车辆状态 - 使用真实数据
+        function updateVehicleStatus(vehicles) {
+            const container = document.getElementById('vehiclesContainer');
+            const noVehicles = document.getElementById('noVehicles');
             
-            const statusIndicator = document.getElementById('vehicleStatus');
-            const statusText = document.getElementById('statusText');
+            // 清空容器
+            container.innerHTML = '';
             
-            if (isOnline) {
-                statusIndicator.className = 'indicator online';
-                statusText.textContent = '在线';
-                statusText.style.color = '#2ecc71';
-            } else {
-                statusIndicator.className = 'indicator offline';
-                statusText.textContent = '离线';
-                statusText.style.color = '#e74c3c';
+            // 如果没有车辆数据，显示提示
+            if (!vehicles || vehicles.length === 0) {
+                container.style.display = 'none';
+                noVehicles.style.display = 'block';
+                return;
             }
+            
+            // 显示车辆数据
+            container.style.display = 'block';
+            noVehicles.style.display = 'none';
+            
+            // 按状态排序：即将进站的排在前面
+            vehicles.sort((a, b) => {
+                if (a.status === 'arriving' && b.status !== 'arriving') return -1;
+                if (a.status !== 'arriving' && b.status === 'arriving') return 1;
+                return 0;
+            });
+            
+            // 创建车辆卡片
+            vehicles.forEach(vehicle => {
+                const vehicleCard = document.createElement('div');
+                vehicleCard.className = `vehicle-card ${vehicle.status}`;
+                
+                // 获取路线名称
+                const routeName = routeEnumMapping[vehicle.route] || `线路 ${vehicle.route + 1}`;
+                // 获取状态文本
+                const statusText = statusMapping[vehicle.status] || vehicle.status;
+                
+                vehicleCard.innerHTML = `
+                    <div class="vehicle-plate">${vehicle.plate}</div>
+                    <div class="vehicle-info">
+                        <span class="vehicle-route">${routeName}</span>
+                        <span class="vehicle-status-badge status-${vehicle.status}">${statusText}</span>
+                    </div>
+                `;
+                
+                container.appendChild(vehicleCard);
+            });
         }
         
         // 弹窗控制功能
@@ -1100,30 +1264,64 @@ void setup()
     </script>
 </body>
 </html>    
-)rawliteral";
+    )rawliteral";
     request->send(200, "text/html", html);
-  });
+});
 
   server.on("/api/info", HTTP_GET, [](AsyncWebServerRequest *request){
+      JsonDocument doc;
+      doc["station"] = station_name;
+      doc["station_ch"] = station_ch;
+      doc["passengers_total"] = passenger_num;
+      doc["ip"] = WiFi.softAPIP().toString();
+      doc["clients"] = WiFi.softAPgetStationNum();
+      doc["ssid"] = String(ssid);
 
-    JsonDocument doc;
-    doc["station"] = station_name;
-    doc["station_ch"] = station_ch;
-    doc["passengers_total"] = passenger_num;
-    doc["ip"] = WiFi.softAPIP().toString();
-    doc["clients"] = WiFi.softAPgetStationNum();
-    doc["ssid"] = String(ssid);
+      // 乘客数量数组
+      JsonArray passenger_arr = doc["passenger_list"].to<JsonArray>();
+      for (size_t i = 0; i < (sizeof(passenger)/sizeof(passenger[0])); ++i) {
+          passenger_arr.add(passenger[i]);
+      }
 
-    // 创建数组并填充
-    JsonArray arr = doc["passenger_list"].to<JsonArray>();
-    for (size_t i = 0; i < (sizeof(passenger)/sizeof(passenger[0])); ++i) {
-        arr.add(passenger[i]);
-    }
+      // 路线名称映射
+      const char* route_names[] = {"路线1", "路线2", "路线3","环线"};
+      JsonArray route_names_arr = doc["route_names"].to<JsonArray>();
+      for (size_t i = 0; i < (sizeof(route_names)/sizeof(route_names[0])); ++i) {
+          route_names_arr.add(route_names[i]);
+      }
 
-    String out;
-    serializeJson(doc, out);
-    request->send(200, "application/json", out);
+      // 车辆信息数组 - 只包含非离站状态的车辆
+      JsonArray vehicles_arr = doc["vehicles"].to<JsonArray>();
+      for (int i = 0; i < vehicleCount; i++) {
+          // 只添加候车中和即将进站的车辆
+          if (vehicles[i].status != VehicleStatus::LEAVING) {
+              JsonObject vehicle_obj = vehicles_arr.add<JsonObject>();
+              vehicle_obj["route"] = static_cast<int>(vehicles[i].route);
+              vehicle_obj["plate"] = vehicles[i].plate;
+              
+              // 状态映射
+              String statusStr;
+              switch (vehicles[i].status) {
+                  case VehicleStatus::WAITING:
+                      statusStr = "waiting";
+                      break;
+                  case VehicleStatus::ARRIVING:
+                      statusStr = "arriving";
+                      break;
+                  case VehicleStatus::LEAVING:
+                      statusStr = "leaving"; // 理论上不会执行到这里
+                      break;
+              }
+              vehicle_obj["status"] = statusStr;
+              vehicle_obj["timestamp"] = vehicles[i].timestamp;
+          }
+      }
+
+      String out;
+      serializeJson(doc, out);
+      request->send(200, "application/json", out);
   });
+
   server.on("/api/clear",HTTP_GET,[](AsyncWebServerRequest *request){
     Rounter rounter;
     if (!request->hasParam("rounter"))
@@ -1154,6 +1352,120 @@ void setup()
     xQueueSend(xCommandQueue,&ack_queue_t,0);
     request->send(200,"text/plain","success");
   });
+  server.on("/api/vehicle_report", HTTP_POST, [](AsyncWebServerRequest *request){
+      // 检查参数
+      ACK_Queue_t ack_queue_t;
+      if (!request->hasParam("route", true) || 
+          !request->hasParam("plate", true) || 
+          !request->hasParam("status", true)) {
+          request->send(400, "text/plain", "Missing parameters");
+          return;
+      }
+
+      // 解析路线
+      String routeStr = request->getParam("route", true)->value();
+      int routeInt = routeStr.toInt();
+      if (routeInt < 0 || routeInt > static_cast<int>(Rounter::Ring_road)) {
+          request->send(400, "text/plain", "Invalid route");
+          return;
+      }
+      Rounter route = static_cast<Rounter>(routeInt);
+
+      // 解析车牌号
+      String plate = request->getParam("plate", true)->value();
+      if (plate.length() == 0 || plate.length() > 20) {
+          request->send(400, "text/plain", "Invalid plate number");
+          return;
+      }
+
+      // 解析状态
+      String statusStr = request->getParam("status", true)->value();
+      VehicleStatus status;
+      if (statusStr == "waiting") {
+          status = VehicleStatus::WAITING;
+      } else if (statusStr == "arriving") {
+          status = VehicleStatus::ARRIVING;
+      } else if (statusStr == "leaving") {
+          status = VehicleStatus::LEAVING;
+      } else {
+          request->send(400, "text/plain", "Invalid status");
+          return;
+      }
+
+      // 处理离站状态
+      if (status == VehicleStatus::LEAVING) {
+          // 从车辆数组中移除该车辆
+          bool found = false;
+          for (int i = 0; i < vehicleCount; i++) {
+              if (vehicles[i].plate == plate) {
+                  // 找到车辆，移除它
+                  Serial.println("车辆离站: " + plate + ", 路线: " + String(static_cast<int>(vehicles[i].route)));
+                  ack_queue_t.type = CmdType::CLEAR;
+                  ack_queue_t.value.passenger.router = vehicles[i].route;
+                  xQueueSend(xCommandQueue,&ack_queue_t,0);
+                  passenger[static_cast<int>(vehicles[i].route)] = 0;
+                  // 将后面的元素前移
+                  for (int j = i; j < vehicleCount - 1; j++) {
+                      vehicles[j] = vehicles[j + 1];
+                  }
+                  vehicleCount--;
+                  found = true;
+                  break;
+              }
+          }
+          
+          if (found) {
+              request->send(200, "text/plain", "success");
+          } else {
+              request->send(404, "text/plain", "Vehicle not found");
+          }
+          return;
+      }
+
+      // 处理候车中和即将进站状态（原有逻辑）
+      bool found = false;
+      for (int i = 0; i < vehicleCount; i++) {
+          if (vehicles[i].plate == plate) {
+              // 更新现有车辆信息
+              vehicles[i].route = route;
+              vehicles[i].status = status;
+              vehicles[i].timestamp = millis();
+              found = true;
+              Serial.println("更新车辆: " + plate + ", 路线: " + String(routeInt) + ", 状态: " + statusStr);
+              break;
+          }
+      }
+
+      // 如果没找到，添加新车辆
+      if (!found) {
+          if (vehicleCount < MAX_VEHICLES) {
+              vehicles[vehicleCount].route = route;
+              vehicles[vehicleCount].plate = plate;
+              vehicles[vehicleCount].status = status;
+              vehicles[vehicleCount].timestamp = millis();
+              vehicleCount++;
+              Serial.println("新增车辆: " + plate + ", 路线: " + String(routeInt) + ", 状态: " + statusStr);
+          } else {
+              // 数组已满，替换最旧的条目
+              uint32_t oldestTime = UINT32_MAX;
+              int oldestIndex = 0;
+              for (int i = 0; i < MAX_VEHICLES; i++) {
+                  if (vehicles[i].timestamp < oldestTime) {
+                      oldestTime = vehicles[i].timestamp;
+                      oldestIndex = i;
+                  }
+              }
+              vehicles[oldestIndex].route = route;
+              vehicles[oldestIndex].plate = plate;
+              vehicles[oldestIndex].status = status;
+              vehicles[oldestIndex].timestamp = millis();
+              Serial.println("替换车辆: " + plate + ", 路线: " + String(routeInt) + ", 状态: " + statusStr);
+          }
+      }
+
+      request->send(200, "text/plain", "success");
+  });
+
   // 启动服务器
   server.begin();
   Serial.println("HTTP 服务器已启动");
@@ -1187,6 +1499,7 @@ void setup()
   xTaskCreate(Rx_Task,"rx_task",2048,NULL,3,NULL);
   xTaskCreate(Serial_Task,"serial_task",1024,NULL,2,NULL);
   xTaskCreate(ACK_Task,"ack_task",2048,NULL,2,NULL); 
+  xTaskCreate(VehicleCleanupTask, "vehicle_cleanup", 2048, NULL, 1, NULL);
 }
 
 void loop() 

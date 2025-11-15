@@ -76,6 +76,7 @@ Route_Info route_info[Router_NUM];
 extern uint8_t temp[16];                                                          // 来自main.c的缓冲区
 u8g2_t u8g2;                                                                      // u8g2对象
 int index = 0;                                                                    // String_Option的字符串数组索引
+const char* router_str[Router_NUM] = {"Rounter1","Rounter2","Rounter3","Ring",};
 const char* String_Option[] = {"begin","test1","test2","test3","end"};            // 测试的字符串
 bool toggle = false;                                                              // 测试bool节点的变�???
 int32_t passenger_num[Router_NUM] = {0};                                                        // 存储乘客的变�???
@@ -107,6 +108,8 @@ menu_item_t* sub5_sub1 = NULL;
 menu_item_t* sub5_sub2 = NULL;
 menu_item_t* sub5_sub3 = NULL;
 menu_item_t* sub5_sub4 = NULL;
+menu_item_t* sub5_sub5 = NULL;
+menu_item_t* sub5_sub6 = NULL;
 
 // RTC内部结构�???
   RTC_DateTypeDef sDate = {0};
@@ -348,12 +351,20 @@ void RTC_Set_Time()
  */
 void Send_Passenger()
 {
-  Ack_Queue_t ack_queue_t = {
-    .type = PASSENGER_NUM,
-    .value.passenger.passenger_num = passenger_num[Route_1],
-    .value.passenger.router = Route_1
-  };
-  osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
+  Ack_Queue_t ack_queue_t;
+  for (uint8_t i = 0; i < Router_NUM; i++)
+  {
+    ack_queue_t.type = PASSENGER_NUM;
+    ack_queue_t.value.passenger.passenger_num = passenger_num[i];
+    ack_queue_t.value.passenger.router = (Rounter)i;
+    osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
+  }
+  
+  // ack_queue_t = {
+  //   .type = PASSENGER_NUM,
+  //   .value.passenger.passenger_num = passenger_num[Route_1],
+  //   .value.passenger.router = Route_1
+  // };
   // UART_protocol UART_protocol_structure = {
   //   .Headerframe1 = 0xAA,
   //   .Headerframe2 = 0x55,
@@ -373,14 +384,14 @@ void Send_Passenger()
  */
 void Send_Clear()
 {
-  Ack_Queue_t ack_queue_t = {
-    .type = CLEAR,
-    .value.passenger.router = Route_1,
-    .value.passenger.passenger_num = 0
-  };
-  passenger_num[Route_1] = 0;
-  passenger_temp[Route_1] = 0;
-  osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
+  Ack_Queue_t ack_queue_t;
+  for (uint8_t i = 0; i < Router_NUM; i++)
+  {
+    ack_queue_t.type = CLEAR;
+    ack_queue_t.value.passenger.passenger_num = 0;
+    ack_queue_t.value.passenger.router = (Rounter)i;
+    osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
+  }
   // UART_protocol UART_protocol_structure = {
   //   .Headerframe1 = 0xAA,
   //   .Headerframe2 = 0x55,
@@ -477,9 +488,12 @@ void U8g2_Task(void *argument)
   sub4_sub5 = create_param_int_item("monthes", &Clock.month, 1, 12, 1);
   sub4_sub6 = create_param_int_item("days", &Clock.day, 1, 31, 1);
   sub4_sub7 = create_function_item("Set_time",RTC_Set_Time);
-  sub5_sub1 = create_param_int_item("Set_Passenger",&passenger_num[0],0,255,1);
-  sub5_sub2 = create_function_item("SendUART_Passenger",Send_Passenger);
-  sub5_sub3 = create_function_item("clear",Send_Clear);
+  sub5_sub1 = create_param_int_item("Set_R1_Passenger",&passenger_num[Route_1],0,255,1);
+  sub5_sub2 = create_param_int_item("Set_R2_Passenger",&passenger_num[Route_2],0,255,1);
+  sub5_sub3 = create_param_int_item("Set_R3_Passenger",&passenger_num[Route_3],0,255,1);
+  sub5_sub4 = create_param_int_item("Set_Ring_Passenger",&passenger_num[Ring_road],0,255,1);
+  sub5_sub5 = create_function_item("SendUART_Passenger",Send_Passenger);
+  sub5_sub6 = create_function_item("clear",Send_Clear);
   main_display = create_main_item("main",root, main_display_cb);
   Link_Parent_Child(root, sub1);
   Link_next_sibling(sub1, sub2);
@@ -501,6 +515,9 @@ void U8g2_Task(void *argument)
   Link_Parent_Child(sub5,sub5_sub1);
   Link_next_sibling(sub5_sub1,sub5_sub2);
   Link_next_sibling(sub5_sub2,sub5_sub3);
+  Link_next_sibling(sub5_sub3,sub5_sub4);
+  Link_next_sibling(sub5_sub4,sub5_sub5);
+  Link_next_sibling(sub5_sub5,sub5_sub6);
   menu_data_ptr = menu_data_init(main_display);
   LOG_INFO("menu Nodes is has been inited ...");
   LOG_INFO("u8g2 task has been init...");
@@ -727,7 +744,7 @@ void uart_task(void *argument)
         {
           ack_queue_t.type = PASSENGER_NUM;
           ack_queue_t.value.passenger.passenger_num = passenger_num[i];
-          ack_queue_t.value.passenger.router = Route_1;
+          ack_queue_t.value.passenger.router = (Rounter)i;
           osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
           passenger_temp[i] = passenger_num[i];                               // 保持同步
         }
