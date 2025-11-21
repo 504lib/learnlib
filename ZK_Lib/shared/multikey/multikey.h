@@ -7,9 +7,13 @@
 
 /**
  * @brief    选用平台
- * @warning  注意，一定要选用对应平台的tick函数，我这里是freertos的tick函数
+ * @warning  注意，一定要选用对应平台的tick函数
+ * @note     请在项目中定义 MENU_USE_CMSIS_OS2 或 MENU_USE_BARE_METAL 或 MENU_USE_CUSTOM
+ *           如果不定义，默认使用 MENU_USE_BARE_METAL
  */
-#define MENU_USE_CMSIS_OS2      
+#if !defined(MENU_USE_CMSIS_OS2) && !defined(MENU_USE_BARE_METAL) && !defined(MENU_USE_CUSTOM)
+    #define MENU_USE_BARE_METAL      // 默认使用裸机平台
+#endif
 
 
 #if defined(MENU_USE_CMSIS_OS2)
@@ -22,14 +26,14 @@
 #elif defined(MENU_USE_CUSTOM)
     //请加入宏定义
     #if !defined(GetTick)
-        #error "MENU_USE_CUSTOM is defined but the GetTick function are not defined! Please define _disable_interrupt_func and _enable_interrupt_func."
+        #error "MENU_USE_CUSTOM is defined but the GetTick function are not defined! Please define GetTick macro."
     #endif
 #else
     #error "Please define the target platform!!!"
 #endif
 
 #if !defined(GetTick)
-    #error "Atomic operation macros are not correctly defined! Please check the platform configuration."
+    #error "GetTick macro is not correctly defined! Please check the platform configuration."
 #endif
 
 

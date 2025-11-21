@@ -31,7 +31,8 @@
 #include "protocol.h"
 #include "Log.h"
 #include "rtc.h"
-#include "multikey.h"
+#define MENU_USE_CMSIS_OS2
+#include "../../shared/multikey/multikey.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/

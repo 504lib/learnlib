@@ -25,7 +25,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "multikey.h"
+#include "../../shared/multikey/multikey.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
