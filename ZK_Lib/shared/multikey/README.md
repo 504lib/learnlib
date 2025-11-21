@@ -121,7 +121,7 @@ void MulitKey_SetLongPressRepeatTime(uint16_t time);
 
 1. 删除项目中的本地 `multikey` 目录
 2. 更新包含路径指向共享库
-3. 如果使用 FreeRTOS，在编译选项中定义 `MENU_USE_CMSIS_OS2`
+3. 如果使用 FreeRTOS，在源文件中包含头文件前定义 `MENU_USE_CMSIS_OS2`，或在编译选项中定义
 4. 重新编译项目
 
 ## 注意事项
