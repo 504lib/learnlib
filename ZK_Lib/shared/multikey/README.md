@@ -37,6 +37,12 @@
 #include "multikey.h"
 ```
 
+// 对于 FreeRTOS (CMSIS_OS2) 项目，请在包含头文件前定义宏：
+
+```c
+// For FreeRTOS projects:
+#define MENU_USE_CMSIS_OS2
+#include "../../shared/multikey/multikey.h"
 ### 3. 初始化按键
 
 ```c
