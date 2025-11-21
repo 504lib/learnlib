@@ -1470,7 +1470,6 @@ server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
   server.begin();
   Serial.println("HTTP 服务器已启动");
   xPassengerUpdateQueue = xQueueCreate(10,sizeof(uint8_t));
-  xTaskCreate(AP_Task,"ap_task",1024,NULL,1,NULL);
   // xTaskCreate(PassengerTask,"passengertask",1024,NULL,1,NULL); 
   #else 
     WiFi.begin(ssid,password);

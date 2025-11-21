@@ -10,6 +10,7 @@ typedef struct
     ACK_Callback ack_callback;                      // ack信号接受的回调函数
     PASSENGER_NUM_Callback passenger_callback;      // 乘客数量接受的回调函数
     CLEAR_Callback clear_callback;                  // 清除乘客数量的回调函数
+    VehicleStatusCallback vehiclestatus_callback;  // 车辆状态接受的回调函数
 }callback_functions;
 
 // 回调函数实例 + 初始化
@@ -303,6 +304,11 @@ void set_Clear_Callback(CLEAR_Callback cb)
     callbacks.clear_callback = cb;
 }
 
+void set_VehicleStatus_Callback(VehicleStatusCallback cb)
+{
+    callbacks.vehiclestatus_callback = cb;
+}
+
 /**
  * @brief    发送整形数据
  * @cite     LOG_DEBUG();calculateChecksum();
@@ -505,6 +511,42 @@ void UART_Protocol_Clear(UART_protocol UART_protocol_structure,Rounter router)
 }
 
 /**
+ * @brief    发送车辆状态信号
+ * 
+ * @param    UART_protocol_structurefunction of param
+ * @param    status    function of param
+ */
+void UART_Protocol_VehicleStatus(UART_protocol UART_protocol_structure,VehicleStatus status)
+{
+    uint8_t frame[9];
+
+    LOG_DEBUG("data frame data variable has been built ...");
+    frame[0] = UART_protocol_structure.Headerframe1;
+    frame[1] = UART_protocol_structure.Headerframe2;
+
+    LOG_DEBUG("header has been placed ...");
+    frame[2] = VEHICLE_STATUS;
+    frame[3] = 1;
+
+    LOG_DEBUG("type has been placed ... , type = VEHICLE_STATUS");
+
+    frame[4] = (uint8_t)status;
+    LOG_DEBUG("VehicleStatus has been placed ... , status = %d",status);
+
+    uint16_t check = calculateChecksum(&frame[2],3);
+    frame[5] = (check >> 8) & 0xff;
+    frame[6] = check & 0xff;
+
+    LOG_DEBUG("checksum has been placed ... , checksum = 0x%04x",check);
+    frame[7] = UART_protocol_structure.Tailframe1;
+    frame[8] = UART_protocol_structure.Tailframe2;
+
+    LOG_DEBUG("Tailer has been placed ...");
+    HAL_UART_Transmit(&huart1,frame,sizeof(frame),HAL_MAX_DELAY);
+    LOG_DEBUG("VEHICLE_STATUS frame has sent,checksum = 0x%04x",check);
+}
+
+/**
  * @brief    处理数据帧函数
  * @details  处理规定帧头帧尾的数据帧
  * @param    UART_protocol_structure    帧头帧尾结构体数据
@@ -593,6 +635,19 @@ void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uin
         Rounter router = (uint8_t)*payload;
         handle_CLEAR(router);
         UART_Protocol_ACK(UART_protocol_structure);
+    }
+    else if (frame_type == VEHICLE_STATUS && frame_len == 1)
+    {
+        VehicleStatus status = (uint8_t)*payload;
+        if(callbacks.vehiclestatus_callback)
+        {
+            callbacks.vehiclestatus_callback(status);
+        }
+        UART_Protocol_ACK(UART_protocol_structure);
+    }
+    else
+    {
+        LOG_DEBUG("Unknown frame type: %d or invalid length: %d", frame_type, frame_len);
     }
 }
 

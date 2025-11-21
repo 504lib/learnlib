@@ -36,7 +36,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+#define SLAVE_MODE 1
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -57,6 +57,7 @@ typedef struct{
   {
     int32_t int_value;
     float float_value;
+    VehicleStatus status_value;
     struct
     {
       Rounter router;
@@ -346,6 +347,26 @@ void RTC_Set_Time()
   LOG_DEBUG("Restored date: %04d-%02d-%02d", sDate.Year + 2000, sDate.Month, sDate.Date);
 }
 
+
+void Waitting_Signal_cb()
+{
+  Ack_Queue_t ack_queue_t = {
+    .type = VEHICLE_STATUS,
+    .value.status_value = WAITING,
+  };
+  osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
+}
+
+
+void Leaving_Signal_cb()
+{
+  Ack_Queue_t ack_queue_t = {
+    .type = VEHICLE_STATUS,
+    .value.status_value = LEAVING,
+  };
+  osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
+}
+
 /**
  * @brief    作为sub5_sub2的回调函数，目的是向esp32发�?�当前的乘客数量
  */
@@ -488,12 +509,17 @@ void U8g2_Task(void *argument)
   sub4_sub5 = create_param_int_item("monthes", &Clock.month, 1, 12, 1);
   sub4_sub6 = create_param_int_item("days", &Clock.day, 1, 31, 1);
   sub4_sub7 = create_function_item("Set_time",RTC_Set_Time);
+  #if SLAVE_MODE
+  sub5_sub1 = create_function_item("watting_Signal",Waitting_Signal_cb);
+  sub5_sub2 = create_function_item("leaving_Signal",Leaving_Signal_cb);
+  #else
   sub5_sub1 = create_param_int_item("Set_R1_Passenger",&passenger_num[Route_1],0,255,1);
   sub5_sub2 = create_param_int_item("Set_R2_Passenger",&passenger_num[Route_2],0,255,1);
   sub5_sub3 = create_param_int_item("Set_R3_Passenger",&passenger_num[Route_3],0,255,1);
   sub5_sub4 = create_param_int_item("Set_Ring_Passenger",&passenger_num[Ring_road],0,255,1);
   sub5_sub5 = create_function_item("SendUART_Passenger",Send_Passenger);
   sub5_sub6 = create_function_item("clear",Send_Clear);
+  #endif // SLAVE_MODE
   main_display = create_main_item("main",root, main_display_cb);
   Link_Parent_Child(root, sub1);
   Link_next_sibling(sub1, sub2);
@@ -514,10 +540,12 @@ void U8g2_Task(void *argument)
   Link_next_sibling(sub4_sub6, sub4_sub7);
   Link_Parent_Child(sub5,sub5_sub1);
   Link_next_sibling(sub5_sub1,sub5_sub2);
+  #if !SLAVE_MODE
   Link_next_sibling(sub5_sub2,sub5_sub3);
   Link_next_sibling(sub5_sub3,sub5_sub4);
   Link_next_sibling(sub5_sub4,sub5_sub5);
   Link_next_sibling(sub5_sub5,sub5_sub6);
+  #endif
   menu_data_ptr = menu_data_init(main_display);
   LOG_INFO("menu Nodes is has been inited ...");
   LOG_INFO("u8g2 task has been init...");
@@ -812,6 +840,9 @@ void ACK_TASK(void *argument)
             break;
           case CLEAR:
             UART_Protocol_Clear(UART_protocol_structure,ack_queue_t.value.passenger.router);
+            break;
+          case VEHICLE_STATUS:
+            UART_Protocol_VehicleStatus(UART_protocol_structure,ack_queue_t.value.status_value);
             break;
           default:
             LOG_WARN("Unknown command type in ACK task");

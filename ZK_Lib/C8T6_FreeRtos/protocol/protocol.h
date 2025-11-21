@@ -27,6 +27,7 @@ typedef enum
     ACK,                    // ACK 
     PASSENGER_NUM,          // 乘客数量
     CLEAR,                  // 清理指令
+    VEHICLE_STATUS
 }CmdType;
 
 typedef enum
@@ -36,6 +37,12 @@ typedef enum
     Route_3,
     Ring_road
 }Rounter;
+typedef enum  
+{
+  WAITING,     // 候车中
+  ARRIVING,     // 即将进站
+  LEAVING      // 离站
+}VehicleStatus;
 
 typedef struct
 {
@@ -50,6 +57,7 @@ typedef void (*FLOAT_Callback)(float value);                // 浮点回调函�
 typedef void (*ACK_Callback)(void);                         // ACK信号回调函数模板
 typedef void (*PASSENGER_NUM_Callback)(Rounter router,uint8_t value);      // 乘客回调函数模板
 typedef void (*CLEAR_Callback)(Rounter router);                       // 清理指令回调函数模板
+typedef void (*VehicleStatusCallback)(VehicleStatus status);               // 车辆状态回调函数模板
 typedef struct {
     uint16_t Size;                                          // 当前数据帧的大小
     RingBuffer ring_buffer;                                 // 环形缓冲区
@@ -64,6 +72,7 @@ void UART_Protocol_FLOAT(UART_protocol UART_protocol_structure,float value);
 void UART_Protocol_ACK(UART_protocol UART_protocol_structure);
 void UART_Protocol_Passenger(UART_protocol UART_protocol_structure,Rounter router,uint8_t value);
 void UART_Protocol_Clear(UART_protocol UART_protocol_structure,Rounter router);
+void UART_Protocol_VehicleStatus(UART_protocol UART_protocol_structure,VehicleStatus status);
 void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uint16_t size);
 
 /************************ 设置自定义功能 *********************** */
@@ -72,6 +81,7 @@ void set_FLOAT_Callback(FLOAT_Callback cb);
 void set_ACK_Callback(ACK_Callback cb);
 void set_PASSENGER_Callback(PASSENGER_NUM_Callback cb);
 void set_Clear_Callback(CLEAR_Callback cb);
+void set_VehicleStatus_Callback(VehicleStatusCallback cb);
 
 /************************ 环形缓冲区接收/放置 *********************** */
 UartFrame* Get_Uart_Frame_Buffer(void);
