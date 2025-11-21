@@ -31,7 +31,8 @@
 #include "protocol.h"
 #include "Log.h"
 #include "rtc.h"
-#include "multikey.h"
+#define MENU_USE_CMSIS_OS2
+#include "../../shared/multikey/multikey.h"
 #include "HX711.h"
 #include "Motor.h"
 #include "tim.h"
@@ -72,10 +73,10 @@ extern uint8_t temp[64];                                                        
 u8g2_t u8g2;                                                                      // u8g2å¯¹è±¡
 int index = 0;                                                                    // String_Optionçš„å­—ç¬¦ä¸²æ•°ç»„ç´¢å¼•
 const char* String_Option[] = {"Ephedra","Cinnamon"};            // æµ‹è¯•çš„å­—ç¬¦ä¸²
-bool toggle = false;                                                              // æµ‹è¯•boolèŠ‚ç‚¹çš„å˜é‡?
-int32_t passenger_num = 0;                                                        // å­˜å‚¨ä¹˜å?¢çš„å˜é??
+bool toggle = false;                                                              // æµ‹è¯•boolèŠ‚ç‚¹çš„å˜ï¿½?
+int32_t passenger_num = 0;                                                        // å­˜å‚¨ä¹˜ï¿½?ï¿½çš„å˜ï¿½??
 float weight = 0.0;
-// ç”¨äºè·Ÿè¸ªèœå•ä¿¡æ¯çš„æ•°æ?ç»“æ„ä½“æŒ‡æŒ‡é??
+// ç”¨äºè·Ÿè¸ªèœå•ä¿¡æ¯çš„æ•°ï¿½?ç»“æ„ä½“æŒ‡æŒ‡ï¿½??
 menu_data_t* menu_data_ptr;
 // èŠ‚ç‚¹æŒ‡é’ˆ
 menu_item_t* root = NULL;
@@ -102,19 +103,19 @@ menu_item_t* sub5_sub2 = NULL;
 menu_item_t* sub5_sub3 = NULL;
 menu_item_t* sub5_sub4 = NULL;
 
-// RTCå†…éƒ¨ç»“æ„ä½?
+// RTCå†…éƒ¨ç»“æ„ï¿½?
   RTC_DateTypeDef sDate = {0};
   RTC_TimeTypeDef sTime = {0};
 typedef struct
 {
-  int32_t seconds;                  // æš‚å­˜ç§?
-  int32_t minutes;                  // æš‚å­˜åˆ?
-  int32_t hours;                    // æš‚å­˜æ—?
-  int32_t day;                      // æš‚å­˜å¤?
-  int32_t month;                    // æš‚å­˜æœ?
-  int32_t year;                     // æš‚å­˜å¹?
+  int32_t seconds;                  // æš‚å­˜ï¿½?
+  int32_t minutes;                  // æš‚å­˜ï¿½?
+  int32_t hours;                    // æš‚å­˜ï¿½?
+  int32_t day;                      // æš‚å­˜ï¿½?
+  int32_t month;                    // æš‚å­˜ï¿½?
+  int32_t year;                     // æš‚å­˜ï¿½?
 }Clock_t;
-Clock_t Clock = {0};                // æš‚å­˜æ—¶é—´ç»“æ„ä½?
+Clock_t Clock = {0};                // æš‚å­˜æ—¶é—´ç»“æ„ï¿½?
 /* USER CODE END Variables */
 /* Definitions for U8G2_TASK */
 osThreadId_t U8G2_TASKHandle;
@@ -225,10 +226,10 @@ void MX_FREERTOS_Init(void) {
 /* USER CODE BEGIN Header_U8g2_Task */
 
 
-static int test_var = 0;                                            // INTç±»å‹çš„å˜é‡?
+static int test_var = 0;                                            // INTç±»å‹çš„å˜ï¿½?
 
 /**
- * @brief    ä½œä¸ºsub1_sub1çš„å›è°ƒå‡½æ•?
+ * @brief    ä½œä¸ºsub1_sub1çš„å›è°ƒå‡½ï¿½?
  */
 void test()
 {
@@ -243,7 +244,7 @@ void test()
 
 
 /**
- * @brief    ä½œä¸ºsub1_sub3çš„å›è°ƒå‡½æ•?
+ * @brief    ä½œä¸ºsub1_sub3çš„å›è°ƒå‡½ï¿½?
  */
 void test2()
 {
@@ -257,7 +258,7 @@ void test2()
 }
 
 /**
- * @brief    ä½œä¸ºsub1_sub4çš„å›è°ƒå‡½æ•?
+ * @brief    ä½œä¸ºsub1_sub4çš„å›è°ƒå‡½ï¿½?
  */
 void test3()
 {
@@ -272,8 +273,8 @@ void test3()
 
 
 /**
- * @brief    ä½œä¸ºsub4çš„è¿›å…¥å›è°ƒå‡½æ•?,ç›?çš„æš‚å­˜è¿›å…¥å½“å‰ä»»åŠ¡çš„æ—¶é??
- * @param    item      å½“å‰èŠ‚ç‚¹ä¿¡æ¯ï¼Œç”¨æˆ·æ— éœ?äº†è§£
+ * @brief    ä½œä¸ºsub4çš„è¿›å…¥å›è°ƒå‡½ï¿½?,ï¿½?çš„æš‚å­˜è¿›å…¥å½“å‰ä»»åŠ¡çš„æ—¶ï¿½??
+ * @param    item      å½“å‰èŠ‚ç‚¹ä¿¡æ¯ï¼Œç”¨æˆ·æ— ï¿½?äº†è§£
  */
 void set_RTC_TEMP(menu_item_t* item)
 {
@@ -286,7 +287,7 @@ void set_RTC_TEMP(menu_item_t* item)
 }
 
 /**
- * @brief    ä½œä¸ºsub4_sub7çš„å›è°ƒå‡½æ•°ï¼Œç›?çš„æ˜¯å‘RTCå¤‡ä»½å¯„å­˜å™¨å†™å…¥å¹´æœˆæ—¥å’Œä¿®æ”¹æ—¶åˆ†ç??
+ * @brief    ä½œä¸ºsub4_sub7çš„å›è°ƒå‡½æ•°ï¼Œï¿½?çš„æ˜¯å‘RTCå¤‡ä»½å¯„å­˜å™¨å†™å…¥å¹´æœˆæ—¥å’Œä¿®æ”¹æ—¶åˆ†ï¿½??
  */
 void RTC_Set_Time()
 {
@@ -312,7 +313,7 @@ void RTC_Set_Time()
 }
 
 /**
- * @brief    ä½œä¸ºsub5_sub2çš„å›è°ƒå‡½æ•°ï¼Œç›?çš„æ˜¯å‘esp32å‘é?å½“å‰çš„ä¹˜å?¢æ•°é‡?
+ * @brief    ä½œä¸ºsub5_sub2çš„å›è°ƒå‡½æ•°ï¼Œï¿½?çš„æ˜¯å‘esp32å‘ï¿½?ï¿½å½“å‰çš„ä¹˜ï¿½?ï¿½æ•°ï¿½?
  */
 void Send_Passenger()
 {
@@ -327,7 +328,7 @@ void Send_Passenger()
 
 
 /**
- * @brief    ä½œä¸ºsub5_sub3çš„å›è°ƒå‡½æ•°ï¼Œç›?çš„æ˜¯å‘esp32å‘é?æ¸…ç©ºå½“å‰ä¹˜å®¢æ•°é‡æŒ‡ä»?
+ * @brief    ä½œä¸ºsub5_sub3çš„å›è°ƒå‡½æ•°ï¼Œï¿½?çš„æ˜¯å‘esp32å‘ï¿½?ï¿½æ¸…ç©ºå½“å‰ä¹˜å®¢æ•°é‡æŒ‡ï¿½?
  */
 void Send_Clear()
 {
@@ -342,7 +343,7 @@ void Send_Clear()
 }
 
 /**
- * @brief    ä½œä¸ºmain_displayèŠ‚ç‚¹çš„å›è°ƒå‡½æ•°ï¼Œç›?çš„æ˜¯ä½œä¸ºæ¸²æŸ“é¦–é¡µé?
+ * @brief    ä½œä¸ºmain_displayèŠ‚ç‚¹çš„å›è°ƒå‡½æ•°ï¼Œï¿½?çš„æ˜¯ä½œä¸ºæ¸²æŸ“é¦–é¡µï¿½?
  * @param    u8g2      u8g2å¥æŸ„,å›è°ƒå‡½æ•°å›ºå®šå‚æ•°
  * @param    menu_data èŠ‚ç‚¹æ•°æ®å¥æŸ„,å›è°ƒå‡½æ•°å›ºå®šå‚æ•°
  */
@@ -350,39 +351,39 @@ void main_display_cb(u8g2_t* u8g2, menu_data_t* menu_data)
 {
   
   char buf[32];
-  // 1. é¡¶éƒ¨å¤§æ—¶é—´æ˜¾ï¿???
+  // 1. é¡¶éƒ¨å¤§æ—¶é—´æ˜¾ï¿½???
   if (system_status_var == Runing)
   {
  u8g2_SetFont(u8g2, u8g2_font_9x15B_tf);
         
-        // ¶¥²¿×´Ì¬À¸
+        // ï¿½ï¿½ï¿½ï¿½×´Ì¬ï¿½ï¿½
         u8g2_DrawBox(u8g2, 0, 0, 128, 12);
         u8g2_SetDrawColor(u8g2, 0);
         u8g2_DrawStr(u8g2, 40, 13, "WEIGHING");
         u8g2_SetDrawColor(u8g2, 1);
         
-        // ÓÃ»§ĞÅÏ¢
+        // ï¿½Ã»ï¿½ï¿½ï¿½Ï¢
         u8g2_SetFont(u8g2, u8g2_font_9x15_tf);
         snprintf(buf, sizeof(buf), "%s", user_buf);
         u8g2_DrawStr(u8g2, 5, 28, buf);
         
-        // µ±Ç°ÖØÁ¿ - ´ó×ÖÌå
+        // ï¿½ï¿½Ç°ï¿½ï¿½ï¿½ï¿½ - ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         u8g2_SetFont(u8g2, u8g2_font_logisoso20_tn);
         snprintf(buf, sizeof(buf), "%.1f g", weight);
         uint8_t weight_width = u8g2_GetStrWidth(u8g2, buf);
         u8g2_DrawStr(u8g2, (128 - weight_width) / 2, 50, buf);
         
-        // ½ø¶ÈÌõ
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         float progress = (weight / target_weight) * 100.0f;
         if (progress > 100.0f) progress = 100.0f;
         
-        // ½ø¶ÈÌõ±³¾°
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         u8g2_DrawFrame(u8g2, 10, 55, 108, 8);
-        // ½ø¶ÈÌõÌî³ä
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         uint8_t bar_width = (uint8_t)((progress / 100.0f) * 106);
         u8g2_DrawBox(u8g2, 11, 56, bar_width, 6);
         
-        // ½ø¶È°Ù·Ö±È
+        // ï¿½ï¿½ï¿½È°Ù·Ö±ï¿½
         u8g2_SetFont(u8g2, u8g2_font_6x10_tf);
         snprintf(buf, sizeof(buf), "%.0f%%", progress);
         u8g2_DrawStr(u8g2, 120 - u8g2_GetStrWidth(u8g2, buf), 62, buf);
@@ -392,24 +393,24 @@ void main_display_cb(u8g2_t* u8g2, menu_data_t* menu_data)
 
         u8g2_SetFont(u8g2, u8g2_font_logisoso26_tn);
         
-        // Ê±¼ä - ´ó×ÖÌå¾ÓÖĞ
+        // Ê±ï¿½ï¿½ - ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         snprintf(buf, sizeof(buf), "%02d:%02d", sTime.Hours, sTime.Minutes);
         uint8_t time_width = u8g2_GetStrWidth(u8g2, buf);
         u8g2_DrawStr(u8g2, (128 - time_width) / 2, 30, buf);
         
-        // ÃëÊı - Ğ¡×ÖÌåÔÚÊ±¼äÓÒ²à
+        // ï¿½ï¿½ï¿½ï¿½ - Ğ¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½Ò²ï¿½
         u8g2_SetFont(u8g2, u8g2_font_6x10_tf);
         snprintf(buf, sizeof(buf), "%02d", sTime.Seconds);
         u8g2_DrawStr(u8g2, (128 - time_width) / 2 + time_width + 5, 30, buf);
         
-        // ÈÕÆÚ - ÖĞµÈ×ÖÌå
+        // ï¿½ï¿½ï¿½ï¿½ - ï¿½Ğµï¿½ï¿½ï¿½ï¿½ï¿½
         u8g2_SetFont(u8g2, u8g2_font_9x6LED_mn);
         snprintf(buf, sizeof(buf), "%04d-%02d-%02d", 
                 sDate.Year + 2000, sDate.Month, sDate.Date);
         uint8_t date_width = u8g2_GetStrWidth(u8g2, buf);
         u8g2_DrawStr(u8g2, (128 - date_width) / 2, 45, buf);
         
-        // µ×²¿ÌáÊ¾ĞÅÏ¢
+        // ï¿½×²ï¿½ï¿½ï¿½Ê¾ï¿½ï¿½Ï¢
         u8g2_SetFont(u8g2, u8g2_font_6x10_tf);
         u8g2_DrawStr(u8g2, 20, 62, "WAITING FOR USER");
 
@@ -419,17 +420,17 @@ void main_display_cb(u8g2_t* u8g2, menu_data_t* menu_data)
   {
         u8g2_SetFont(u8g2, u8g2_font_9x15B_tf);
         
-        // ¶¥²¿×´Ì¬À¸
+        // ï¿½ï¿½ï¿½ï¿½×´Ì¬ï¿½ï¿½
         u8g2_DrawBox(u8g2, 0, 0, 128, 20);
-        u8g2_SetDrawColor(u8g2, 0); // °×É«ÎÄ×Ö
+        u8g2_SetDrawColor(u8g2, 0); // ï¿½ï¿½É«ï¿½ï¿½ï¿½ï¿½
         snprintf(buf,sizeof(buf),"%s",user_buf);
         u8g2_DrawStr(u8g2, 5, 15, buf);
-        u8g2_SetDrawColor(u8g2, 1); // »Ö¸´ºÚÉ«
+        u8g2_SetDrawColor(u8g2, 1); // ï¿½Ö¸ï¿½ï¿½ï¿½É«
         
         snprintf(buf,sizeof(buf),"%s",String_Option[(uint8_t)current_medicine]);
         u8g2_DrawStr(u8g2, 5, 30, buf);
 
-        // ÖØÁ¿ĞÅÏ¢ - Í»³öÏÔÊ¾
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï¢ - Í»ï¿½ï¿½ï¿½ï¿½Ê¾
         u8g2_SetFont(u8g2, u8g2_font_9x15B_tf);
         snprintf(buf, sizeof(buf), "Please take it");
         uint8_t weight_width = u8g2_GetStrWidth(u8g2, buf);
@@ -438,11 +439,11 @@ void main_display_cb(u8g2_t* u8g2, menu_data_t* menu_data)
         snprintf(buf,sizeof(buf),"away...");
         weight_width = u8g2_GetStrWidth(u8g2,buf);
         u8g2_DrawStr(u8g2, (120 - weight_width) / 2, 60, buf);
-        // µ×²¿×´Ì¬Ö¸Ê¾
+        // ï¿½×²ï¿½×´Ì¬Ö¸Ê¾
   }
   
   
-  // 3. çŠ¶ï¿½?ï¿½å¡ï¿???
+  // 3. çŠ¶ï¿½?ï¿½å¡ï¿½???
 }
 
 void join_queue()
@@ -535,9 +536,9 @@ void U8g2_Task(void *argument)
 
 
 /**
- * @brief    UP°´¼üµÄ°´¼ü¼ì²âº¯Êı,ÓÃÓÚ°´¼ü¶ÔÏó»Øµ÷
- * @param    key       °´¼ü¶ÔÏó¾ä±ú,»Øµ÷º¯Êı¹Ì¶¨²ÎÊı
- * @return   uint8_t   °´¼ü×´Ì¬,Ö»ÓĞ0ºÍ1Á½¸ö²ÎÊı
+ * @brief    UPï¿½ï¿½ï¿½ï¿½ï¿½Ä°ï¿½ï¿½ï¿½ï¿½ï¿½âº¯ï¿½ï¿½,ï¿½ï¿½ï¿½Ú°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Øµï¿½
+ * @param    key       ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½,ï¿½Øµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì¶ï¿½ï¿½ï¿½ï¿½ï¿½
+ * @return   uint8_t   ï¿½ï¿½ï¿½ï¿½×´Ì¬,Ö»ï¿½ï¿½0ï¿½ï¿½1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
  */
 uint8_t Key_UP_ReadPin(MulitKey_t* key)
 {
@@ -545,9 +546,9 @@ uint8_t Key_UP_ReadPin(MulitKey_t* key)
 }	
 
 /**
- * @brief    DOWN°´¼üµÄ°´¼ü¼ì²âº¯Êı,ÓÃÓÚ°´¼ü¶ÔÏó»Øµ÷
- * @param    key       °´¼ü¶ÔÏó¾ä±ú,»Øµ÷º¯Êı¹Ì¶¨²ÎÊı
- * @return   uint8_t   °´¼ü×´Ì¬,Ö»ÓĞ0ºÍ1Á½¸ö²ÎÊı
+ * @brief    DOWNï¿½ï¿½ï¿½ï¿½ï¿½Ä°ï¿½ï¿½ï¿½ï¿½ï¿½âº¯ï¿½ï¿½,ï¿½ï¿½ï¿½Ú°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Øµï¿½
+ * @param    key       ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½,ï¿½Øµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì¶ï¿½ï¿½ï¿½ï¿½ï¿½
+ * @return   uint8_t   ï¿½ï¿½ï¿½ï¿½×´Ì¬,Ö»ï¿½ï¿½0ï¿½ï¿½1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
  */
 uint8_t Key_DOWN_ReadPin(MulitKey_t* key)
 {
@@ -555,9 +556,9 @@ uint8_t Key_DOWN_ReadPin(MulitKey_t* key)
 }
 
 /**
- * @brief    ENTER°´¼üµÄ°´¼ü¼ì²âº¯Êı,ÓÃÓÚ°´¼ü¶ÔÏó»Øµ÷
- * @param    key       °´¼ü¶ÔÏó¾ä±ú,»Øµ÷º¯Êı¹Ì¶¨²ÎÊı
- * @return   uint8_t   °´¼ü×´Ì¬,Ö»ÓĞ0ºÍ1Á½¸ö²ÎÊı
+ * @brief    ENTERï¿½ï¿½ï¿½ï¿½ï¿½Ä°ï¿½ï¿½ï¿½ï¿½ï¿½âº¯ï¿½ï¿½,ï¿½ï¿½ï¿½Ú°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Øµï¿½
+ * @param    key       ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½,ï¿½Øµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì¶ï¿½ï¿½ï¿½ï¿½ï¿½
+ * @return   uint8_t   ï¿½ï¿½ï¿½ï¿½×´Ì¬,Ö»ï¿½ï¿½0ï¿½ï¿½1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
  */
 uint8_t Key_ENTER_ReadPin(MulitKey_t* key)
 {
@@ -565,9 +566,9 @@ uint8_t Key_ENTER_ReadPin(MulitKey_t* key)
 }
  
 /**
- * @brief    CANCEL°´¼üµÄ°´¼ü¼ì²âº¯Êı,ÓÃÓÚ°´¼ü¶ÔÏó»Øµ÷
- * @param    key       °´¼ü¶ÔÏó¾ä±ú,»Øµ÷º¯Êı¹Ì¶¨²ÎÊı
- * @return   uint8_t   °´¼ü×´Ì¬,Ö»ÓĞ0ºÍ1Á½¸ö²ÎÊı
+ * @brief    CANCELï¿½ï¿½ï¿½ï¿½ï¿½Ä°ï¿½ï¿½ï¿½ï¿½ï¿½âº¯ï¿½ï¿½,ï¿½ï¿½ï¿½Ú°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Øµï¿½
+ * @param    key       ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½,ï¿½Øµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì¶ï¿½ï¿½ï¿½ï¿½ï¿½
+ * @return   uint8_t   ï¿½ï¿½ï¿½ï¿½×´Ì¬,Ö»ï¿½ï¿½0ï¿½ï¿½1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
  */
 uint8_t Key_CANCEL_ReadPin(MulitKey_t* key)
 {
@@ -575,9 +576,9 @@ uint8_t Key_CANCEL_ReadPin(MulitKey_t* key)
 }
 
 /**
- * @brief    UP¼ü´¥·¢»Øµ÷
- * @attention ×¢Òâ£¬¸Ãº¯ÊıÒÑ¾­±»µ¥°´ºÍ³¤°´Í¬Ê±µ÷ÓÃ
- * @param    key       °´¼ü¶ÔÏó¾ä±ú,»Øµ÷º¯Êı¹Ì¶¨²ÎÊı
+ * @brief    UPï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Øµï¿½
+ * @attention ×¢ï¿½â£¬ï¿½Ãºï¿½ï¿½ï¿½ï¿½Ñ¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í³ï¿½ï¿½ï¿½Í¬Ê±ï¿½ï¿½ï¿½ï¿½
+ * @param    key       ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½,ï¿½Øµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì¶ï¿½ï¿½ï¿½ï¿½ï¿½
  */
 void KEY_UP_Pressed(MulitKey_t* key)
 {
@@ -585,9 +586,9 @@ void KEY_UP_Pressed(MulitKey_t* key)
 }
 
 /**
- * @brief    DOWN¼ü´¥·¢»Øµ÷
- * @attention ×¢Òâ£¬¸Ãº¯ÊıÒÑ¾­±»µ¥°´ºÍ³¤°´Í¬Ê±µ÷ÓÃ
- * @param    key       °´¼ü¶ÔÏó¾ä±ú,»Øµ÷º¯Êı¹Ì¶¨²ÎÊı
+ * @brief    DOWNï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Øµï¿½
+ * @attention ×¢ï¿½â£¬ï¿½Ãºï¿½ï¿½ï¿½ï¿½Ñ¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í³ï¿½ï¿½ï¿½Í¬Ê±ï¿½ï¿½ï¿½ï¿½
+ * @param    key       ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½,ï¿½Øµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì¶ï¿½ï¿½ï¿½ï¿½ï¿½
  */
 void KEY_DOWN_Pressed(MulitKey_t* key)
 {
@@ -595,9 +596,9 @@ void KEY_DOWN_Pressed(MulitKey_t* key)
 }
 
 /**
- * @brief    ENTER¼ü´¥·¢»Øµ÷
- * @attention ×¢Òâ£¬¸Ãº¯ÊıÒÑ¾­±»µ¥°´ºÍ³¤°´Í¬Ê±µ÷ÓÃ
- * @param    key       °´¼ü¶ÔÏó¾ä±ú,»Øµ÷º¯Êı¹Ì¶¨²ÎÊı
+ * @brief    ENTERï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Øµï¿½
+ * @attention ×¢ï¿½â£¬ï¿½Ãºï¿½ï¿½ï¿½ï¿½Ñ¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í³ï¿½ï¿½ï¿½Í¬Ê±ï¿½ï¿½ï¿½ï¿½
+ * @param    key       ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½,ï¿½Øµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì¶ï¿½ï¿½ï¿½ï¿½ï¿½
  */
 void KEY_ENTER_Pressed(MulitKey_t* key)
 {
@@ -605,9 +606,9 @@ void KEY_ENTER_Pressed(MulitKey_t* key)
 }
 
 /**
- * @brief    CANCEL¼ü´¥·¢»Øµ÷
- * @attention ×¢Òâ£¬¸Ãº¯ÊıÒÑ¾­±»µ¥°´ºÍ³¤°´Í¬Ê±µ÷ÓÃ
- * @param    key       °´¼ü¶ÔÏó¾ä±ú,»Øµ÷º¯Êı¹Ì¶¨²ÎÊı
+ * @brief    CANCELï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Øµï¿½
+ * @attention ×¢ï¿½â£¬ï¿½Ãºï¿½ï¿½ï¿½ï¿½Ñ¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í³ï¿½ï¿½ï¿½Í¬Ê±ï¿½ï¿½ï¿½ï¿½
+ * @param    key       ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½,ï¿½Øµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì¶ï¿½ï¿½ï¿½ï¿½ï¿½
  */
 void KEY_CANCEL_Pressed(MulitKey_t* key)
 {
@@ -615,7 +616,7 @@ void KEY_CANCEL_Pressed(MulitKey_t* key)
 }
 
 /**
- * @brief    ¸Ãº¯ÊıÊÇÊÕµ½PASSENGERĞÅÏ¢µÄ»Øµ÷º¯Êı
+ * @brief    ï¿½Ãºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Õµï¿½PASSENGERï¿½ï¿½Ï¢ï¿½Ä»Øµï¿½ï¿½ï¿½ï¿½ï¿½
  * @param    value     function of param
  */
 void synchronized_passengers(uint8_t value)
@@ -670,37 +671,37 @@ void uart_task(void *argument)
     .Tailframe1 = 0x0D,
     .Tailframe2 = 0x0A
   }; 
-  uint8_t data[32] = {0};                                             // æš‚å­˜æ•°æ®å¸§çš„ç¼“å†²åŒ?
-  UartFrame* frame_buffer = Get_Uart_Frame_Buffer();                  // è·å¾—ç?å½¢ç¯å½¢ç¼“å†²åŒºçš„æŒ‡é’?
-  uint32_t flags;                                                     // äº‹ä»¶ç»?
-  uint8_t passenger_temp = 0;                                         // æš‚å­˜passengerçš„æ•°é‡çš„å˜é‡ï¼Œä¸€æ—¦ä¸å®é™…passengerä¸åŒï¼Œç«‹åˆ»å‘esp32å‘é?ä¿¡æ?
+  uint8_t data[32] = {0};                                             // æš‚å­˜æ•°æ®å¸§çš„ç¼“å†²ï¿½?
+  UartFrame* frame_buffer = Get_Uart_Frame_Buffer();                  // è·å¾—ï¿½?å½¢ç¯å½¢ç¼“å†²åŒºçš„æŒ‡ï¿½?
+  uint32_t flags;                                                     // äº‹ä»¶ï¿½?
+  uint8_t passenger_temp = 0;                                         // æš‚å­˜passengerçš„æ•°é‡çš„å˜é‡ï¼Œä¸€æ—¦ä¸å®é™…passengerä¸åŒï¼Œç«‹åˆ»å‘esp32å‘ï¿½?ï¿½ä¿¡ï¿½?
   LOG_INFO("UART_RX task has been init ...");
   set_PASSENGER_Callback(synchronized_passengers);
   /* Infinite loop */
   for(;;)
   {
     flags = osEventFlagsWait(UART_EVENTHandle,UART_RECEIVE_EVENT,osFlagsWaitAny,100);
-    if(flags & UART_RECEIVE_EVENT)                                    // äº‹ä»¶ç»„æ”¶åˆ°é?šçŸ¥ï¼Œç«‹åˆ»å?„ç†æ•°æ®å¸?
+    if(flags & UART_RECEIVE_EVENT)                                    // äº‹ä»¶ç»„æ”¶åˆ°ï¿½?ï¿½çŸ¥ï¼Œç«‹åˆ»ï¿½?ï¿½ç†æ•°æ®ï¿½?
     {
       LOG_INFO("data frame is has came ... , Size = %d",frame_buffer->Size);
-      memset(data,0,sizeof(data));                                    // é˜²æ?¢æœ‰æ®‹ç•™æ•°æ®å¸§ï¼Œæ¸…ç©ºç¼“å†²åŒ?
+      memset(data,0,sizeof(data));                                    // é˜²ï¿½?ï¿½æœ‰æ®‹ç•™æ•°æ®å¸§ï¼Œæ¸…ç©ºç¼“å†²ï¿½?
       uint16_t size = frame_buffer->Size;                             // è·å¾—è¯¥å¸§é•¿åº¦
-      Uart_Buffer_Get_frame(frame_buffer,data);                       // ä»ç¯å½¢ç¼“å†²åŒºæå–å‡ºå¸§æ•°æ®ï¼Œæ–¹ä¾¿å?„ç??
+      Uart_Buffer_Get_frame(frame_buffer,data);                       // ä»ç¯å½¢ç¼“å†²åŒºæå–å‡ºå¸§æ•°æ®ï¼Œæ–¹ä¾¿ï¿½?ï¿½ï¿½??
       Receive_Uart_Frame(UART_protocol_structure,data,size);          // å¤„ç†æ•°æ®
     }
     else
     {
-      if(passenger_temp != passenger_num)                             // ä¸?æ—¦ä¸å®é™…passengerä¸åŒï¼Œç«‹åˆ»å‘esp32å‘é?ä¿¡æ?
+      if(passenger_temp != passenger_num)                             // ï¿½?æ—¦ä¸å®é™…passengerä¸åŒï¼Œç«‹åˆ»å‘esp32å‘ï¿½?ï¿½ä¿¡ï¿½?
       {
         UART_Protocol_Passenger(UART_protocol_structure,passenger_num);
-        passenger_temp = passenger_num;                               // ä¿æŒåŒæ??
+        passenger_temp = passenger_num;                               // ä¿æŒåŒï¿½??
       }
-      // è¶…æ—¶ï¼Œæ??æŸ?OREæ ‡å¿—
-      if (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_ORE))                // OREå¼‚å¸¸ï¼Œéœ€è¦é©¬ä¸Šæ¢å¤ç¼“å†²åŒº,å¦åˆ™DMAä¼šç˜«ç—?
+      // è¶…æ—¶ï¼Œï¿½??ï¿½?OREæ ‡å¿—
+      if (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_ORE))                // OREå¼‚å¸¸ï¼Œéœ€è¦é©¬ä¸Šæ¢å¤ç¼“å†²åŒº,å¦åˆ™DMAä¼šç˜«ï¿½?
       {
           LOG_WARN("ORE detected in task, recovering...");
           __HAL_UART_CLEAR_OREFLAG(&huart1);
-          // é‡æ–°å?åŠ¨DMAæ¥æ”¶
+          // é‡æ–°ï¿½?åŠ¨DMAæ¥æ”¶
           HAL_UARTEx_ReceiveToIdle_DMA(&huart1, temp, sizeof(temp));
       }
     }
