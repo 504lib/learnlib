@@ -9,6 +9,7 @@ uint16_t sum1To100()
         }
         return sum;
     }
+    
 int main()
 {
     uint16_t result = sum1To100();
