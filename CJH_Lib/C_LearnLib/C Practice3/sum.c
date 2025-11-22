@@ -32,7 +32,7 @@ unsigned int sum_array(unsigned int* arr, unsigned int size)
         arr[j] = j + 1;
     }
     unsigned int all = 0;
-    for (unsigned k = 0; k < size; k++)
+    for (unsigned int k = 0; k < size; k++)
     {
         all += arr[k];
     }
