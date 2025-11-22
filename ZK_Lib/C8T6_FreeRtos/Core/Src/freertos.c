@@ -32,12 +32,13 @@
 #include "Log.h"
 #include "rtc.h"
 #define MENU_USE_CMSIS_OS2
-#include "../../shared/multikey/multikey.h"
+#include "multikey.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 #define SLAVE_MODE 1
+#define MENU_USE_CMSIS_OS2
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/

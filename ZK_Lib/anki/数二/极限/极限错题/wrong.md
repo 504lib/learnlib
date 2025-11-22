@@ -96,7 +96,7 @@ $$
 <!-- notecardId: 1761300765821 -->
 
 
-$\lim_{x\to 0}\frac{\sqrt{1 + \tan x} - \sqrt{1 + \sin x}}{x\sqrt{1 + \sin x} - x}$
+$\lim_{x\to 0}\frac{\sqrt{1 + \tan x} - \sqrt{1 + \sin x}}{x\sqrt{1 + \sin^2 x} - x}$
 
 %
 
@@ -110,7 +110,7 @@ $$
 
 $$
     \begin{split}
-        \lim_{x\to 0}\frac{\sqrt{1 + \tan x} - \sqrt{1 + \sin x}}{x\sqrt{1 + \sin x} - x} &= \lim_{x\to 0}\frac{(\sqrt{1 + \tan x} - \sqrt{1 + \sin x})\cdot (\sqrt{1 + \tan x} + \sqrt{1 + \sin x})}{(x\sqrt{1 + \sin^2 x} - x)\cdot (\sqrt{1 + \tan x} + \sqrt{1 + \sin x})}\\
+        \lim_{x\to 0}\frac{\sqrt{1 + \tan x} - \sqrt{1 + \sin^2 x}}{x\sqrt{1 + \sin x} - x} &= \lim_{x\to 0}\frac{(\sqrt{1 + \tan x} - \sqrt{1 + \sin x})\cdot (\sqrt{1 + \tan x} + \sqrt{1 + \sin x})}{(x\sqrt{1 + \sin^2 x} - x)\cdot (\sqrt{1 + \tan x} + \sqrt{1 + \sin x})}\\
         &= \lim_{x\to 0}\frac{1 + \tan x - 1 - \sin x}{x(\sqrt{1 + \sin^2 x } - 1)\cdot (\sqrt{1 + \tan x} + \sqrt{1 + \sin x})}\\
         &= \lim_{x\to 0}\frac{\sin x}{x} \cdot \lim_{x\to 0}\frac{\sec x - 1}{\sqrt{1 + \sin^2 x } - 1}\cdot \lim_{x\to 0}\frac{1}{\sqrt{1 + \tan x} + \sqrt{1 + \sin x}}\\
         &= 1 \cdot \lim_{x\to 0}\frac{(1 - \cos x)\cdot \frac{1}{\cos x}}{(1 + \sin^2 x)^{\frac{1}{2}} - 1} \cdot \frac{1}{2}\\
