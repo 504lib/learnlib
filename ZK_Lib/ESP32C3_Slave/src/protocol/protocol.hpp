@@ -1,13 +1,15 @@
 #pragma once
 
 #include <Arduino.h>
-enum class Rounter
-{
-    Route_1 = 0,
-    Route_2,
-    Route_3,
-    Ring_road
-};
+#include "../Vehicle/Vehicle.hpp"
+
+// enum class Rounter
+// {
+//     Route_1 = 0,
+//     Route_2,
+//     Route_3,
+//     Ring_road
+// };
 
 enum class CmdType 
 { 
@@ -18,12 +20,12 @@ enum class CmdType
     CLEAR,
     VEHICLE_STATUS
 };
-enum class VehicleStatus 
-{
-  WAITING,     // 候车中
-  ARRIVING,     // 即将进站
-  LEAVING      // 离站
-};
+// enum class VehicleStatus 
+// {
+//   WAITING,     // 候车中
+//   ARRIVING,     // 即将进站
+//   LEAVING      // 离站
+// };
 typedef void (*IntCallback)(int32_t value);
 typedef void (*FloatCallback)(float value);
 typedef void (*AckCallback)(void);

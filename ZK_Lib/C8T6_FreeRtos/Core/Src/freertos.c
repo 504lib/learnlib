@@ -354,7 +354,7 @@ void Waitting_Signal_cb()
 {
   Ack_Queue_t ack_queue_t = {
     .type = VEHICLE_STATUS,
-    .value.status_value = WAITING,
+    .value.status_value = STATUS_WAITING,
   };
   osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
 }
@@ -364,7 +364,7 @@ void Leaving_Signal_cb()
 {
   Ack_Queue_t ack_queue_t = {
     .type = VEHICLE_STATUS,
-    .value.status_value = LEAVING,
+    .value.status_value = STATUS_LEAVING,
   };
   osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
 }

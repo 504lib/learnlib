@@ -37,11 +37,18 @@ typedef enum
     Route_3,
     Ring_road
 }Rounter;
-typedef enum  
-{
-  WAITING,     // 候车中
-  ARRIVING,     // 即将进站
-  LEAVING      // 离站
+
+typedef enum 
+{ 
+    STATUS_SCANNING,
+    STATUS_IDLE,
+    STATUS_GROPE,
+    STATUS_CONNECTING,
+    STATUS_CONNECTED,
+    STAUS_DISCONNECTED,
+    STATUS_WAITING,
+    STATUS_ARRIVING,
+    STATUS_LEAVING
 }VehicleStatus;
 
 typedef struct
