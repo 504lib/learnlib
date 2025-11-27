@@ -854,6 +854,15 @@ void setup()
     xTaskCreate(Serial_Task,"serial_task",1024,NULL,2,NULL);
     xTaskCreate(ACK_Task,"ack_task",2048,NULL,2,NULL); 
     xTaskCreate(Bus_scheduler_Task,"bus_schedulet_task",8192,NULL,2,NULL); 
+
+    network_client.startWiFiAP(String(ssid),String(password));
+    network_client.addWebRoute("/",[](AsyncWebServerRequest *request){
+        request->send(200, "text/plain", "Hello, this is vehicle AP!");
+    });
+    network_client.addWebRoute("/api/info",[&](AsyncWebServerRequest *request){
+        request->send(200, "application/json", station_repo.Get_StationList_JSON());
+    });
+    network_client.beginWebServer();
 }
 
 void loop() 

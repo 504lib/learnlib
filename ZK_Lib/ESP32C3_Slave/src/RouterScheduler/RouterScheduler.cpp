@@ -178,7 +178,12 @@ void RouterScheduler::RouterScheduler_Executer()
     {
         case VehicleStatus::STATUS_SCANNING:
         {
-            network_client.startWiFiScan();
+            if (!network_client.isWiFiscanning())
+            {
+                Serial.println("RouterScheduler: 开始扫描 WiFi 网络...");
+                network_client.startWiFiScan();
+                return;
+            }
             bool isReady = network_client.checkWiFiScan();
             if (!isReady)
             {

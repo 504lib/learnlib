@@ -52,6 +52,26 @@ bool NetworkClient::ensureWiFiConnected(const char* ssid, const char* password)
 }
 
 
+bool NetworkClient::startWiFiAP(String ssid, String password,String ip)
+{
+    IPAddress locale_ip;
+    locale_ip.fromString(ip);
+
+    WiFi.softAPConfig(locale_ip, locale_ip, IPAddress(255, 255, 255, 0));
+    return WiFi.softAP(ssid, password);
+}
+
+void NetworkClient::addWebRoute(const String& path, ArRequestHandlerFunction handler) {
+    server.on(path.c_str(), HTTP_GET, handler);
+}
+
+void NetworkClient::beginWebServer() {
+    server.begin();
+    Serial.println("Web server started!");
+}
+
+
+
 int8_t NetworkClient::RSSI_intesify(String ssid)
 {
     int scasnResults = WiFi.scanComplete();
@@ -104,3 +124,8 @@ bool NetworkClient::checkWiFiScan()
         return true; // 返回扫描到的 WiFi 网络数量
 }
 
+
+bool NetworkClient::isWiFiscanning()
+{
+    return isScanning;
+}

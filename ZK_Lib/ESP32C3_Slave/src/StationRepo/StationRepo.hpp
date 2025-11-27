@@ -12,6 +12,7 @@
 
 #include "Station/Station.hpp"
 #include <Arduino.h>
+#include <ArduinoJson.h>
 
 /**
  * @brief    站点最大数量
@@ -61,4 +62,5 @@ public:
     void Print_Station_List(HardwareSerial Serial);
     void Clear_Station_List();
     void Reset_Processing_Status();
+    String Get_StationList_JSON();
 };

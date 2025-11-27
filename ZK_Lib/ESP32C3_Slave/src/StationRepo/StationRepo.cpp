@@ -375,6 +375,28 @@ void StationRepo::Reset_Processing_Status()
     }
 }
 
+String StationRepo::Get_StationList_JSON()
+{
+    JsonDocument doc;
+    doc["target_station"] = Get_Current_Station();
+    doc["current_sta_status"] = Is_Current_Processed() ? "true" : "false";
+    JsonArray stationArray = doc["station_list"].to<JsonArray>();
+    for (uint8_t i = 0; i < this->used_num; i++)
+    {
+        JsonObject stationObj = stationArray.add<JsonObject>();
+        stationObj["name"] = this->station_list[i].name;
+        stationObj["name_ch"] = this->station_list[i].name_ch;
+        stationObj["ssid"] = this->station_list[i].ssid;
+        stationObj["ip"] = this->station_list[i].ip;
+        stationObj["isProcessed"] = this->station_list[i].isProcessed ? "true" : "false";
+    }
+    String jsonString;
+    serializeJson(doc, jsonString);
+    return jsonString;
+}
+
+
+
 Station_t& StationRepo::Get_Index_Station(uint8_t index)
 {
     if (index >= used_num) 
