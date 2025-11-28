@@ -23,9 +23,9 @@
 class StationRepo
 {
 private:
-    Station_t station_list[N];                  // 站点链表
-    uint8_t used_num = 0;                       // 已使用站点数量
-    uint8_t current_index = 0;                  // 当前站点索引
+    Station_t station_list[N];                          // 站点链表
+    uint8_t used_num = 0;                               // 已使用站点数量
+    uint8_t current_index = 0;                          // 当前站点索引
     int8_t find_Station(const String& target_name);     // 查找站点索引
 public:
     StationRepo() = default;
@@ -59,8 +59,8 @@ public:
     bool Mark_Current_Processed();
     bool Is_Current_Processed();
     bool Change_Station_Password(uint8_t index, String new_password);
-    void Print_Station_List(HardwareSerial Serial);
+    void Print_Station_List(HardwareSerial &Serial);
     void Clear_Station_List();
     void Reset_Processing_Status();
     String Get_StationList_JSON();
-};
+}; // end of class StationRepo

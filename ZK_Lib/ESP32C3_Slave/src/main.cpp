@@ -857,7 +857,113 @@ void setup()
 
     network_client.startWiFiAP(String(ssid),String(password));
     network_client.addWebRoute("/",[](AsyncWebServerRequest *request){
-        request->send(200, "text/plain", "Hello, this is vehicle AP!");
+      String html = R"rawliteral(
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>Station List</title>
+              <style>
+                  body {
+                      font-family: Arial, sans-serif;
+                      text-align: center;
+                      margin: 0;
+                      padding: 0;
+                      background-color: #f9f9f9;
+                  }
+                  h1 {
+                      margin: 20px 0;
+                  }
+                  table {
+                      margin: 20px auto;
+                      border-collapse: collapse;
+                      width: 90%;
+                      max-width: 1200px;
+                      background-color: #fff;
+                      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+                  }
+                  th, td {
+                      border: 1px solid #ddd;
+                      padding: 10px;
+                      text-align: center;
+                  }
+                  th {
+                      background-color: #f2f2f2;
+                      font-weight: bold;
+                  }
+                  tr:nth-child(even) {
+                      background-color: #f9f9f9;
+                  }
+                  tr:hover {
+                      background-color: #f1f1f1;
+                  }
+                  .status-true {
+                      color: green;
+                      font-weight: bold;
+                  }
+                  .status-false {
+                      color: red;
+                      font-weight: bold;
+                  }
+              </style>
+          </head>
+          <body>
+              <h1>Station List</h1>
+              <table>
+                  <thead>
+                      <tr>
+                          <th>Name</th>
+                          <th>Chinese Name</th>
+                          <th>SSID</th>
+                          <th>IP</th>
+                          <th>Processed</th>
+                          <th>Connected</th>
+                      </tr>
+                  </thead>
+                  <tbody id="stationTable">
+                      <!-- Dynamic content will be inserted here -->
+                  </tbody>
+              </table>
+              <script>
+                  // Function to fetch data from /api/info and update the table
+                  async function fetchStationData() {
+                      try {
+                          const response = await fetch('/api/info');
+                          const data = await response.json();
+                          const table = document.getElementById('stationTable');
+                          table.innerHTML = ''; // Clear existing table rows
+
+                          // Populate table with station data
+                          data.station_list.forEach(station => {
+                              const row = document.createElement('tr');
+                              row.innerHTML = `
+                                  <td>${station.name}</td>
+                                  <td>${station.name_ch}</td>
+                                  <td>${station.ssid}</td>
+                                  <td>${station.ip}</td>
+                                  <td class="${station.isProcessed === 'true' ? 'status-true' : 'status-false'}">
+                                      ${station.isProcessed === 'true' ? 'Yes' : 'No'}
+                                  </td>
+                                  <td class="${station.isConnected === 'true' ? 'status-true' : 'status-false'}">
+                                      ${station.isConnected === 'true' ? 'Yes' : 'No'}
+                                  </td>
+                              `;
+                              table.appendChild(row);
+                          });
+                      } catch (error) {
+                          console.error('Error fetching station data:', error);
+                      }
+                  }
+
+                  // Fetch data every 2 seconds
+                  setInterval(fetchStationData, 2000);
+
+                  // Initial fetch
+                  fetchStationData();
+              </script>
+          </body>
+          </html>
+        )rawliteral";
+        request->send(200, "text/plain", html);
     });
     network_client.addWebRoute("/api/info",[&](AsyncWebServerRequest *request){
         request->send(200, "application/json", station_repo.Get_StationList_JSON());

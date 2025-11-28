@@ -1,12 +1,23 @@
 #include "NetworkClient.hpp"
 
-
+/**
+ * @brief    异步开始WiFi扫描
+ * 
+ */
 void NetworkClient::startWiFiScan()
 {
-    WiFi.scanNetworks();
+    WiFi.scanNetworks(true);
     isScanning = true;
 }
 
+/**
+ * @brief    发送HTTP GET请求并解析JSON响应
+ * 
+ * @param    url       目标URL字符串
+ * @param    response  用于存储解析后的JSON响应的JsonDocument引用
+ * @return   true      Json解析成功
+ * @return   false     Json解析失败
+ */
 bool NetworkClient::sendGetRequest(const String& url, JsonDocument& response) 
 {
     HTTPClient http;
@@ -23,6 +34,14 @@ bool NetworkClient::sendGetRequest(const String& url, JsonDocument& response)
     return (!error);
 }
 
+/**
+ * @brief    发送HTTP POST请求
+ * 
+ * @param    url       目标URL字符串
+ * @param    payload   POST请求的负载字符串
+ * @return   true      POST请求成功
+ * @return   false     POST请求失败
+ */
 bool NetworkClient::sendPostRequest(const String& url, const String& payload) 
 {
     HTTPClient http;
@@ -33,6 +52,14 @@ bool NetworkClient::sendPostRequest(const String& url, const String& payload)
     return (httpCode == 200);
 }
 
+/**
+ * @brief    WiFi连接和重连确保函数
+ * 
+ * @param    ssid      目标WiFi SSID字符串
+ * @param    password  目标WiFi密码字符串
+ * @return   true      WiFi已连接
+ * @return   false     WiFi连接失败
+ */
 bool NetworkClient::ensureWiFiConnected(const char* ssid, const char* password) 
 {
     if (WiFi.status() == WL_CONNECTED) 
@@ -51,7 +78,15 @@ bool NetworkClient::ensureWiFiConnected(const char* ssid, const char* password)
     return false;
 }
 
-
+/**
+ * @brief    开始WiFi热点模式
+ * 
+ * @param    ssid      AP的SSID名称
+ * @param    password  AP的密码
+ * @param    ip        AP的IP地址，默认为 "http://
+ * @return   true      AP启动成功
+ * @return   false     AP启动失败
+ */
 bool NetworkClient::startWiFiAP(String ssid, String password,String ip)
 {
     IPAddress locale_ip;
@@ -61,17 +96,32 @@ bool NetworkClient::startWiFiAP(String ssid, String password,String ip)
     return WiFi.softAP(ssid, password);
 }
 
+/**
+ * @brief    添加Web服务器路由
+ * 
+ * @param    path      路由路径字符串
+ * @param    handler   路由处理函数
+ */
 void NetworkClient::addWebRoute(const String& path, ArRequestHandlerFunction handler) {
     server.on(path.c_str(), HTTP_GET, handler);
 }
 
+/**
+ * @brief    启动Web服务器
+ * 
+ */
 void NetworkClient::beginWebServer() {
     server.begin();
     Serial.println("Web server started!");
 }
 
 
-
+/**
+ * @brief    获取指定SSID的信号强度
+ * 
+ * @param    ssid      目标SSID字符串
+ * @return   int8_t    信号强度值，单位dBm，范围通常为-100到0，-100表示极弱信号，0表示极强信号
+ */
 int8_t NetworkClient::RSSI_intesify(String ssid)
 {
     int scasnResults = WiFi.scanComplete();
@@ -96,12 +146,23 @@ int8_t NetworkClient::RSSI_intesify(String ssid)
     return found ? bestRSSI : -1;
 }
 
-
+/**
+ * @brief    获取扫描到的最大SSID数量
+ * 
+ * @return   uint8_t   最大SSID数量
+ */
 uint8_t NetworkClient::getMaxSSIDNum()
 {
     return Max_SSID_NUM;
 }
 
+
+/**
+ * @brief    扫描状态检查函数
+ * 
+ * @return   true      扫描完成,并更新Max_SSID_NUM
+ * @return   false     扫描未完成或失败
+ */
 bool NetworkClient::checkWiFiScan() 
 {
         if (!isScanning) 
@@ -124,7 +185,12 @@ bool NetworkClient::checkWiFiScan()
         return true; // 返回扫描到的 WiFi 网络数量
 }
 
-
+/**
+ * @brief    获取当前WiFi扫描状态
+ * 
+ * @return   true      WiFi正在扫描
+ * @return   false     WiFi未在扫描
+ */
 bool NetworkClient::isWiFiscanning()
 {
     return isScanning;

@@ -1,6 +1,22 @@
+/**
+ * @file RouterScheduler.cpp
+ * @author whyP762 (3046961251@qq.com)
+ * @brief    路线调度器类实现文件
+ * @version 0.1
+ * @date 2025-11-28
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
 #include "RouterScheduler.hpp"
 
-
+/**
+ * @brief    连接到指定站点
+ * 
+ * @param    index     目标站点索引
+ * @return   true      
+ * @return   false     function of param
+ */
 bool RouterScheduler::Connect_To_Station(uint8_t index)
 {
     if(index >= station_repo.Get_Station_Count()) return false;

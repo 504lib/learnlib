@@ -1,3 +1,14 @@
+/**
+ * @file StationRepo.cpp
+ * @author whyP762 (3046961251@qq.com)
+ * @brief    StationRepo类的实现文件
+ * @version 0.1
+ * @date 2025-11-28
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
+
 #include "StationRepo.hpp"
 
 /**
@@ -54,7 +65,11 @@ int8_t StationRepo::find_Station(const String& target_name)
 }
 
 
-
+/**
+ * @brief    获得当前目标站点索引
+ * 
+ * @return   uint8_t   当前站点索引
+ */
 uint8_t StationRepo::Get_Current_Index()
 {
     return this->current_index;
@@ -340,7 +355,7 @@ bool StationRepo::Change_Station_Password(uint8_t index, String new_password)
  * 
  * @param    Serial    Arduino硬件串口对象
  */
-void StationRepo::Print_Station_List(HardwareSerial Serial)
+void StationRepo::Print_Station_List(HardwareSerial& Serial)
 {
     Serial.println("当前站点列表:");
     for (uint8_t i = 0; i < this->used_num; i++)
@@ -375,6 +390,26 @@ void StationRepo::Reset_Processing_Status()
     }
 }
 
+/**
+ * @brief    返回站点列表的JSON表示
+ * 
+ * @return   String    Json字符串
+ * @details  返回的JSON格式如下：
+ * {
+ *   "target_station": "当前站点名称",
+ *   "current_sta_status": "true"或"false",
+ *   "station_list": [
+ *     {
+ *       "name": "站点名称",
+ *       "name_ch": "站点中文名称",
+ *      "ssid": "站点SSID",
+ *      "ip": "站点IP地址",
+ *      "isProcessed": "true"或"false"
+ *    },
+ *   ...
+ *  ]
+ * }
+ */
 String StationRepo::Get_StationList_JSON()
 {
     JsonDocument doc;
@@ -396,7 +431,12 @@ String StationRepo::Get_StationList_JSON()
 }
 
 
-
+/**
+ * @brief    获取指定索引的站点信息引用
+ * 
+ * @param    index          目标站点索引
+ * @return   Station_t&     站点信息引用，索引无效时返回静态无效对象引用
+ */
 Station_t& StationRepo::Get_Index_Station(uint8_t index)
 {
     if (index >= used_num) 
@@ -408,6 +448,14 @@ Station_t& StationRepo::Get_Index_Station(uint8_t index)
     return station_list[index];
 }
 
+
+/**
+ * @brief    获得指定索引站点名称(中文或英文)
+ * 
+ * @param    index          目标站点索引
+ * @param    is_chinese     是否返回中文名称，默认为false（英文名称）
+ * @return   String         站点名称，索引无效时返回空字符串
+ */
 String StationRepo::Get_Index_Station_Name(uint8_t index,bool is_chinese)
 {
     if (index >= used_num)
@@ -424,6 +472,13 @@ String StationRepo::Get_Index_Station_Name(uint8_t index,bool is_chinese)
         return this->station_list[index].name;
     }
 }
+
+/**
+ * @brief    获得指定索引站点SSID
+ * 
+ * @param    index     目标站点索引
+ * @return   String    站点SSID，索引无效时返回空字符串
+ */
 String StationRepo::Get_Index_Station_SSID(uint8_t index)
 {
     if (index >= used_num)
@@ -431,8 +486,14 @@ String StationRepo::Get_Index_Station_SSID(uint8_t index)
         return String("");
     }
     return this->station_list[index].ssid;
-    
 }
+
+/**
+ * @brief    获得指定索引站点密码
+ * 
+ * @param    index     目标站点索引
+ * @return   String    站点密码，索引无效时返回空字符串
+ */
 String StationRepo::Get_Index_Station_Password(uint8_t index)
 {
     if (index >= used_num)
@@ -441,6 +502,13 @@ String StationRepo::Get_Index_Station_Password(uint8_t index)
     }
     return this->station_list[index].password;
 }
+
+/**
+ * @brief    获得指定索引站点IP地址
+ * 
+ * @param    index     目标站点索引
+ * @return   String    站点IP地址，索引无效时返回空字符串
+ */
 String StationRepo::Get_Index_Station_IP(uint8_t index)
 {
     if (index >= used_num)
@@ -449,6 +517,13 @@ String StationRepo::Get_Index_Station_IP(uint8_t index)
     }
     return this->station_list[index].ip;
 }
+
+/**
+ * @brief    获得指定索引站点上次连接的RSSI值
+ * 
+ * @param    index     目标站点索引
+ * @return   int8_t    站点上次连接的RSSI值，索引无效时返回-100
+ */
 int8_t StationRepo::Get_Index_Station_LastRSSI(uint8_t index)
 {
     if (index >= used_num)
@@ -457,6 +532,13 @@ int8_t StationRepo::Get_Index_Station_LastRSSI(uint8_t index)
     }
     return this->station_list[index].lastRSSI;
 }
+
+/**
+ * @brief    获得指定索引站点上次访问时间戳
+ * 
+ * @param    index     目标站点索引
+ * @return   uint32_t  站点上次访问时间戳，索引无效时返回0
+ */
 uint32_t StationRepo::Get_Index_Station_LastVisitTime(uint8_t index)
 {
     if (index >= used_num)
@@ -465,6 +547,13 @@ uint32_t StationRepo::Get_Index_Station_LastVisitTime(uint8_t index)
     }
     return this->station_list[index].lastVisitTime;
 }
+
+/**
+ * @brief    获得指定索引站点访问次数
+ * 
+ * @param    index     目标站点索引
+ * @return   int       站点访问次数，索引无效时返回0
+ */
 int StationRepo::Get_Index_Station_VisitCount(uint8_t index)
 {
     if (index >= used_num)
@@ -473,6 +562,14 @@ int StationRepo::Get_Index_Station_VisitCount(uint8_t index)
     }
     return this->station_list[index].visitCount;
 }
+
+/**
+ * @brief    判断指定索引站点是否已处理
+ * 
+ * @param    index     目标站点索引
+ * @return   true      已处理
+ * @return   false     未处理
+ */
 bool StationRepo::is_Processed(uint8_t index)
 {
     if (index >= used_num)
@@ -481,6 +578,14 @@ bool StationRepo::is_Processed(uint8_t index)
     }
     return this->station_list[index].isProcessed;
 }
+
+/**
+ * @brief    判断指定索引站点是否已连接
+ * 
+ * @param    index     目标站点索引
+ * @return   true      已连接
+ * @return   false     未连接
+ */
 bool StationRepo::is_Connected(uint8_t index)
 {
     if (index >= used_num)

@@ -1,5 +1,15 @@
 #pragma once
 
+/**
+ * @file RouterScheduler.hpp
+ * @author whyP762 (3046961251@qq.com)
+ * @brief    路线调度器类定义头文件
+ * @version 0.1
+ * @date 2025-11-28
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
 #include <Arduino.h>
 #include "../Station/Station.hpp"
 #include "../NetworkClient/NetworkClient.hpp"

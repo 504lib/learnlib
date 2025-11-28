@@ -1259,7 +1259,7 @@ void setup()
                 setupModalControls();
                 
                 // 每3秒更新一次数据
-                setInterval(updatePageData, 3000);
+                setInterval(updatePageData, 1000);
             });
         </script>
     </body>
