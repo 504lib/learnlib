@@ -288,15 +288,18 @@ void RouterScheduler::RouterScheduler_Executer()
             station.isProcessed = true;
             station_repo.Move_To_Next_Station();    
             bool isPosted = sendSinglePost(station_repo.Get_Current_Index());
-            if (isPosted)
+            for (size_t i = 0; i < 5 && !isPosted; i++)
             {
-                vehicle_info.Update_Vehicle_Status(VehicleStatus::STATUS_SCANNING);
+                Serial.printf("RouterScheduler: 正在发送离开状态报告，尝试次数 %d\n", i + 1);
+                isPosted = sendSinglePost(station_repo.Get_Current_Index());
+                if (isPosted)
+                {
+                    Serial.println("RouterScheduler: 离开状态报告发送成功");
+                    break;
+                } 
+                delay(100);
             }
-            else
-            {
-                Serial.println("RouterScheduler: 离开状态报告发送失败，中断连接");
-                vehicle_info.Update_Vehicle_Status(VehicleStatus::STAUS_DISCONNECTED);
-            }
+            vehicle_info.Update_Vehicle_Status(VehicleStatus::STAUS_DISCONNECTED);
             break;
         }
         case VehicleStatus::STATUS_IDLE:
