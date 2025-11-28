@@ -91,3 +91,14 @@ bool Vehicle_Info::Update_Vehicle_Status(VehicleStatus new_status)
     }
     return false;
 }
+
+String Vehicle_Info::Vehiicle_Json()
+{
+    JsonDocument doc;
+    doc["Plate"] = this->vehicle.Plate;
+    doc["Router"] = static_cast<int>(this->vehicle.currentRoute);
+    doc["Status"] = Get_Status_Str(this->vehicle.status);
+    String json_str;
+    serializeJson(doc, json_str);
+    return json_str;
+}

@@ -30,7 +30,7 @@ public:
     void startWiFiScan();                   
     bool checkWiFiScan();
     bool isWiFiscanning();
-    bool startWiFiAP(String ssid, String password,String ip = "http://192.168.4.1");
+    bool startWiFiAP(String ssid, String password,String ip = "http://192.168.5.1");
     int8_t RSSI_intesify(String ssid);
     uint8_t getMaxSSIDNum();
     bool sendGetRequest(const String& url, JsonDocument& response); 

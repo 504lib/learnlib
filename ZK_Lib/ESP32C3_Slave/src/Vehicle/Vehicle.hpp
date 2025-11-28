@@ -11,6 +11,8 @@
  * 
  */
 #include <Arduino.h>
+#include <ArduinoJson.h>
+
 
 enum class Rounter
 {
@@ -61,4 +63,5 @@ class Vehicle_Info
         String Get_Status_Str(Vehicle_t vehicle);
         String Get_Status_Str(VehicleStatus status);
         bool Update_Vehicle_Status(VehicleStatus new_status);
+        String Vehiicle_Json();
 };

@@ -206,7 +206,8 @@ void RouterScheduler::RouterScheduler_Executer()
                 Serial.println("RouterScheduler: 仍在扫描WiFi...");
                 return;
             }
-            vehicle_info.Update_Vehicle_Status(VehicleStatus::STATUS_GROPE);
+            Serial.println("RouterScheduler: WiFi 扫描完成，寻找合适的站点...");
+            vehicle_info.Update_Vehicle_Status(VehicleStatus::STATUS_GROPE); // 切换到下一个状态
             break;
         }
         case VehicleStatus::STATUS_GROPE:
@@ -246,6 +247,7 @@ void RouterScheduler::RouterScheduler_Executer()
         {
             Station_t& station = station_repo.Get_Index_Station(station_repo.Get_Current_Index());
             station.isConnnectd = false;
+            WiFi.disconnect();
             Serial.println("RouterScheduler: WiFi 已断开，重新扫描");
             vehicle_info.Update_Vehicle_Status(VehicleStatus::STATUS_SCANNING);
             break;
@@ -305,4 +307,44 @@ void RouterScheduler::RouterScheduler_Executer()
     default:
         break;
     }
+}
+
+/**
+ * @brief    获取路线调度信息的 JSON 表示
+ * @details  返回的 JSON 格式如下：
+ * {
+ *   "station_repo": {  // 站点仓库信息
+ *     ...  // 站点仓库的 JSON 表示
+ *   },
+ *   "vehicle_info": {  // 车辆信息
+ *     ...  // 车辆信息的 JSON 表示
+ *   }
+ * }
+ * @return   String    包含路线调度信息的 JSON 字符串
+ */
+String RouterScheduler::Get_RouterInfo_JSON() {
+    // 定义 JSON 文档
+    JsonDocument doc;       // 创建容量为 2048 的 JsonDocument
+    JsonDocument stationdoc; // 创建容量为 1024 的 JsonDocument
+    JsonDocument vehicledoc;  // 创建容量为 512 的 JsonDocument
+    // 解析站点仓库的 JSON 数据
+    DeserializationError err = deserializeJson(stationdoc, station_repo.Get_StationList_JSON());
+    if (err) {
+        Serial.printf("RouterScheduler::Get_RouterInfo_JSON 解析站点仓库 JSON 失败: %s\n", err.c_str());
+        return "{\"error\":\"Failed to parse station_repo JSON\"}";
+    }
+    doc["station_repo"] = stationdoc.as<JsonObject>();
+
+    // 解析车辆信息的 JSON 数据
+    err = deserializeJson(vehicledoc, vehicle_info.Vehiicle_Json());
+    if (err) {
+        Serial.printf("RouterScheduler::Get_RouterInfo_JSON 解析车辆信息 JSON 失败: %s\n", err.c_str());
+        return "{\"error\":\"Failed to parse vehicle_info JSON\"}";
+    }
+    doc["vehicle_info"] = vehicledoc.as<JsonObject>();
+
+    // 序列化为 JSON 字符串
+    String jsonStr;
+    serializeJson(doc, jsonStr);
+    return jsonStr;
 }

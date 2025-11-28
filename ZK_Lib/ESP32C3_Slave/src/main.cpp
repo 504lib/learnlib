@@ -966,7 +966,7 @@ void setup()
         request->send(200, "text/plain", html);
     });
     network_client.addWebRoute("/api/info",[&](AsyncWebServerRequest *request){
-        request->send(200, "application/json", station_repo.Get_StationList_JSON());
+        request->send(200, "application/json", router_scheduler.Get_RouterInfo_JSON());
     });
     network_client.beginWebServer();
 }

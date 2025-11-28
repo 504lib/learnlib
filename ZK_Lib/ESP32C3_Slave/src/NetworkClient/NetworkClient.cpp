@@ -6,8 +6,25 @@
  */
 void NetworkClient::startWiFiScan()
 {
-    WiFi.scanNetworks(true);
-    isScanning = true;
+    if (WiFi.status() != WL_DISCONNECTED && WiFi.status() != WL_IDLE_STATUS) 
+    {
+        Serial.printf("NetworkClient: WiFi 模块未处于空闲状态，无法开始扫描,状态为:%d\n",WiFi.status());
+        return;
+    }
+
+    Serial.printf("NetworkClient: 可用内存: %d bytes\n", ESP.getFreeHeap());
+
+    int result = WiFi.scanNetworks(true); // 异步扫描
+    if (result == WIFI_SCAN_FAILED) 
+    {
+        Serial.println("NetworkClient: WiFi 扫描启动失败");
+        isScanning = false;
+    } 
+    else 
+    {
+        isScanning = true;
+        Serial.println("NetworkClient: WiFi 扫描已启动");
+    }
 }
 
 /**
@@ -89,11 +106,22 @@ bool NetworkClient::ensureWiFiConnected(const char* ssid, const char* password)
  */
 bool NetworkClient::startWiFiAP(String ssid, String password,String ip)
 {
-    IPAddress locale_ip;
-    locale_ip.fromString(ip);
+    IPAddress local_ip(192, 168, 5, 1); // 更改为其他子网
+    IPAddress gateway = local_ip;
+    IPAddress subnet(255, 255, 255, 0);
 
-    WiFi.softAPConfig(locale_ip, locale_ip, IPAddress(255, 255, 255, 0));
-    return WiFi.softAP(ssid, password);
+    WiFi.mode(WIFI_AP_STA); // 设置为双模式
+    WiFi.softAPConfig(local_ip, gateway, subnet); // 配置 AP 的 IP 地址
+    bool result = WiFi.softAP(ssid.c_str(), password.c_str());
+    if (result) 
+    {
+        Serial.println("NetworkClient: AP 模式启动成功");
+    } 
+    else 
+    {
+        Serial.println("NetworkClient: AP 模式启动失败");
+    }
+    return result;
 }
 
 /**
@@ -165,24 +193,26 @@ uint8_t NetworkClient::getMaxSSIDNum()
  */
 bool NetworkClient::checkWiFiScan() 
 {
-        if (!isScanning) 
-        {
-            return false; // 未触发扫描
-        }
+    if (!isScanning) 
+    {
+        return false; // 未触发扫描
+    }
 
-        int scanResults = WiFi.scanComplete();
-        if (scanResults == WIFI_SCAN_RUNNING) 
-        {
-            return false; // 扫描仍在进行中
-        } 
-        else if (scanResults == WIFI_SCAN_FAILED) 
-        {
-            isScanning = false;
-            return false; // 扫描失败
-        }
-        Max_SSID_NUM = scanResults;
-        isScanning = false; // 扫描完成
-        return true; // 返回扫描到的 WiFi 网络数量
+    int scanResults = WiFi.scanComplete();
+    if (scanResults == WIFI_SCAN_RUNNING) 
+    {
+        return false; // 扫描仍在进行中
+    } 
+    else if (scanResults == WIFI_SCAN_FAILED) 
+    {
+        isScanning = false; // 扫描失败后更新状态
+        Serial.println("NetworkClient: WiFi 扫描失败");
+        return false; // 扫描失败
+    }
+    Max_SSID_NUM = scanResults;
+    isScanning = false; // 扫描完成后更新状态
+    Serial.printf("NetworkClient: WiFi 扫描完成，共找到 %d 个网络\n", Max_SSID_NUM);
+    return true; // 返回扫描到的 WiFi 网络数量
 }
 
 /**
