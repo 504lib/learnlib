@@ -258,14 +258,6 @@ void test()
     .value.int_value = test_var
   };
   osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
-  // UART_protocol UART_protocol_structure = {
-  //   .Headerframe1 = 0xAA,
-  //   .Headerframe2 = 0x55,
-  //   .Tailframe1 = 0x0D,
-  //   .Tailframe2 = 0x0A
-  // };
-  // UART_Protocol_INT(UART_protocol_structure,test_var);
-  
 }
 
 
@@ -279,14 +271,7 @@ void test2()
     .value.float_value = 3.3
   };
   osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
-  // UART_protocol UART_protocol_structure = {
-  //   .Headerframe1 = 0xAA,
-  //   .Headerframe2 = 0x55,
-  //   .Tailframe1 = 0x0D,
-  //   .Tailframe2 = 0x0A
-  // };
-  // UART_Protocol_FLOAT(UART_protocol_structure,3.3);
-  
+ 
 }
 
 /**
@@ -299,13 +284,6 @@ void test3()
     .value.int_value = 0
   };
   osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
-  // UART_protocol UART_protocol_structure = {
-  //   .Headerframe1 = 0xAA,
-  //   .Headerframe2 = 0x55,
-  //   .Tailframe1 = 0x0D,
-  //   .Tailframe2 = 0x0A
-  // };
-  // UART_Protocol_ACK(UART_protocol_structure);
 }
 
 
@@ -382,23 +360,6 @@ void Send_Passenger()
     ack_queue_t.value.passenger.router = (Rounter)i;
     osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
   }
-  
-  // ack_queue_t = {
-  //   .type = PASSENGER_NUM,
-  //   .value.passenger.passenger_num = passenger_num[Route_1],
-  //   .value.passenger.router = Route_1
-  // };
-  // UART_protocol UART_protocol_structure = {
-  //   .Headerframe1 = 0xAA,
-  //   .Headerframe2 = 0x55,
-  //   .Tailframe1 = 0x0D,
-  //   .Tailframe2 = 0x0A
-  // };
-  // if (osMutexAcquire(UART_TXMuteHandle, osWaitForever) == osOK)
-  // {
-  //   UART_Protocol_Passenger(UART_protocol_structure,++passenger_num);
-  //   osMutexRelease(UART_TXMuteHandle);
-  // }
 }
 
 
@@ -415,19 +376,6 @@ void Send_Clear()
     ack_queue_t.value.passenger.router = (Rounter)i;
     osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
   }
-  // UART_protocol UART_protocol_structure = {
-  //   .Headerframe1 = 0xAA,
-  //   .Headerframe2 = 0x55,
-  //   .Tailframe1 = 0x0D,
-  //   .Tailframe2 = 0x0A
-  // };
-  // Ack_Queue_t ack_queue_t = {
-  //   .type = CLEAR,
-  //   .value.int_value = 0
-  // };
-  // passenger_num = 0;
-  // UART_Protocol_Clear(UART_protocol_structure);
-  // osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,100);
 }
 
 /**
@@ -670,18 +618,7 @@ void KEY_CANCEL_Pressed(MulitKey_t* key)
  */
 void synchronized_passengers(Rounter rounter,uint8_t value)
 { 
-//  UART_protocol UART_protocol_structure = {
-//    .Headerframe1 = 0xAA,
-//    .Headerframe2 = 0x55,
-//    .Tailframe1 = 0x0D,
-//    .Tailframe2 = 0x0A
-//  }; 
   passenger_num[rounter] = value;
-  // if (osMutexAcquire(UART_TXMuteHandle,osWaitForever))
-  // {
-  //   UART_Protocol_ACK(UART_protocol_structure);
-  // }
-  
 }
 
 void ACK_Event_mutex()

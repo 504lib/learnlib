@@ -279,6 +279,12 @@ void RouterScheduler::RouterScheduler_Executer()
                 break;
             }
             
+            static uint32_t lastPostTime = 0;
+            if (millis() - lastPostTime < 5000)
+            {
+                return;
+            }
+            lastPostTime = millis();
             Serial.println("RouterScheduler: 车辆处于 ARRIVING 状态，保持连接");    
             break;
         }

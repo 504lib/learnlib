@@ -413,7 +413,7 @@ void StationRepo::Reset_Processing_Status()
 String StationRepo::Get_StationList_JSON()
 {
     JsonDocument doc;
-    doc["target_station"] = Get_Current_Station();
+    doc["target_station"] = Get_Current_Station_Chinese();
     doc["current_sta_status"] = Is_Current_Processed() ? "true" : "false";
     JsonArray stationArray = doc["station_list"].to<JsonArray>();
     for (uint8_t i = 0; i < this->used_num; i++)
@@ -424,6 +424,7 @@ String StationRepo::Get_StationList_JSON()
         stationObj["ssid"] = this->station_list[i].ssid;
         stationObj["ip"] = this->station_list[i].ip;
         stationObj["isProcessed"] = this->station_list[i].isProcessed ? "true" : "false";
+        stationObj["isConnected"] = this->station_list[i].isConnnectd ? "true" : "false";
     }
     String jsonString;
     serializeJson(doc, jsonString);
