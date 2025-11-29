@@ -44,15 +44,21 @@ float RouterScheduler::CalculateStationScore(uint8_t index)
     Station_t& station = station_repo.Get_Index_Station(index);
     float score = 0.0f;
     
+    int8_t currentRSSI = network_client.RSSI_intesify(station.ssid);
+    if (currentRSSI == -1)
+    {
+        Serial.printf("RouterScheduler: 站点 %s 不在扫描结果中，得分极低\n", station.name.c_str());
+        return -1000.0f; // SSID 不在扫描结果中，得分极低
+    }
+    
     // 规则1: 下一目标站点最高优先级
-    uint8_t nextTarget = (current_index + 1) % station_repo.Get_Station_Count();
+    uint8_t nextTarget = current_index;
     if (index == nextTarget) 
     {
         score += 50.0f;
     }
     
     // 规则2: 信号强度权重
-    int8_t currentRSSI = network_client.RSSI_intesify(station.ssid);
     if (currentRSSI > -50) score += 30.0f;
     else if (currentRSSI > -70) score += 20.0f;
     else if (currentRSSI > -80) score += 10.0f;
@@ -89,6 +95,7 @@ int RouterScheduler::FindBestStation()
     
     for (uint8_t i = 0; i < used_num; i++) 
     {
+        Station_t& station = station_repo.Get_Index_Station(i);
         float score = CalculateStationScore(i);
         
         if (score > bestScore || (score == bestScore && i < bestIndex)) 
@@ -219,6 +226,7 @@ void RouterScheduler::RouterScheduler_Executer()
                 vehicle_info.Update_Vehicle_Status(VehicleStatus::STATUS_SCANNING);
                 return;
             }
+            station_repo.Change_current_index(bestIndex);
             vehicle_info.Update_Vehicle_Status(VehicleStatus::STATUS_CONNECTING);
             break;
         }
@@ -234,7 +242,7 @@ void RouterScheduler::RouterScheduler_Executer()
             else
             {
                 Serial.printf("RouterScheduler: 连接站点 %s 失败，重新扫描\n", station_repo.Get_Index_Station_Name(current_index, true).c_str());
-                vehicle_info.Update_Vehicle_Status(VehicleStatus::STATUS_SCANNING);
+                vehicle_info.Update_Vehicle_Status(VehicleStatus::STAUS_DISCONNECTED);
             }
             break;
         }
@@ -290,8 +298,6 @@ void RouterScheduler::RouterScheduler_Executer()
         }
         case VehicleStatus::STATUS_LEAVING:
         {
-            Station_t& station = station_repo.Get_Index_Station(station_repo.Get_Current_Index());
-            station.isProcessed = true;
             station_repo.Move_To_Next_Station();    
             bool isPosted = sendSinglePost(station_repo.Get_Current_Index());
             for (size_t i = 0; i < 5 && !isPosted; i++)

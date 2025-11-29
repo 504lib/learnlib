@@ -271,6 +271,10 @@ String StationRepo::Get_Current_Station_Chinese()
 bool StationRepo::Move_To_Next_Station()
 {
     if (this->used_num == 0) return false;
+    station_list[this->current_index].isProcessed = true;
+    station_list[this->current_index].visitCount += 1;
+    station_list[this->current_index].lastVisitTime = millis();
+    station_list[this->current_index].isConnnectd = false;
     this->current_index = (this->current_index + 1) % this->used_num;
     return true;
 }

@@ -6,7 +6,8 @@
  */
 void NetworkClient::startWiFiScan()
 {
-    if (WiFi.status() != WL_DISCONNECTED && WiFi.status() != WL_IDLE_STATUS) 
+    
+    if (WiFi.status() != WL_DISCONNECTED && WiFi.status() != WL_IDLE_STATUS && WiFi.status() == WL_NO_SSID_AVAIL) 
     {
         Serial.printf("NetworkClient: WiFi 模块未处于空闲状态，无法开始扫描,状态为:%d\n",WiFi.status());
         return;
@@ -38,6 +39,8 @@ void NetworkClient::startWiFiScan()
 bool NetworkClient::sendGetRequest(const String& url, JsonDocument& response) 
 {
     HTTPClient http;
+    http.setTimeout(600);
+    http.setReuse(true);
     http.begin(url);
     int httpCode = http.GET();
     if (httpCode != 200) 
@@ -62,6 +65,8 @@ bool NetworkClient::sendGetRequest(const String& url, JsonDocument& response)
 bool NetworkClient::sendPostRequest(const String& url, const String& payload) 
 {
     HTTPClient http;
+    http.setTimeout(600);
+    http.setReuse(true);
     http.begin(url);
     http.addHeader("Content-Type", "application/x-www-form-urlencoded");
     int httpCode = http.POST(payload);
@@ -83,14 +88,30 @@ bool NetworkClient::ensureWiFiConnected(const char* ssid, const char* password)
     {
         return true;
     }
+    WiFi.mode(WIFI_AP_STA); // 保持 AP+STA（若无 AP 需求可改 WIFI_STA）
+    uint64_t mac = ESP.getEfuseMac();
+    uint8_t host = 200 + (uint8_t)(mac % 50);  // 200-249
+    IPAddress ip(192,168,4,host), gw(192,168,4,1), mask(255,255,255,0), dns(192,168,4,1);
+    WiFi.config(ip, gw, mask, dns);
+
     WiFi.begin(ssid, password);
-    for (int i = 0; i < 10; ++i) 
+    for (int i = 0; i < 20; ++i) 
     {
         if (WiFi.status() == WL_CONNECTED) 
         {
             return true;
         }
-        delay(1000);
+        delay(150);
+    }
+    WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE);
+    WiFi.begin(ssid, password);
+    for (int i = 0; i < 20; ++i)
+    {
+        if (WiFi.status() == WL_CONNECTED) 
+        {
+            return true;
+        }
+        delay(150);
     }
     return false;
 }
@@ -163,14 +184,17 @@ int8_t NetworkClient::RSSI_intesify(String ssid)
         if (WiFi.SSID(i) == ssid)
         {
             int8_t rssi = WiFi.RSSI(i);
+            Serial.printf("NetworkClient: 找到SSID: %s, RSSI: %d dBm\n", ssid.c_str(), rssi);
             if (rssi > bestRSSI) 
             {
+                Serial.printf("NetworkClient: 更新最佳RSSI为: %d dBm,ssid:%s\n", rssi,ssid.c_str());
                 bestRSSI = rssi;
                 found = true;
             }
         }
     }
     WiFi.scanDelete();
+    Serial.printf("NetworkClient: 最终最佳RSSI为: %d dBm\n", bestRSSI);
     return found ? bestRSSI : -1;
 }
 

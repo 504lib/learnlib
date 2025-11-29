@@ -137,10 +137,11 @@ void Bus_scheduler_Task(void* pvParameters)
 {
     Station_t station1("normal_univercity","师范学院",target_ssid,target_password,target_station_server);
     station_repo.Add_Station_to_Tail(station1);
+    station_repo.Add_Station_to_Tail(Station_t("central_hospital","中心医院","test","",target_station_server));   
     for(;;)
     {
         router_scheduler.RouterScheduler_Executer();
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 }
 
@@ -153,7 +154,8 @@ void setup()
         xEventGroupSetBits(evt,UART_ACK_REQUIRED);
     });
     uart_protocol.setVehicleStatusCallback([](VehicleStatus status){
-      if (status != VehicleStatus::STATUS_ARRIVING || status != VehicleStatus::STATUS_LEAVING || status != VehicleStatus::STATUS_WAITING)
+        Serial.printf("Received Vehicle Status Change Request: %d\n", static_cast<uint8_t>(status));
+      if (status != VehicleStatus::STATUS_ARRIVING && status != VehicleStatus::STATUS_LEAVING && status != VehicleStatus::STATUS_WAITING)
       {
         Serial.printf("No permission to change status !!!\n");
         return;
@@ -572,7 +574,7 @@ void setup()
                     const stationRepo = data.station_repo;
                     document.getElementById('targetStation').textContent = stationRepo.target_station;
                     document.getElementById('currentStatus').textContent = 
-                        stationRepo.current_sta_status === "true" ? "正常" : "异常";
+                        stationRepo.current_sta_status === "true" ? "已前往" : "正在前往";
                     document.getElementById('stationCount').textContent = stationRepo.station_list.length;
                     
                     // 更新站点表格
