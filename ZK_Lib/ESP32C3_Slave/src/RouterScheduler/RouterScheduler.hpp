@@ -16,6 +16,7 @@
 #include "../Vehicle/Vehicle.hpp"
 #include "../StationRepo/StationRepo.hpp"
 #include "../protocol/protocol.hpp"
+#include "../Log/Log.h"
 
 class RouterScheduler
 {

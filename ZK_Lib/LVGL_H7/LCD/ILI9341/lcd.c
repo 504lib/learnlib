@@ -159,19 +159,39 @@ void LCD_ReadRAM_Prepare(void)
 ******************************************************************************/	 
 void Lcd_WriteData_16Bit(uint16_t Data)
 {
-	uint8_t data_low = Data & 0xFF;
-	uint8_t data_high = Data >> 8;
+	uint8_t data_buffer[2];
+	data_buffer[0] = Data >> 8;    // 高字节
+	data_buffer[1] = Data & 0xFF;  // 低字节
+
+	// uint8_t data_low = Data & 0xFF;
+	// uint8_t data_high = Data >> 8;
 	LCD_CS_CLR;
 	LCD_RS_SET;  
-    HAL_SPI_Transmit_DMA(&hspi1, &data_high,1); 
-    HAL_SPI_Transmit_DMA(&hspi1, &data_low,1); 
+    // HAL_SPI_Transmit_DMA(&hspi1, &data_high,1); 
+    // HAL_SPI_Transmit_DMA(&hspi1, &data_low,1); 
+	HAL_SPI_Transmit_DMA(&hspi1, data_buffer,2);
     while(HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY);
 	LCD_CS_SET;
+
+
+	// uint8_t data_buffer[2];
+	// data_buffer[0] = Data >> 8;    // 高字节
+	// data_buffer[1] = Data & 0xFF;  // 低字节
+	
+	// LCD_CS_CLR;
+	// LCD_RS_SET;
+	
+	// // 使用同步传输
+	// HAL_SPI_Transmit(&hspi1, data_buffer, 2, 100);
+	
+	// LCD_CS_SET;
 }
 
-uint16_t Color_To_565(uint8_t r, uint8_t g, uint8_t b)
+
+
+uint16_t Color_To_565(uint8_t r, uint8_t g, uint8_t b) 
 {
-	return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | ((b & 0xF8) >> 3);
+	return ((b & 0xF8) << 8) | ((r & 0xFC) << 3) | ((g & 0xF8) >> 3);
 }
 
 uint16_t Lcd_ReadData_16Bit(void)
@@ -211,7 +231,7 @@ uint16_t Lcd_ReadData_16Bit(void)
 void LCD_DrawPoint(uint16_t x,uint16_t y,uint16_t color)
 {
 	LCD_SetCursor(x,y);//设置光标位置 
-	Lcd_WriteData_16Bit(POINT_COLOR); 
+	Lcd_WriteData_16Bit(color); 
 }
 
 uint16_t LCD_ReadPoint(uint16_t x,uint16_t y)
@@ -266,46 +286,164 @@ void LCD_Clear(uint16_t Color)
 	while(HAL_SPI_GetState(&hspi1) == HAL_SPI_STATE_BUSY_TX);
 	LCD_CS_SET;
 } 
-//void LCD_Fill_DMA_DoubleBuffer(uint16_t xsta, uint16_t ysta, uint16_t xend, uint16_t yend, uint16_t color)
-//{
-////    uint32_t width = xend - xsta;
-//    uint32_t height = yend - ysta;
-//    
-//    LCD_Address_Set(xsta, ysta, xend-1, yend-1);
-//    LCD_CS_Clr();
-//    LCD_DC_Set();
-//    
-//    // 填充缓冲区
-//    for(int i = 0; i < 128; i++) {
-//        dma_buffer1[i] = color;
-//        dma_buffer2[i] = color;
-//    }
-//    
-//    for(uint32_t y = 0; y < height; y++) 
-//	{
-//        // 等待前一次DMA完成
-//        if(y > 0) 
-//		{
-//            while(HAL_SPI_GetState(&hspi1) == HAL_SPI_STATE_BUSY_TX);
-//        }
-//        
-//        // 启动下一次DMA
-//        if(current_buffer == 0) 
-//		{
-//            HAL_SPI_Transmit_DMA(&hspi1, (uint8_t*)dma_buffer1, 128 * 2);
-//            current_buffer = 1;
-//        } 
-//		else 
-//		{
-//            HAL_SPI_Transmit_DMA(&hspi1, (uint8_t*)dma_buffer2, 128 * 2);
-//            current_buffer = 0;
-//        }
-//    }
-//    
-//    // 等待最后一次传输完成
-//    while(HAL_SPI_GetState(&hspi1) == HAL_SPI_STATE_BUSY_TX);
-//    LCD_CS_Set();
-//}
+void LCD_Fill_DMA_DoubleBuffer(uint16_t xsta, uint16_t ysta, uint16_t xend, uint16_t yend, uint16_t color)
+{
+    static uint8_t current_buffer = 0;
+    uint32_t width = xend - xsta;
+    uint32_t height = yend - ysta;
+
+    // 设置窗口
+    LCD_SetWindows(xsta, ysta, xend - 1, yend - 1);
+    LCD_CS_CLR;
+    LCD_RS_SET;
+
+    // 填充缓冲区
+    for (uint32_t i = 0; i < LCD_W * 32; i++) {
+        dma_buffer1[i] = color;
+        dma_buffer2[i] = color;
+    }
+
+    // 使用双缓冲区填充指定区域
+    for (uint32_t y = 0; y < height / 32; y++) {
+        // 等待前一次DMA完成
+        if (y > 0) {
+            while (HAL_SPI_GetState(&hspi1) == HAL_SPI_STATE_BUSY_TX);
+        }
+
+        // 启动下一次DMA
+        if (current_buffer == 0) {
+            HAL_SPI_Transmit_DMA(&hspi1, (uint8_t*)dma_buffer1, width * 64);
+            current_buffer = 1;
+        } else {
+            HAL_SPI_Transmit_DMA(&hspi1, (uint8_t*)dma_buffer2, width * 64);
+            current_buffer = 0;
+        }
+    }
+
+    // 等待最后一次传输完成
+    while (HAL_SPI_GetState(&hspi1) == HAL_SPI_STATE_BUSY_TX);
+    LCD_CS_SET;
+}
+
+// void LCD_WriteBuffer_DMA(uint16_t xsta, uint16_t ysta, uint16_t xend, uint16_t yend, lv_color_t *color_buffer)
+// {
+//     static uint8_t current_buffer = 0;
+//     uint16_t width = xend - xsta + 1;
+//     uint16_t height = yend - ysta + 1;
+    
+//     // 设置窗口
+//     LCD_SetWindows(xsta, ysta, xend, yend);
+//     LCD_CS_CLR;
+//     LCD_RS_SET;
+    
+//     // 计算总共需要传输的行数
+//     uint32_t total_lines = height;
+//     uint32_t lines_per_transfer = 32;  // 每次传输32行
+//     uint32_t num_full_transfers = total_lines / lines_per_transfer;
+//     uint32_t remaining_lines = total_lines % lines_per_transfer;
+    
+//     // 当前颜色缓冲区指针位置
+//     lv_color_t *current_color_ptr = color_buffer;
+    
+//     // 处理完整的32行传输
+//     for (uint32_t transfer = 0; transfer < num_full_transfers; transfer++) 
+//     {
+//         // 等待前一次DMA完成
+//         if (transfer > 0) {
+//             while (HAL_SPI_GetState(&hspi1) == HAL_SPI_STATE_BUSY_TX);
+//         }
+        
+//         // 选择当前缓冲区
+//         uint16_t *current_dma_buffer = (current_buffer == 0) ? dma_buffer1 : dma_buffer2;
+        
+//         // 转换32行颜色数据
+//         for (uint32_t line = 0; line < lines_per_transfer; line++) {
+//             for (uint16_t col = 0; col < width; col++) {
+//                 lv_color_t lv_color = *current_color_ptr;
+                
+//                 // 将LVGL颜色转换为RGB565
+//                 // 注意：检查LVGL的颜色深度设置（lv_conf.h中的LV_COLOR_DEPTH）
+//                 #if LV_COLOR_DEPTH == 16
+//                     // 如果LVGL已经是16位颜色，直接使用
+//                     // 注意：LVGL可能是RGB565或BGR565，需要检查字节顺序
+//                     uint16_t color = lv_color.full;
+//                 #elif LV_COLOR_DEPTH == 32
+//                     // 如果LVGL是32位颜色（ARGB8888），转换为RGB565
+//                     uint8_t r = (lv_color.ch.red >> 3) & 0x1F;     // 5位
+//                     uint8_t g = (lv_color.ch.green >> 2) & 0x3F;   // 6位
+//                     uint8_t b = (lv_color.ch.blue >> 3) & 0x1F;    // 5位
+//                     uint16_t color = (r << 11) | (g << 5) | b;
+//                 #elif LV_COLOR_DEPTH == 8
+//                     // 如果LVGL是8位颜色（RGB332），转换为RGB565
+//                     uint8_t r = ((lv_color.full >> 5) & 0x07) * 255 / 7;
+//                     uint8_t g = ((lv_color.full >> 2) & 0x07) * 255 / 7;
+//                     uint8_t b = (lv_color.full & 0x03) * 255 / 3;
+//                     r = (r >> 3) & 0x1F;
+//                     g = (g >> 2) & 0x3F;
+//                     b = (b >> 3) & 0x1F;
+//                     uint16_t color = (r << 11) | (g << 5) | b;
+//                 #else
+//                     // 默认按16位处理
+//                     uint16_t color = lv_color.full;
+//                 #endif
+                
+//                 current_dma_buffer[line * width + col] = color;
+//                 current_color_ptr++;
+//             }
+//         }
+        
+//         // 启动DMA传输
+//         if (current_buffer == 0) {
+//             HAL_SPI_Transmit_DMA(&hspi1, (uint8_t*)dma_buffer1, width * lines_per_transfer * 2);
+//             current_buffer = 1;
+//         } else {
+//             HAL_SPI_Transmit_DMA(&hspi1, (uint8_t*)dma_buffer2, width * lines_per_transfer * 2);
+//             current_buffer = 0;
+//         }
+//     }
+    
+//     // 处理剩余的行（如果有的话）
+//     if (remaining_lines > 0) {
+//         // 等待最后一次完整传输完成
+//         while (HAL_SPI_GetState(&hspi1) == HAL_SPI_STATE_BUSY_TX);
+        
+//         // 选择当前缓冲区
+//         uint16_t *current_dma_buffer = (current_buffer == 0) ? dma_buffer1 : dma_buffer2;
+        
+//         // 转换剩余行的颜色数据
+//         for (uint32_t line = 0; line < remaining_lines; line++) {
+//             for (uint16_t col = 0; col < width; col++) {
+//                 lv_color_t lv_color = *current_color_ptr;
+                
+//                 // 将LVGL颜色转换为RGB565
+//                 #if LV_COLOR_DEPTH == 16
+//                     uint16_t color = lv_color.full;
+//                 #elif LV_COLOR_DEPTH == 32
+//                     uint8_t r = (lv_color.ch.red >> 3) & 0x1F;
+//                     uint8_t g = (lv_color.ch.green >> 2) & 0x3F;
+//                     uint8_t b = (lv_color.ch.blue >> 3) & 0x1F;
+//                     uint16_t color = (r << 11) | (g << 5) | b;
+//                 #else
+//                     uint16_t color = lv_color.full;
+//                 #endif
+                
+//                 current_dma_buffer[line * width + col] = color;
+//                 current_color_ptr++;
+//             }
+//         }
+        
+//         // 启动剩余行的DMA传输
+//         HAL_SPI_Transmit_DMA(&hspi1, (uint8_t*)current_dma_buffer, width * remaining_lines * 2);
+        
+//         // 等待传输完成
+//         while (HAL_SPI_GetState(&hspi1) == HAL_SPI_STATE_BUSY_TX);
+//     } else {
+//         // 如果没有剩余行，等待最后一次传输完成
+//         while (HAL_SPI_GetState(&hspi1) == HAL_SPI_STATE_BUSY_TX);
+//     }
+    
+//     LCD_CS_SET;
+// }
 
 /*****************************************************************************
  * @name       :void LCD_Clear(uint16_t Color)

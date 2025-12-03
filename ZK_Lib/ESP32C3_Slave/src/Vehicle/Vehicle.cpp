@@ -86,7 +86,7 @@ bool Vehicle_Info::Update_Vehicle_Status(VehicleStatus new_status)
     {
         this->vehicle.last_status = this->vehicle.status;
         this->vehicle.status = new_status;
-        Serial.printf("Vehicle_Info: 车辆状态变更: %s -> %s\n", Get_Status_Str(this->vehicle.last_status).c_str(), Get_Status_Str(this->vehicle.status).c_str());
+        LOG_INFO("Vehicle_Info: 车辆状态变更: %s -> %s\n", Get_Status_Str(this->vehicle.last_status).c_str(), Get_Status_Str(this->vehicle.status).c_str());
         return true;
     }
     return false;

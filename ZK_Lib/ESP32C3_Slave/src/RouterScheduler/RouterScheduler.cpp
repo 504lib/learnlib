@@ -19,7 +19,11 @@
  */
 bool RouterScheduler::Connect_To_Station(uint8_t index)
 {
-    if(index >= station_repo.Get_Station_Count()) return false;
+    if(index >= station_repo.Get_Station_Count())
+    {
+        LOG_WARN("Connect_To_Station: Invalid index %d", index);
+        return false;
+    }
     Station_t& station = station_repo.Get_Index_Station(index);
     bool connected = network_client.ensureWiFiConnected(station.ssid.c_str(), station.password.c_str());
     if (connected)
@@ -29,10 +33,12 @@ bool RouterScheduler::Connect_To_Station(uint8_t index)
         station.lastRSSI = WiFi.RSSI();
         station.lastVisitTime = millis();
         station.visitCount++;
+        LOG_INFO("Connected to station %s successfully", station.name.c_str());
         return true;
     }
     else
     {
+        LOG_WARN("Failed to connect to station %s", station.name.c_str());
         return false;
     }
 }
@@ -47,7 +53,7 @@ float RouterScheduler::CalculateStationScore(uint8_t index)
     int8_t currentRSSI = network_client.RSSI_intesify(station.ssid);
     if (currentRSSI == -1)
     {
-        Serial.printf("RouterScheduler: 站点 %s 不在扫描结果中，得分极低\n", station.name.c_str());
+        LOG_INFO("RouterScheduler: 站点 %s 不在扫描结果中，得分极低", station.name.c_str());
         return -1000.0f; // SSID 不在扫描结果中，得分极低
     }
     
@@ -88,7 +94,11 @@ int RouterScheduler::FindBestStation()
 {
     uint8_t used_num = station_repo.Get_Station_Count();
     uint8_t SSID_Num = network_client.getMaxSSIDNum();
-    if (used_num == 0 || SSID_Num == 0) return -1;
+    if (used_num == 0 || SSID_Num == 0)
+    {
+        LOG_INFO("FindBestStation: 无可用站点或无扫描结果");
+        return -1;
+    }
 
     int bestIndex = -1;
     float bestScore = -1000.0f;
@@ -106,8 +116,8 @@ int RouterScheduler::FindBestStation()
     }
     if (bestIndex != -1) 
     {
-        Serial.printf("🏆 最佳站点: %s (得分: %.2f)\n", 
-                     station_repo.Get_Index_Station_Name(bestIndex, true).c_str(), bestScore);
+        LOG_INFO("🏆 最佳站点: %s (得分: %.2f)", 
+                station_repo.Get_Index_Station_Name(bestIndex, true).c_str(), bestScore);
     }
     
     return bestIndex;
@@ -120,12 +130,13 @@ void RouterScheduler::CheckArrivingAndMaybeLeave()
     uint8_t current_index = station_repo.Get_Current_Index();
     if (used_num == 0 || current_index >= used_num)
     {
+        LOG_INFO("CheckArriving: 无可用站点，跳过检查");
         vehicle_info.Update_Vehicle_Status(VehicleStatus::STAUS_DISCONNECTED);
         return;
     }
     if (WiFi.status() != WL_CONNECTED)
     {
-        Serial.println("CheckArriving: WiFi 未连接，跳过检查");
+        LOG_INFO("CheckArriving: WiFi 未连接，跳过检查");
         vehicle_info.Update_Vehicle_Status(VehicleStatus::STAUS_DISCONNECTED);
         return;
     }
@@ -136,18 +147,18 @@ void RouterScheduler::CheckArrivingAndMaybeLeave()
     if (!url.endsWith("/")) url += "/";
     url += "api/info";
 
-    Serial.printf("CheckArriving GET: %s\n", url.c_str());
+    LOG_DEBUG("CheckArriving GET: %s", url.c_str());
     JsonDocument doc;
     bool success = network_client.sendGetRequest(url,doc);
     if (!success)
     {
-        Serial.println("CheckArriving: GET 请求失败");
+        LOG_WARN("CheckArriving: GET 请求失败");
         vehicle_info.Update_Vehicle_Status(VehicleStatus::STAUS_DISCONNECTED);
         return;
     }
     if (!doc["passenger_list"].is<JsonArray>())
     {
-        Serial.println("CheckArriving: JSON 中无 passenger_list 字段");
+        LOG_WARN("CheckArriving: JSON 中无 passenger_list 字段");
         vehicle_info.Update_Vehicle_Status(VehicleStatus::STAUS_DISCONNECTED);
         return;
     }
@@ -155,17 +166,17 @@ void RouterScheduler::CheckArrivingAndMaybeLeave()
     int routeIndex = static_cast<int>(vehicle_info.Get_Vehicle_Rounter());
     if (routeIndex < 0 || routeIndex >= (int)passenger_arr.size())
     {
-        Serial.printf("CheckArriving: routeIndex(%d) 超出 passenger_list 大小(%u)\n", routeIndex, (unsigned)passenger_arr.size());
+        LOG_WARN("CheckArriving: routeIndex(%d) 超出 passenger_list 大小(%u)", routeIndex, (unsigned)passenger_arr.size());
         vehicle_info.Update_Vehicle_Status(VehicleStatus::STAUS_DISCONNECTED);
         return;
     }
 
     int pnum = passenger_arr[routeIndex];
-    Serial.printf("CheckArriving: route %d passenger_num = %d\n", routeIndex, pnum);
+    LOG_INFO("CheckArriving: route %d passenger_num = %d", routeIndex, pnum);
 
     if (pnum == 0)
     {
-        Serial.printf("CheckArriving: route %d 无乘客，切换到 LEAVING\n", routeIndex);
+        LOG_INFO("CheckArriving: route %d 无乘客，切换到 LEAVING", routeIndex);
         vehicle_info.Update_Vehicle_Status(VehicleStatus::STATUS_LEAVING);
         return;
     }
@@ -179,7 +190,7 @@ bool RouterScheduler::sendSinglePost(uint8_t index)
 {
     if(WiFi.status() != WL_CONNECTED)
     {
-        Serial.printf("WiFi 未连接，无法发送数据\n");
+        LOG_WARN("WiFi 未连接，无法发送数据");
         return false;
     }
     Station_t& station = station_repo.Get_Index_Station(index);
@@ -203,17 +214,16 @@ void RouterScheduler::RouterScheduler_Executer()
         {
             if (!network_client.isWiFiscanning())
             {
-                Serial.println("RouterScheduler: 开始扫描 WiFi 网络...");
+                LOG_INFO("RouterScheduler: 开始扫描 WiFi 网络...");
                 network_client.startWiFiScan();
                 return;
             }
             bool isReady = network_client.checkWiFiScan();
             if (!isReady)
             {
-                Serial.println("RouterScheduler: 仍在扫描WiFi...");
                 return;
             }
-            Serial.println("RouterScheduler: WiFi 扫描完成，寻找合适的站点...");
+            LOG_INFO("RouterScheduler: WiFi 扫描完成，寻找合适的站点...");
             vehicle_info.Update_Vehicle_Status(VehicleStatus::STATUS_GROPE); // 切换到下一个状态
             break;
         }
@@ -222,7 +232,7 @@ void RouterScheduler::RouterScheduler_Executer()
             int bestIndex = FindBestStation();
             if (bestIndex == -1)
             {
-                Serial.println("RouterScheduler: 未找到合适的站点，继续扫描");
+                LOG_INFO("RouterScheduler: 未找到合适的站点，继续扫描");
                 vehicle_info.Update_Vehicle_Status(VehicleStatus::STATUS_SCANNING);
                 return;
             }
@@ -236,12 +246,10 @@ void RouterScheduler::RouterScheduler_Executer()
             bool connected = Connect_To_Station(current_index);
             if (connected)
             {
-                Serial.printf("RouterScheduler: 成功连接到站点 %s\n", station_repo.Get_Index_Station_Name(current_index, true).c_str());
                 vehicle_info.Update_Vehicle_Status(VehicleStatus::STATUS_CONNECTED);
             }
             else
             {
-                Serial.printf("RouterScheduler: 连接站点 %s 失败，重新扫描\n", station_repo.Get_Index_Station_Name(current_index, true).c_str());
                 vehicle_info.Update_Vehicle_Status(VehicleStatus::STAUS_DISCONNECTED);
             }
             break;
@@ -256,7 +264,7 @@ void RouterScheduler::RouterScheduler_Executer()
             Station_t& station = station_repo.Get_Index_Station(station_repo.Get_Current_Index());
             station.isConnnectd = false;
             WiFi.disconnect();
-            Serial.println("RouterScheduler: WiFi 已断开，重新扫描");
+            LOG_INFO("RouterScheduler: WiFi 已断开，重新扫描");
             vehicle_info.Update_Vehicle_Status(VehicleStatus::STATUS_SCANNING);
             break;
         }
@@ -271,11 +279,11 @@ void RouterScheduler::RouterScheduler_Executer()
             bool postSuccess = sendSinglePost(station_repo.Get_Current_Index());
             if (postSuccess)
             {
-                Serial.println("RouterScheduler: 状态报告发送成功");
+                LOG_INFO("RouterScheduler: 状态报告发送成功");
             }
             else
             {
-                Serial.println("RouterScheduler: 状态报告发送失败");
+                LOG_WARN("RouterScheduler: 状态报告发送失败");
             }
             break;
         }
@@ -293,7 +301,7 @@ void RouterScheduler::RouterScheduler_Executer()
                 return;
             }
             lastPostTime = millis();
-            Serial.println("RouterScheduler: 车辆处于 ARRIVING 状态，保持连接");    
+            LOG_INFO("RouterScheduler: 车辆处于 ARRIVING 状态，保持连接");    
             break;
         }
         case VehicleStatus::STATUS_LEAVING:
@@ -302,11 +310,11 @@ void RouterScheduler::RouterScheduler_Executer()
             bool isPosted = sendSinglePost(station_repo.Get_Current_Index());
             for (size_t i = 0; i < 5 && !isPosted; i++)
             {
-                Serial.printf("RouterScheduler: 正在发送离开状态报告，尝试次数 %d\n", i + 1);
+                LOG_INFO("RouterScheduler: 正在发送离开状态报告，尝试次数 %d", i + 1);
                 isPosted = sendSinglePost(station_repo.Get_Current_Index());
                 if (isPosted)
                 {
-                    Serial.println("RouterScheduler: 离开状态报告发送成功");
+                    LOG_INFO("RouterScheduler: 离开状态报告发送成功");
                     break;
                 } 
                 delay(100);
@@ -316,7 +324,7 @@ void RouterScheduler::RouterScheduler_Executer()
         }
         case VehicleStatus::STATUS_IDLE:
         {
-            Serial.println("RouterScheduler: 车辆处于 IDLE 状态，重新扫描");
+            LOG_INFO("RouterScheduler: 车辆处于 IDLE 状态，重新扫描");
             break;
         }
     default:
@@ -345,7 +353,7 @@ String RouterScheduler::Get_RouterInfo_JSON() {
     // 解析站点仓库的 JSON 数据
     DeserializationError err = deserializeJson(stationdoc, station_repo.Get_StationList_JSON());
     if (err) {
-        Serial.printf("RouterScheduler::Get_RouterInfo_JSON 解析站点仓库 JSON 失败: %s\n", err.c_str());
+        LOG_WARN("RouterScheduler::Get_RouterInfo_JSON 解析站点仓库 JSON 失败: %s", err.c_str());
         return "{\"error\":\"Failed to parse station_repo JSON\"}";
     }
     doc["station_repo"] = stationdoc.as<JsonObject>();
@@ -353,7 +361,7 @@ String RouterScheduler::Get_RouterInfo_JSON() {
     // 解析车辆信息的 JSON 数据
     err = deserializeJson(vehicledoc, vehicle_info.Vehiicle_Json());
     if (err) {
-        Serial.printf("RouterScheduler::Get_RouterInfo_JSON 解析车辆信息 JSON 失败: %s\n", err.c_str());
+        LOG_WARN("RouterScheduler::Get_RouterInfo_JSON 解析车辆信息 JSON 失败: %s", err.c_str());
         return "{\"error\":\"Failed to parse vehicle_info JSON\"}";
     }
     doc["vehicle_info"] = vehicledoc.as<JsonObject>();

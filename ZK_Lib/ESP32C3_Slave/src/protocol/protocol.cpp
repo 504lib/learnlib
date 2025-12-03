@@ -37,8 +37,10 @@ void protocol::Send_Uart_Frame(int32_t num)
 
     frame[10] = Tailframe1;
     frame[11] = Tailframe2;
-
     Serial1.write(frame,sizeof(frame));
+    LOG_DEBUG("Sending INT Frame: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X",
+              frame[0], frame[1], frame[2], frame[3], frame[4], frame[5],
+              frame[6], frame[7], frame[8], frame[9], frame[10], frame[11]);
 }
 
 void protocol::Send_Uart_Frame(float num)
@@ -72,7 +74,9 @@ void protocol::Send_Uart_Frame(float num)
     frame[11] = Tailframe2;
 
     Serial1.write(frame,sizeof(frame));
-
+    LOG_DEBUG("Sending FLOAT Frame: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X",
+              frame[0], frame[1], frame[2], frame[3], frame[4], frame[5],
+              frame[6], frame[7], frame[8], frame[9], frame[10], frame[11]);
 }
 
 uint16_t protocol::calculateChecksum(const uint8_t* data, size_t length)
@@ -82,6 +86,7 @@ uint16_t protocol::calculateChecksum(const uint8_t* data, size_t length)
         sum += data[i];
     }
     return sum;
+    LOG_DEBUG("Calculated Checksum: 0x%04X", sum);
 }
 
 void protocol::Send_Uart_Frame_ACK()
@@ -102,6 +107,9 @@ void protocol::Send_Uart_Frame_ACK()
     frame[7] = Tailframe2;
 
     Serial1.write(frame,sizeof(frame));
+    LOG_DEBUG("Sending ACK Frame: %02X %02X %02X %02X %02X %02X %02X %02X",
+              frame[0], frame[1], frame[2], frame[3], frame[4], frame[5],
+              frame[6], frame[7]);
 }
 
 void protocol::Send_Uart_Frame_PASSENGER_NUM(Rounter rounter,uint8_t value)
@@ -124,6 +132,9 @@ void protocol::Send_Uart_Frame_PASSENGER_NUM(Rounter rounter,uint8_t value)
     frame[9] = Tailframe2;
 
     Serial1.write(frame,sizeof(frame));
+    LOG_DEBUG("Sending PASSENGER_NUM Frame: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X",
+              frame[0], frame[1], frame[2], frame[3], frame[4], frame[5],
+              frame[6], frame[7], frame[8], frame[9]);
 }
 
 void protocol::Send_Uart_Frame_CLEAR(Rounter rounter)
@@ -145,6 +156,9 @@ void protocol::Send_Uart_Frame_CLEAR(Rounter rounter)
     frame[8] = Tailframe2;
 
     Serial1.write(frame,sizeof(frame));
+    LOG_DEBUG("Sending CLEAR Frame: %02X %02X %02X %02X %02X %02X %02X %02X %02X",
+              frame[0], frame[1], frame[2], frame[3], frame[4], frame[5],
+              frame[6], frame[7], frame[8]);
 }
 
 void protocol::Set_Vehicle_Status(VehicleStatus status)
@@ -166,10 +180,15 @@ void protocol::Set_Vehicle_Status(VehicleStatus status)
     frame[8] = Tailframe2;
 
     Serial1.write(frame,sizeof(frame));
+
+    LOG_DEBUG("Sending VEHICLE_STATUS Frame: %02X %02X %02X %02X %02X %02X %02X %02X %02X",
+              frame[0], frame[1], frame[2], frame[3], frame[4], frame[5],
+              frame[6], frame[7], frame[8]);
 }
 
 void protocol::Receive_Uart_Frame(uint8_t data)
 {
+    LOG_DEBUG("Received byte: %02X", data);
     static enum { WAIT_HEADER1, WAIT_HEADER2, WAIT_TYPE, WAIT_LEN, WAIT_DATA, WAIT_CHECK1, WAIT_CHECK2, WAIT_TAIL1, WAIT_TAIL2 } state = WAIT_HEADER1;
     static uint8_t frame_type = 0;
     static uint8_t frame_len = 0;
@@ -181,10 +200,18 @@ void protocol::Receive_Uart_Frame(uint8_t data)
     switch(state)
     {
         case WAIT_HEADER1:
-            if(data == Headerframe1) state = WAIT_HEADER2;
+            if(data == Headerframe1)
+            {
+                state = WAIT_HEADER2;
+                LOG_DEBUG("Header1 matched");
+            }
             break;
         case WAIT_HEADER2:
-            if(data == Headerframe2) state = WAIT_TYPE;
+            if(data == Headerframe2) 
+            {
+                state = WAIT_TYPE;
+                LOG_DEBUG("Header2 matched");
+            }
             else state = WAIT_HEADER1;
             break;
         case WAIT_TYPE:
@@ -210,7 +237,11 @@ void protocol::Receive_Uart_Frame(uint8_t data)
             state = WAIT_TAIL1;
             break;
         case WAIT_TAIL1:
-            if(data == Tailframe1) state = WAIT_TAIL2;
+            if(data == Tailframe1) 
+            {
+                state = WAIT_TAIL2;
+                LOG_DEBUG("Tail1 matched");
+            }
             else state = WAIT_HEADER1;
             break;
         case WAIT_TAIL2:
@@ -223,7 +254,7 @@ void protocol::Receive_Uart_Frame(uint8_t data)
                 memcpy(&check_buf[2], data_buf, frame_len);
                 uint16_t calc_check = calculateChecksum(check_buf, 2 + frame_len);
                 uint16_t recv_check = (check1 << 8) | check2;
-                // Serial.printf("calc_check: 0x%04X, recv_check: 0x%04X\n", calc_check, recv_check);
+                LOG_DEBUG("Calculated Checksum: 0x%04X, Received Checksum: 0x%04X", calc_check, recv_check);
                 if(calc_check == recv_check)
                 {
                     if(frame_type == static_cast<uint8_t>(CmdType::INT) && frame_len == 4)
@@ -236,8 +267,9 @@ void protocol::Receive_Uart_Frame(uint8_t data)
                         }
                         else
                         {
-                            Serial.print("Received INT: ");
-                            Serial.println(value);
+                            LOG_DEBUG("Received INT: %d", value);
+                            // Serial.print("Received INT: ");
+                            // Serial.println(value);
                             Send_Uart_Frame_ACK();
                         }
                     }
@@ -260,8 +292,9 @@ void protocol::Receive_Uart_Frame(uint8_t data)
                         }
                         else
                         {
-                            Serial.print("Received FLOAT: ");
-                            Serial.println(value);
+                            LOG_DEBUG("Received FLOAT: %f", value);
+                            // Serial.print("Received FLOAT: ");
+                            // Serial.println(value);
                             Send_Uart_Frame_ACK();
                         }
                     }
@@ -273,7 +306,8 @@ void protocol::Receive_Uart_Frame(uint8_t data)
                         }
                         else
                         {
-                            Serial.println("Received ACK");
+                            LOG_DEBUG("Received ACK");
+                            // Serial.println("Received ACK");
                         }
                     }
                     else if(frame_type == static_cast<uint8_t>(CmdType::PASSENGER_NUM) && frame_len == 2)
@@ -287,10 +321,11 @@ void protocol::Receive_Uart_Frame(uint8_t data)
                         }
                         else
                         {
-                            Serial.print("Received PASSENGER NUM:");
-                            Serial.println(value);
-                            Serial.print("Received Rounter:");
-                            Serial.println(data_buf[0]);
+                            LOG_DEBUG("Received PASSENGER NUM: %d, Rounter: %d", value, data_buf[0]);
+                            // Serial.print("Received PASSENGER NUM:");
+                            // Serial.println(value);
+                            // Serial.print("Received Rounter:");
+                            // Serial.println(data_buf[0]);
                             Send_Uart_Frame_ACK();
                         }
                     }
@@ -304,8 +339,9 @@ void protocol::Receive_Uart_Frame(uint8_t data)
                        }
                        else
                        {
-                            Serial.print("Received Clear:");
-                            Serial.println(data_buf[0]);
+                            LOG_DEBUG("Received Clear Rounter: %d", data_buf[0]);
+                            // Serial.print("Received Clear:");
+                            // Serial.println(data_buf[0]);
                             Send_Uart_Frame_ACK();
                        }
                     }
@@ -319,19 +355,22 @@ void protocol::Receive_Uart_Frame(uint8_t data)
                         }
                         else
                         {
-                            Serial.print("Received Vehicle Status:");
-                            Serial.println(data_buf[0]);
+                            LOG_DEBUG("Received Vehicle Status: %d", data_buf[0]);
+                            // Serial.print("Received Vehicle Status:");
+                            // Serial.println(data_buf[0]);
                             Send_Uart_Frame_ACK();
                         }
                     }
                     else
                     {
-                        Serial.println("Unknown frame type or invalid length");
+                        LOG_INFO("Unknown frame type or invalid length: Type=%d, Length=%d", frame_type, frame_len);
+                        // Serial.println("Unknown frame type or invalid length");
                     }
                 }
                 else
                 {
-                    Serial.println("Checksum error");
+                    LOG_INFO("Checksum error: Calculated 0x%04X, Received 0x%04X", calc_check, recv_check);
+                    // Serial.println("Checksum error");
                 }
             }
             // 无论校验是否通过，都回到初始状态

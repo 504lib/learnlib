@@ -23,7 +23,7 @@ typedef struct
 //LCD参数
 extern _lcd_dev lcddev;	//管理LCD重要参数
 
-#define USE_HORIZONTAL  	 0//定义液晶屏顺时针旋转方向 	0-0度旋转，1-90度旋转，2-180度旋转，3-270度旋转
+#define USE_HORIZONTAL  	 1//定义液晶屏顺时针旋转方向 	0-0度旋转，1-90度旋转，2-180度旋转，3-270度旋转
 
 // LCD尺寸定义
 #define LCD_WIDTH   240     // LCD宽度

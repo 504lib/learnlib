@@ -13,6 +13,7 @@
 #include "Station/Station.hpp"
 #include <Arduino.h>
 #include <ArduinoJson.h>
+#include "../Log/Log.h"
 
 /**
  * @brief    站点最大数量

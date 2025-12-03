@@ -9,22 +9,22 @@ void NetworkClient::startWiFiScan()
     
     if (WiFi.status() != WL_DISCONNECTED && WiFi.status() != WL_IDLE_STATUS && WiFi.status() == WL_NO_SSID_AVAIL) 
     {
-        Serial.printf("NetworkClient: WiFi 模块未处于空闲状态，无法开始扫描,状态为:%d\n",WiFi.status());
+        LOG_FATAL("NetworkClient: WiFi 模块未处于空闲状态，无法开始扫描,状态为:%d",WiFi.status());
         return;
     }
 
-    Serial.printf("NetworkClient: 可用内存: %d bytes\n", ESP.getFreeHeap());
+    LOG_DEBUG("NetworkClient: 可用内存: %d bytes", ESP.getFreeHeap());
 
     int result = WiFi.scanNetworks(true); // 异步扫描
     if (result == WIFI_SCAN_FAILED) 
     {
-        Serial.println("NetworkClient: WiFi 扫描启动失败");
+        LOG_WARN("NetworkClient: WiFi 扫描启动失败");
         isScanning = false;
     } 
     else 
     {
         isScanning = true;
-        Serial.println("NetworkClient: WiFi 扫描已启动");
+        LOG_INFO("NetworkClient: WiFi 扫描已启动");
     }
 }
 
@@ -51,6 +51,7 @@ bool NetworkClient::sendGetRequest(const String& url, JsonDocument& response)
     String payload = http.getString();
     http.end();
     DeserializationError error = deserializeJson(response, payload);
+    LOG_DEBUG("NetworkClient: JSON 解析错误代码: %s", error.c_str());
     return (!error);
 }
 
@@ -70,6 +71,7 @@ bool NetworkClient::sendPostRequest(const String& url, const String& payload)
     http.begin(url);
     http.addHeader("Content-Type", "application/x-www-form-urlencoded");
     int httpCode = http.POST(payload);
+    LOG_DEBUG("NetworkClient: HTTP POST 响应代码: %d", httpCode);
     http.end();
     return (httpCode == 200);
 }
@@ -103,6 +105,7 @@ bool NetworkClient::ensureWiFiConnected(const char* ssid, const char* password)
         }
         delay(150);
     }
+    LOG_INFO("NetworkClient: WiFi 连接失败，尝试无DHCP连接");
     WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE);
     WiFi.begin(ssid, password);
     for (int i = 0; i < 20; ++i)
@@ -113,6 +116,7 @@ bool NetworkClient::ensureWiFiConnected(const char* ssid, const char* password)
         }
         delay(150);
     }
+    LOG_WARN("NetworkClient: WiFi 连接失败");
     return false;
 }
 
@@ -136,11 +140,11 @@ bool NetworkClient::startWiFiAP(String ssid, String password,String ip)
     bool result = WiFi.softAP(ssid.c_str(), password.c_str());
     if (result) 
     {
-        Serial.println("NetworkClient: AP 模式启动成功");
+        LOG_DEBUG("NetworkClient: AP 模式启动成功");
     } 
     else 
     {
-        Serial.println("NetworkClient: AP 模式启动失败");
+        LOG_DEBUG("NetworkClient: AP 模式启动失败");
     }
     return result;
 }
@@ -161,7 +165,7 @@ void NetworkClient::addWebRoute(const String& path, ArRequestHandlerFunction han
  */
 void NetworkClient::beginWebServer() {
     server.begin();
-    Serial.println("Web server started!");
+    LOG_INFO("Web server started!");
 }
 
 
@@ -184,17 +188,17 @@ int8_t NetworkClient::RSSI_intesify(String ssid)
         if (WiFi.SSID(i) == ssid)
         {
             int8_t rssi = WiFi.RSSI(i);
-            Serial.printf("NetworkClient: 找到SSID: %s, RSSI: %d dBm\n", ssid.c_str(), rssi);
+            LOG_DEBUG("NetworkClient: 找到SSID: %s, RSSI: %d dBm", ssid.c_str(), rssi);
             if (rssi > bestRSSI) 
             {
-                Serial.printf("NetworkClient: 更新最佳RSSI为: %d dBm,ssid:%s\n", rssi,ssid.c_str());
+                LOG_DEBUG("NetworkClient: 更新最佳RSSI为: %d dBm,ssid:%s", rssi,ssid.c_str());
                 bestRSSI = rssi;
                 found = true;
             }
         }
     }
     WiFi.scanDelete();
-    Serial.printf("NetworkClient: 最终最佳RSSI为: %d dBm\n", bestRSSI);
+    LOG_DEBUG("NetworkClient: 最终最佳RSSI为: %d dBm", bestRSSI);
     return found ? bestRSSI : -1;
 }
 
@@ -230,12 +234,12 @@ bool NetworkClient::checkWiFiScan()
     else if (scanResults == WIFI_SCAN_FAILED) 
     {
         isScanning = false; // 扫描失败后更新状态
-        Serial.println("NetworkClient: WiFi 扫描失败");
+        LOG_DEBUG("NetworkClient: WiFi 扫描失败");
         return false; // 扫描失败
     }
     Max_SSID_NUM = scanResults;
     isScanning = false; // 扫描完成后更新状态
-    Serial.printf("NetworkClient: WiFi 扫描完成，共找到 %d 个网络\n", Max_SSID_NUM);
+    LOG_DEBUG("NetworkClient: WiFi 扫描完成，共找到 %d 个网络", Max_SSID_NUM);
     return true; // 返回扫描到的 WiFi 网络数量
 }
 

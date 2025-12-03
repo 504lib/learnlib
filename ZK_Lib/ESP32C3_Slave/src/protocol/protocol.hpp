@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include "../Vehicle/Vehicle.hpp"
+#include "../Log/Log.h"
 
 // enum class Rounter
 // {

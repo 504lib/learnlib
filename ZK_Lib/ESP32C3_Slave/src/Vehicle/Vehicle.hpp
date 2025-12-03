@@ -12,7 +12,7 @@
  */
 #include <Arduino.h>
 #include <ArduinoJson.h>
-
+#include "../Log/Log.h"
 
 enum class Rounter
 {
@@ -53,7 +53,10 @@ class Vehicle_Info
     private:
         Vehicle_t vehicle;
     public:
-        Vehicle_Info(Vehicle_t vehicle_info) : vehicle(vehicle_info) {}
+        Vehicle_Info(Vehicle_t vehicle_info) : vehicle(vehicle_info) {
+            LOG_INFO("Vehicle_Info: 车辆信息初始化完成，车牌号：%s，WiFi名称：%s，站点服务器：%s",
+                     vehicle.Plate.c_str(), vehicle.SSID.c_str(), vehicle.StationServer.c_str());
+        }
         String Get_Vehicle_Plate();
         String Get_Vehicle_SSID();
         String Get_Vehicle_Password();

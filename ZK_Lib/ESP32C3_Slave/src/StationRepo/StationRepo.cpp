@@ -46,9 +46,11 @@ int8_t StationRepo::find_Station(const String& target_name)
         {
             if (strcmp(this->station_list[i].name_ch.c_str(), target_name.c_str()) == 0)  // 修复：添加 == 0 比较
             {
+                LOG_DEBUG("Found station by Chinese name: %s at index %d", target_name.c_str(), i);
                 return i;
             }
         }
+        LOG_DEBUG("Station with Chinese name: %s not found", target_name.c_str());
         return -1;
     }
     else
@@ -57,9 +59,11 @@ int8_t StationRepo::find_Station(const String& target_name)
         {
             if (strcmp(this->station_list[i].name.c_str(), target_name.c_str()) == 0)  // 修复：添加 == 0 比较
             {
+                LOG_DEBUG("Found station by name: %s at index %d", target_name.c_str(), i);
                 return i;
             }
         }
+        LOG_DEBUG("Station with name: %s not found", target_name.c_str());
         return -1;
     }
 }
@@ -93,12 +97,13 @@ bool StationRepo::Add_Station_to_Tail(const Station_t& station)
 {
     if (this->used_num >= N)  // 链表已满
     {
+        LOG_WARN("Station list is full, cannot add more stations");
         return false;
     }
     if (this->find_Station(station.name) != -1 
          || this->find_Station(station.name_ch) != -1)  // 站点已存在
     {
-        Serial.printf("Input Station Name is same as station of the list, Please check\n");
+        LOG_WARN("Input Station Name is same as station of the list, Please check");
         return false;
     }
     this->station_list[this->used_num] = station;
@@ -108,6 +113,7 @@ bool StationRepo::Add_Station_to_Tail(const Station_t& station)
     this->station_list[this->used_num].lastVisitTime = 0;
     this->station_list[this->used_num].visitCount = 0;
     this->used_num++;
+    LOG_INFO("Station %s added to the list successfully", station.name.c_str());
     return true;
 }
 
@@ -123,14 +129,14 @@ bool StationRepo::Add_Station_ByIndex(const Station_t& station, uint8_t index)
 {
     if (index >= N || this->used_num >= N)  // 修复：index是uint8_t，不会<0
     {
+        LOG_WARN("Invalid index or station list is full, cannot add station");
         return false;
     }
     
     // 如果index大于当前数量，则添加到末尾
     if (index > this->used_num) 
     {
-        Add_Station_to_Tail(station);
-        return false;
+        return Add_Station_to_Tail(station);
     }
     
     // 移动元素腾出空间
@@ -147,6 +153,7 @@ bool StationRepo::Add_Station_ByIndex(const Station_t& station, uint8_t index)
     this->station_list[this->used_num].lastVisitTime = 0;
     this->station_list[this->used_num].visitCount = 0;
     this->used_num++;
+    LOG_WARN("Station %s added at index %d successfully", station.name.c_str(), index);
     return true;
 }
 
@@ -162,6 +169,7 @@ bool StationRepo::Add_StationToLater_ByString(const Station_t& station, const St
 {
     if (this->used_num >= N)  // 修复：移除index检查，因为index还没定义
     {
+        LOG_WARN("Station list is full, cannot add more stations");
         return false;
     }
     
@@ -169,9 +177,9 @@ bool StationRepo::Add_StationToLater_ByString(const Station_t& station, const St
     
     if (index != -1)
     {
-        this->Add_Station_ByIndex(station,index);  // 修复：添加右括号，插入到目标后面
-        return true;
+        return this->Add_Station_ByIndex(station,index);  // 修复：添加右括号，插入到目标后面
     }
+    LOG_WARN("Target station %s not found, cannot add station", target_name.c_str());
     return false; 
 }
 
@@ -184,13 +192,18 @@ bool StationRepo::Add_StationToLater_ByString(const Station_t& station, const St
  */
 bool StationRepo::Remove_Station_ByIndex(uint8_t index)
 {
-    if(!this->used_num || index >= this->used_num) return false;
+    if(!this->used_num || index >= this->used_num) 
+    {
+        LOG_WARN("Invalid index or station list is empty, cannot remove station");
+        return false;
+    }
     
     for (uint8_t i = index; i < this->used_num - 1; i++)
     {
         this->station_list[i] = this->station_list[i + 1];
     }
     this->used_num--;
+    LOG_INFO("Station at index %d removed successfully", index);
     return true;
 }
 
@@ -207,6 +220,7 @@ bool StationRepo::Remove_Station_ByString(const String& name)
     
     if (temp == -1)
     {
+        LOG_WARN("Station %s not found, cannot remove station", name.c_str());
         return false;
     }
     else
@@ -234,8 +248,13 @@ bool StationRepo::Remove_Station_Head()
  */
 bool StationRepo::Remove_Station_Tail()
 {
-    if (!this->used_num) return false;
+    if (!this->used_num) 
+    {
+        LOG_WARN("Station list is empty, cannot remove tail station");
+        return false;
+    }
     this->used_num--; 
+    LOG_INFO("Tail station removed successfully");
     return true;
 }
 
@@ -270,12 +289,17 @@ String StationRepo::Get_Current_Station_Chinese()
  */
 bool StationRepo::Move_To_Next_Station()
 {
-    if (this->used_num == 0) return false;
+    if (this->used_num == 0) 
+    {
+        LOG_WARN("Station list is empty, cannot move to next station");
+        return false;
+    }
     station_list[this->current_index].isProcessed = true;
     station_list[this->current_index].visitCount += 1;
     station_list[this->current_index].lastVisitTime = millis();
     station_list[this->current_index].isConnnectd = false;
     this->current_index = (this->current_index + 1) % this->used_num;
+    LOG_INFO("Moved to next station, current index is now %d", this->current_index);
     return true;
 }
 
@@ -288,8 +312,13 @@ bool StationRepo::Move_To_Next_Station()
  */
 bool StationRepo::Move_To_Previous_Station()
 {
-    if (this->used_num == 0) return false;
+    if (this->used_num == 0) 
+    {
+        LOG_WARN("Station list is empty, cannot move to previous station");
+        return false;
+    }
     this->current_index = (this->current_index == 0) ? this->used_num - 1 : this->current_index - 1;
+    LOG_INFO("Moved to previous station, current index is now %d", this->current_index);
     return true;
 }
 
@@ -335,7 +364,11 @@ bool StationRepo::Mark_Current_Processed()
  */
 bool StationRepo::Is_Current_Processed()
 {
-    if (this->used_num == 0) return false;
+    if (this->used_num == 0)
+    {
+        LOG_WARN("Station list is empty, cannot check processing status");
+        return false;
+    }
     return this->station_list[this->current_index].isProcessed;
 }
 
@@ -349,8 +382,13 @@ bool StationRepo::Is_Current_Processed()
  */
 bool StationRepo::Change_Station_Password(uint8_t index, String new_password)
 {
-    if (index >= this->used_num) return false;
+    if (index >= this->used_num) 
+    {
+        LOG_WARN("Invalid index %d, cannot change station password", index);
+        return false;
+    }
     this->station_list[index].password = new_password;
+    LOG_INFO("Password for station at index %d changed successfully", index);
     return true;
 }
 
@@ -380,6 +418,7 @@ void StationRepo::Clear_Station_List()
 {
     this->used_num = 0;
     this->current_index = 0;
+    LOG_INFO("Station list cleared successfully");
 }
 
 /**
@@ -392,6 +431,7 @@ void StationRepo::Reset_Processing_Status()
     {
         this->station_list[i].isProcessed = false;
     }
+    LOG_INFO("All station processing statuses have been reset to unprocessed");
 }
 
 /**
@@ -465,6 +505,7 @@ String StationRepo::Get_Index_Station_Name(uint8_t index,bool is_chinese)
 {
     if (index >= used_num)
     {
+        LOG_WARN("Invalid index %d, cannot get station name", index);
         return String("");
     }
     
@@ -488,6 +529,7 @@ String StationRepo::Get_Index_Station_SSID(uint8_t index)
 {
     if (index >= used_num)
     {
+        LOG_WARN("Invalid index %d, cannot get station SSID", index);
         return String("");
     }
     return this->station_list[index].ssid;
@@ -503,6 +545,7 @@ String StationRepo::Get_Index_Station_Password(uint8_t index)
 {
     if (index >= used_num)
     {
+        LOG_WARN("Invalid index %d, cannot get station password", index);
         return String("");
     }
     return this->station_list[index].password;
@@ -518,6 +561,7 @@ String StationRepo::Get_Index_Station_IP(uint8_t index)
 {
     if (index >= used_num)
     {
+        LOG_WARN("Invalid index %d, cannot get station IP", index);
         return String("");
     }
     return this->station_list[index].ip;
@@ -533,6 +577,7 @@ int8_t StationRepo::Get_Index_Station_LastRSSI(uint8_t index)
 {
     if (index >= used_num)
     {
+        LOG_WARN("Invalid index %d, cannot get station last RSSI", index);
         return -100;
     }
     return this->station_list[index].lastRSSI;
@@ -548,6 +593,7 @@ uint32_t StationRepo::Get_Index_Station_LastVisitTime(uint8_t index)
 {
     if (index >= used_num)
     {
+        LOG_WARN("Invalid index %d, cannot get station last visit time", index);
         return 0;
     }
     return this->station_list[index].lastVisitTime;
@@ -563,6 +609,7 @@ int StationRepo::Get_Index_Station_VisitCount(uint8_t index)
 {
     if (index >= used_num)
     {
+        LOG_WARN("Invalid index %d, cannot get station visit count", index);
         return 0;
     }
     return this->station_list[index].visitCount;
@@ -579,6 +626,7 @@ bool StationRepo::is_Processed(uint8_t index)
 {
     if (index >= used_num)
     {
+        LOG_WARN("Invalid index %d, cannot get station processed status", index);
         return false;
     }
     return this->station_list[index].isProcessed;
@@ -595,6 +643,7 @@ bool StationRepo::is_Connected(uint8_t index)
 {
     if (index >= used_num)
     {
+        LOG_WARN("Invalid index %d, cannot get station connected status", index);
         return false;
     }
     return this->station_list[index].isConnnectd;

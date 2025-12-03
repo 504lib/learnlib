@@ -16,6 +16,7 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <ESPAsyncWebServer.h>
+#include "../Log/Log.h"
 
 
 class NetworkClient 

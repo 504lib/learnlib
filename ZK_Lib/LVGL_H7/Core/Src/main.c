@@ -19,18 +19,23 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "dma.h"
-#include "memorymap.h"
 #include "spi.h"
+#include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "lcd.h"
+#include <stdbool.h>
 //#include "LED.h"
 //#include "ili9341.h"
 #include <stdio.h>
 #include <string.h>
+
+#include "lvgl.h"                // 它为整个LVGL提供了更完整的头文件引用
+#include "lv_port_disp.h"        // LVGL的显示支持
+// #include  "lv_port_indev.h"      // LVGL的输入设备支持
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -55,6 +60,7 @@
 volatile uint8_t flag = 0;
  uint8_t chr[50] = {0};
  uint8_t chr_single = 0;
+bool lv_flush_flag = false;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -99,7 +105,17 @@ void LCD_FPS_Test(void)
 void LCD_Quick_Test(void)
 {
     printf("快速测试: 红->绿->蓝->白->黑\r\n");
-    
+    printf("RED=0x%x, GREEN=0x%x, BLUE=0x%x, WHITE=0x%x, BLACK=0x%x\r\n",Color_To_565(255, 0, 0) , Color_To_565(0, 255, 0), Color_To_565(0, 0, 255), WHITE, BLACK);
+    // LCD_Clear(Color_To_565(255, 0, 0));  // 红色
+    // HAL_Delay(500);
+    // LCD_Clear(Color_To_565(0, 255, 0));  // 绿色
+    // HAL_Delay(500);
+    // LCD_Clear(Color_To_565(0, 0, 255));  // 蓝色
+    // HAL_Delay(500);
+    // LCD_Clear(Color_To_565(255, 255, 255));  // 白色
+    // HAL_Delay(500);
+    // LCD_Clear(Color_To_565(0, 0, 0));  // 黑色
+    // HAL_Delay(500);
     LCD_Clear(RED);
     HAL_Delay(500);
     LCD_Clear(GREEN);
@@ -110,7 +126,6 @@ void LCD_Quick_Test(void)
     HAL_Delay(500);
     LCD_Clear(BLACK);
     HAL_Delay(500);
-    
     printf("快速测试完成!\r\n");
 }
 /* USER CODE END 0 */
@@ -150,19 +165,63 @@ int main(void)
   MX_DMA_Init();
   MX_USART1_UART_Init();
   MX_SPI1_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
   LCD_Init();
-  LCD_Clear(CYAN);
+  // LCD_Fill_DMA_DoubleBuffer(50,50,200,200,BLUE); // 测试DMA双缓冲填充
+//  LCD_Clear(RED);//清全屏白色
+	lv_init();                             // LVGL 初始化
+	lv_port_disp_init();  
+ 
+ lv_color_t red = lv_color_make(255, 0, 0);   // 红色
+ lv_color_t green = lv_color_make(0, 255, 0); // 绿色
+ lv_color_t blue = lv_color_make(0, 0, 255);  // 蓝色
+ lv_color_t yellow = lv_color_make(255, 255, 0); // 黄色
+   lv_obj_t *rect = lv_obj_create(lv_scr_act()); // 父对象为当前屏幕
+   lv_obj_set_size(rect, 200, 200);              // 设置矩形大小
+   lv_obj_set_pos(rect, 50, 0);                 // 设置矩形位置
+
+ // 定义一个颜色数组用于测试
+ lv_color_t colors[] = {red, green, blue, yellow};
+ uint8_t color_index = 0;
+	
+	    // 按钮
+//  lv_obj_t *myBtn = lv_btn_create(lv_scr_act());                               // 创建按钮; 父对象：当前活动屏幕
+//  lv_obj_set_pos(myBtn, 10, 10);                                               // 设置坐标
+//  lv_obj_set_size(myBtn, 120, 50);                                             // 设置大小
+//  
+//  // 按钮上的文本
+//  lv_obj_t *label_btn = lv_label_create(myBtn);                                // 创建文本标签，父对象：上面的btn按钮
+//  lv_obj_align(label_btn, LV_ALIGN_CENTER, 0, 0);                              // 对齐于：父对象
+//  lv_label_set_text(label_btn, "Test");                                        // 设置标签的文本
+
+//  // 独立的标签
+//  lv_obj_t *myLabel = lv_label_create(lv_scr_act());                           // 创建文本标签; 父对象：当前活动屏幕
+//  lv_label_set_text(myLabel, "Hello world!");                                  // 设置标签的文本
+//  lv_obj_align(myLabel, LV_ALIGN_CENTER, 0, 0);                                // 对齐于：父对象
+//  lv_obj_align_to(myBtn, myLabel, LV_ALIGN_OUT_TOP_MID, 0, -20);               // 对齐于：某对象
+  HAL_TIM_Base_Start_IT(&htim1); // 启动定时器中断
   /* USER CODE END 2 */
-  LCD_Quick_Test();
+
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    HAL_Delay(1000);
-    HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
+    if (lv_flush_flag)
+    {
+      lv_flush_flag  = false;
+      lv_task_handler(); // 处理LVGL任务
+      // printf("lv_task_handler called\n");
+    }
+  static uint32_t last_tick = 0;
+     if (HAL_GetTick() - last_tick >= 1000)
+     {
+         last_tick = HAL_GetTick();
+         lv_obj_set_style_bg_color(rect, colors[color_index], LV_PART_MAIN);
+         color_index = (color_index + 1) % 4; // 循环切换颜色
+     }   
     /* USER CODE END WHILE */
-    LCD_FPS_Test();
+
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -183,11 +242,6 @@ void SystemClock_Config(void)
 
   /** Configure the main internal regulator output voltage
   */
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
-
-  while(!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
-
-  __HAL_RCC_SYSCFG_CLK_ENABLE();
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE0);
 
   while(!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
@@ -232,6 +286,29 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  static uint8_t lv_tick = 0;
+  if(htim->Instance == TIM1)
+  {
+
+    lv_tick_inc(1); // 每1毫秒调用一次lv_tick_inc
+    lv_tick++;
+    if(lv_tick % 5 == 0) // 每5毫秒调用一次lv_task_handler
+    {
+      
+      lv_flush_flag = true;
+
+    }
+	if(lv_tick >= 200)
+	{
+		// printf("test\n");
+		lv_tick = 0;
+	}
+  }
+}
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
@@ -292,8 +369,7 @@ void Error_Handler(void)
   }
   /* USER CODE END Error_Handler_Debug */
 }
-
-#ifdef  USE_FULL_ASSERT
+#ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
