@@ -2,15 +2,8 @@
 
 #include <Arduino.h>
 #include "../Vehicle/Vehicle.hpp"
+#include "../protocol/protocol.hpp"
 #include "../Log/Log.h"
-
-// enum class Rounter
-// {
-//     Route_1 = 0,
-//     Route_2,
-//     Route_3,
-//     Ring_road
-// };
 
 enum class CmdType 
 { 
@@ -21,6 +14,22 @@ enum class CmdType
     CLEAR,
     VEHICLE_STATUS
 };
+typedef struct
+{
+  CmdType type;
+  union
+  {
+    int32_t int_value;
+    float   float_value;
+    VehicleStatus status;
+     struct
+    {
+      Rounter router;
+      uint8_t passenger_num;
+    }passenger; 
+  }value;
+}ACK_Queue_t;
+
 // enum class VehicleStatus 
 // {
 //   WAITING,     // 候车中

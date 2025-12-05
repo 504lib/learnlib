@@ -637,6 +637,16 @@ void Clear_Event(Rounter rounter)
   passenger_num[rounter] = 0;
   passenger_temp[rounter] = 0;
 }
+
+void VehicleStatus_Callback(VehicleStatus status)
+{
+  // Ack_Queue_t ack_queue_t = {
+  //   .type = VEHICLE_STATUS,
+  //   .value.status_value = status,
+  // };
+  // osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
+  LOG_INFO("Vehicle status changed:%d",status);
+}
 /**
 * @brief Function implementing the KEY_TASK thread.
 * @param argument: Not used
@@ -691,6 +701,7 @@ void uart_task(void *argument)
   set_PASSENGER_Callback(synchronized_passengers);
   set_ACK_Callback(ACK_Event_mutex);
   set_Clear_Callback(Clear_Event);
+  set_VehicleStatus_Callback(VehicleStatus_Callback);
   /* Infinite loop */
   for(;;)
   {

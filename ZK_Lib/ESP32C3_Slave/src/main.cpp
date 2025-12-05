@@ -34,20 +34,6 @@ RouterScheduler router_scheduler(station_repo,network_client,vehicle);
 
 #define LED_Pin LED_BUILTIN
 
-typedef struct
-{
-  CmdType type;
-  union
-  {
-    int32_t int_value;
-    float   float_value;
-     struct
-    {
-      Rounter router;
-      uint8_t passenger_num;
-    }passenger; 
-  }value;
-}ACK_Queue_t;
 
 protocol uart_protocol(0xAA,0x55,0x0D,0x0A);
 
@@ -105,7 +91,7 @@ void ACK_Task(void* pvParameters)
           uart_protocol.Send_Uart_Frame_CLEAR(ack_queue_t.value.passenger.router);
           break;
         case CmdType::VEHICLE_STATUS:
-          uart_protocol.Set_Vehicle_Status(static_cast<VehicleStatus>(ack_queue_t.value.int_value));
+          uart_protocol.Set_Vehicle_Status(ack_queue_t.value.status);
           break;
         default:
           Serial.printf("unknown type!!!");
@@ -161,6 +147,16 @@ void setup()
         return;
       }
       vehicle.Update_Vehicle_Status(status);
+    });
+    router_scheduler.setCommandQueueCallback([](const ACK_Queue_t ack){
+        if(xQueueSend(xCommandQueue,&ack,portMAX_DELAY))
+        {
+            Serial.printf("Command queued: %d\n", static_cast<uint8_t>(ack.type));
+        }
+        else
+        {
+            Serial.printf("Failed to queue command: %d\n", static_cast<uint8_t>(ack.type));
+        }
     });
     xUartRxQueue = xQueueCreate(32,sizeof(uint8_t)); 
     xCommandQueue = xQueueCreate(32,sizeof(ACK_Queue_t));

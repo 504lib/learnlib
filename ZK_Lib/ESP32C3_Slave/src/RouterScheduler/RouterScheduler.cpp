@@ -180,11 +180,24 @@ void RouterScheduler::CheckArrivingAndMaybeLeave()
         vehicle_info.Update_Vehicle_Status(VehicleStatus::STATUS_LEAVING);
         return;
     }
-
+    if (commandQueueCallback)
+    {
+        ACK_Queue_t ack;
+        ack.type = CmdType::VEHICLE_STATUS;
+        ack.value.status = VehicleStatus::STATUS_ARRIVING;
+        commandQueueCallback(ack);
+    }
+    
     vehicle_info.Update_Vehicle_Status(VehicleStatus::STATUS_ARRIVING);
     sendSinglePost(station_repo.Get_Current_Index());
 }
 
+
+
+void RouterScheduler::setCommandQueueCallback(CommandQueueCallback callback)
+{
+    commandQueueCallback = callback;
+}
 
 bool RouterScheduler::sendSinglePost(uint8_t index)
 {
@@ -279,6 +292,13 @@ void RouterScheduler::RouterScheduler_Executer()
             bool postSuccess = sendSinglePost(station_repo.Get_Current_Index());
             if (postSuccess)
             {
+                if(commandQueueCallback)
+                {
+                    ACK_Queue_t ack;
+                    ack.type = CmdType::VEHICLE_STATUS;
+                    ack.value.status = VehicleStatus::STATUS_WAITING;
+                    commandQueueCallback(ack);
+                }
                 LOG_INFO("RouterScheduler: 状态报告发送成功");
             }
             else
@@ -301,6 +321,13 @@ void RouterScheduler::RouterScheduler_Executer()
                 return;
             }
             lastPostTime = millis();
+            if (commandQueueCallback)
+            {
+                ACK_Queue_t ack;
+                ack.type = CmdType::VEHICLE_STATUS;
+                ack.value.status = VehicleStatus::STATUS_ARRIVING;
+                commandQueueCallback(ack);
+            }
             LOG_INFO("RouterScheduler: 车辆处于 ARRIVING 状态，保持连接");    
             break;
         }
@@ -318,6 +345,13 @@ void RouterScheduler::RouterScheduler_Executer()
                     break;
                 } 
                 delay(100);
+            }
+            if (commandQueueCallback)
+            {
+                ACK_Queue_t ack;
+                ack.type = CmdType::VEHICLE_STATUS;
+                ack.value.status = VehicleStatus::STATUS_LEAVING;
+                commandQueueCallback(ack);
             }
             vehicle_info.Update_Vehicle_Status(VehicleStatus::STAUS_DISCONNECTED);
             break;
