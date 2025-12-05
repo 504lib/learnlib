@@ -56,6 +56,7 @@
 //#include "ctpiic.h"
 #include <string.h> 
 #include "lcd.h"
+#include <stdio.h>
 
 extern uint8_t touch_flag;
 
@@ -73,7 +74,7 @@ uint8_t FT6336_WR_Reg(uint16_t reg,uint8_t *buf,uint8_t len)
 {
     HAL_StatusTypeDef status;
     status = HAL_I2C_Mem_Write(&hi2c1,          // I2C句柄（根据实际情况选择）
-                               FT6336_ADDR,     // 7位设备地址
+                               FT6336_ADDR_WRITE,     // 7位设备地址
                                reg,             // 寄存器地址
                                I2C_MEMADD_SIZE_8BIT, // 8位寄存器地址
                                buf,             // 数据缓冲区
@@ -94,7 +95,7 @@ uint8_t FT6336_WR_Reg(uint16_t reg,uint8_t *buf,uint8_t len)
 void FT6336_RD_Reg(uint16_t reg,uint8_t *buf,uint8_t len)
 {
     HAL_I2C_Mem_Read(&hi2c1,                    // I2C句柄
-                     FT6336_ADDR,               // 7位设备地址
+                     FT6336_ADDR_READ,               // 7位设备地址
                      reg,                       // 寄存器地址
                      I2C_MEMADD_SIZE_8BIT,      // 8位寄存器地址
                      buf,                       // 数据缓冲区
@@ -125,20 +126,24 @@ uint8_t FT6336_Init(void)
 	FT6336_RD_Reg(FT_ID_G_FOCALTECH_ID,&temp[0],1);
 	if(temp[0]!=0x11)
 	{
+		printf("FT6336 ID Read Error! ID=%x\r\n",temp[0]);
 		return 1;
 	}
 	FT6336_RD_Reg(FT_ID_G_CIPHER_MID,&temp[0],2);
 	if(temp[0]!=0x26)
 	{
+		printf("FT6336 ID Read Error! MID=%x\r\n",temp[0]);
 		return 1;
 	}
 	if((temp[1]!=0x00)&&(temp[1]!=0x01)&&(temp[1]!=0x02))
 	{
+		printf("FT6336 ID Read Error! LOW=%x\r\n",temp[1]);
 		return 1;
 	}
 	FT6336_RD_Reg(FT_ID_G_CIPHER_HIGH,&temp[0],1);
 	if(temp[0]!=0x64)
 	{
+		printf("FT6336 ID Read Error! HIGH=%x\r\n",temp[0]);
 		return 1;
 	}
 //	temp[0]=12;								//激活周期，不能小于12，最大14
@@ -147,7 +152,7 @@ uint8_t FT6336_Init(void)
 //	FT6336_RD_Reg(FT_ID_G_LIB_VERSION,&temp[0],2);  
 //	if(temp[0]==0X10&&temp[1]==0X01)//版本:0X3003
 //	{ 
-//		printf("CTP ID:%x\r\n",((uint16_t)temp[0]<<8)+temp[1]);
+		printf("CTP ID:%x\r\n",((uint16_t)temp[0]<<8)+temp[1]);
 //		return 0;
 //	} 
 	return 0;

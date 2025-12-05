@@ -172,6 +172,7 @@ int main(void)
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
   LCD_Init();
+  TP_Init();
   // LCD_Fill_DMA_DoubleBuffer(50,50,200,200,BLUE); // 测试DMA双缓冲填充
 //  LCD_Clear(RED);//清全屏白色
 	lv_init();                             // LVGL 初始化
@@ -211,6 +212,21 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    if(FT6336_Scan())
+    {
+      printf("Touch at (%d, %d)\n", tp_dev.x[0], tp_dev.y[0]);
+      // lv_indev_data_t data;
+      // data.point.x = tp_dev.x[0];
+      // data.point.y = tp_dev.y[0];
+      // data.state = LV_INDEV_STATE_PR; // 触摸按下状态
+      // lv_indev_set_point(lv_get_indev(LV_INDEV_TYPE_POINTER), &data);
+    }
+    // else
+    // {
+    //   lv_indev_data_t data;
+    //   data.state = LV_INDEV_STATE_REL; // 触摸释放状态
+    //   lv_indev_set_point(lv_get_indev(LV_INDEV_TYPE_POINTER), &data);
+    // }
     if (lv_flush_flag)
     {
       lv_flush_flag  = false;
