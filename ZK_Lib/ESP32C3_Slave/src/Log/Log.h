@@ -1,7 +1,6 @@
 #pragma once
 
 #include <Arduino.h>
-#include <HardwareSerial.h>
 // #include <stdio.h>
 // #include "usart.h"
 // #include "string.h"

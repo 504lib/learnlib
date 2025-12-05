@@ -67,6 +67,10 @@ void Error_Handler(void);
 #define SPI1_CS_GPIO_Port GPIOB
 #define SPI1_BLK_Pin GPIO_PIN_1
 #define SPI1_BLK_GPIO_Port GPIOB
+#define FT6336_IT_Pin GPIO_PIN_4
+#define FT6336_IT_GPIO_Port GPIOB
+#define FT6336_RES_Pin GPIO_PIN_5
+#define FT6336_RES_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 
