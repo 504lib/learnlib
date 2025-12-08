@@ -6,12 +6,13 @@
  */
 void NetworkClient::startWiFiScan()
 {
-    
-    if (WiFi.status() != WL_DISCONNECTED && WiFi.status() != WL_IDLE_STATUS && WiFi.status() == WL_NO_SSID_AVAIL) 
+    if (WiFi.status() != WL_DISCONNECTED && WiFi.status() != WL_IDLE_STATUS)
     {
-        LOG_FATAL("NetworkClient: WiFi 模块未处于空闲状态，无法开始扫描,状态为:%d",WiFi.status());
+        LOG_FATAL("NetworkClient: WiFi 模块未处于空闲状态，无法开始扫描,状态为:%d", WiFi.status());
         return;
     }
+
+    delay(50);
 
     LOG_DEBUG("NetworkClient: 可用内存: %d bytes", ESP.getFreeHeap());
 
@@ -234,12 +235,12 @@ bool NetworkClient::checkWiFiScan()
     else if (scanResults == WIFI_SCAN_FAILED) 
     {
         isScanning = false; // 扫描失败后更新状态
-        LOG_DEBUG("NetworkClient: WiFi 扫描失败");
+        LOG_WARN("NetworkClient: WiFi 扫描失败");
         return false; // 扫描失败
     }
     Max_SSID_NUM = scanResults;
     isScanning = false; // 扫描完成后更新状态
-    LOG_DEBUG("NetworkClient: WiFi 扫描完成，共找到 %d 个网络", Max_SSID_NUM);
+    LOG_INFO("NetworkClient: WiFi 扫描完成，共找到 %d 个网络", Max_SSID_NUM);
     return true; // 返回扫描到的 WiFi 网络数量
 }
 
