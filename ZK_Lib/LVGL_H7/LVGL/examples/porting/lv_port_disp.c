@@ -219,8 +219,8 @@ void LCD_WriteBuffer_DMA_LineByLine(uint16_t xsta, uint16_t ysta, uint16_t xend,
             
             // 调试：输出第一行的第一个像素
             if(y == 0 && x == 0) {
-                printf("First pixel: R=%d, G=%d, B=%d, full=0x%08X\n", 
-                       lv_color.ch.red, lv_color.ch.green, lv_color.ch.blue, lv_color.full);
+                // printf("First pixel: R=%d, G=%d, B=%d, full=0x%08X\n", 
+                //        lv_color.ch.red, lv_color.ch.green, lv_color.ch.blue, lv_color.full);
             }
             
             // 颜色转换：根据LVGL配置选择正确的转换方式
@@ -291,22 +291,39 @@ static void disp_flush(lv_disp_drv_t * disp_drv, const lv_area_t * area, lv_colo
         LCD_RS_SET;
         
         // 一次传输一行数据
-        for(uint16_t y = 0; y < height; y++) {
-            // 传输一行数据
-            for(uint16_t x = 0; x < width; x++) {
-                uint16_t color = color_p->full;
-                
-                // 使用直接SPI传输而不是函数调用
-                uint8_t data_buffer[2];
-                data_buffer[0] = color >> 8;
-                data_buffer[1] = color & 0xFF;
-                HAL_SPI_Transmit(&hspi1, data_buffer, 2,1);
-//	            while(HAL_SPI_GetState(&hspi1) == HAL_SPI_STATE_BUSY_TX);
-                color_p++;
-            }
-        }
-        
-        LCD_CS_SET;
+// static uint16_t line_buffer_1[320];
+//     static uint16_t line_buffer_2[320];
+//     uint16_t *current_buffer = line_buffer_1;
+//     uint16_t *next_buffer = line_buffer_2;
+
+//     for (uint16_t y = 0; y < height; y++) {
+//         // 准备下一行数据
+//         for (uint16_t x = 0; x < width; x++) {
+//             next_buffer[x] = color_p->full;
+//             color_p++;
+//         }
+
+//         // 等待上一次 DMA 完成
+//         while(HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY);
+
+//         // 启动 DMA 传输当前行
+//         lcd_dma_complete = 0;
+        // HAL_SPI_Transmit_DMA(&hspi1, (uint8_t *)current_buffer, width * 2);
+
+        // 交换缓冲区
+    //     uint16_t *temp = current_buffer;
+    //     current_buffer = next_buffer;
+    //     next_buffer = temp;
+    // }
+    
+    for (uint16_t y = 0; y < height; y++) {
+        HAL_SPI_Transmit_DMA(&hspi1, (uint8_t *)(color_p + y * width), width * 2);
+        while(HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY);
+    }
+    // HAL_SPI_Transmit_DMA(&hspi1, (uint8_t *)color_p, width * height * 2);
+
+    while(HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY);
+    LCD_CS_SET;
     }
         
     /*IMPORTANT!!!	
