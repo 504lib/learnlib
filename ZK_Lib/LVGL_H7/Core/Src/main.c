@@ -36,7 +36,7 @@
 
 #include "lvgl.h"                // 它为整个LVGL提供了更完整的头文件引用
 #include "lv_port_disp.h"        // LVGL的显示支持
-// #include  "lv_port_indev.h"      // LVGL的输入设备支持
+#include  "lv_port_indev.h"      // LVGL的输入设备支持
 
 #include "touch.h"
 /* USER CODE END Includes */
@@ -75,61 +75,27 @@ static void MPU_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+static lv_obj_t * label;
 
-// 简单的FPS测试函数
-void LCD_FPS_Test(void)
+static void slider_event_cb(lv_event_t * e)
 {
-    printf("=== FPS测试 ===\r\n");
-    
-    uint32_t start_time = HAL_GetTick();
-    uint32_t frame_count = 0;
-    uint16_t test_colors[] = {RED, GREEN, BLUE, YELLOW, CYAN, MAGENTA};
-    uint8_t color_count = 6;
-    
-    // 测试10秒
-    while((HAL_GetTick() - start_time) < 10000) {
-        LCD_Clear(test_colors[frame_count % color_count]);
-        frame_count++;
-        
-        // 每100帧输出一次状态
-        if(frame_count % 100 == 0) {
-            uint32_t current_time = HAL_GetTick() - start_time;
-            float fps = (float)frame_count * 1000 / current_time;
-            printf("帧数: %lu, 时间: %lums, 实时FPS: %.1f\r\n", 
-                   frame_count, current_time, fps);
-        }
-    }
-    
-    float avg_fps = (float)frame_count * 1000 / 10000;
-    printf("测试完成! 总帧数: %lu, 平均FPS: %.1f\r\n", frame_count, avg_fps);
+    lv_obj_t * slider = lv_event_get_target(e);
+
+    /*Refresh the text*/
+    lv_label_set_text_fmt(label, "%d", lv_slider_get_value(slider));
 }
 
-// 快速功能验证
-void LCD_Quick_Test(void)
+void mybtn_cb(lv_event_t * e)
 {
-    printf("快速测试: 红->绿->蓝->白->黑\r\n");
-    printf("RED=0x%x, GREEN=0x%x, BLUE=0x%x, WHITE=0x%x, BLACK=0x%x\r\n",Color_To_565(255, 0, 0) , Color_To_565(0, 255, 0), Color_To_565(0, 0, 255), WHITE, BLACK);
-    // LCD_Clear(Color_To_565(255, 0, 0));  // 红色
-    // HAL_Delay(500);
-    // LCD_Clear(Color_To_565(0, 255, 0));  // 绿色
-    // HAL_Delay(500);
-    // LCD_Clear(Color_To_565(0, 0, 255));  // 蓝色
-    // HAL_Delay(500);
-    // LCD_Clear(Color_To_565(255, 255, 255));  // 白色
-    // HAL_Delay(500);
-    // LCD_Clear(Color_To_565(0, 0, 0));  // 黑色
-    // HAL_Delay(500);
-    LCD_Clear(RED);
-    HAL_Delay(500);
-    LCD_Clear(GREEN);
-    HAL_Delay(500);
-    LCD_Clear(BLUE);
-    HAL_Delay(500);
-    LCD_Clear(WHITE);
-    HAL_Delay(500);
-    LCD_Clear(BLACK);
-    HAL_Delay(500);
-    printf("快速测试完成!\r\n");
+  lv_obj_t * btn = lv_event_get_target(e);
+  if (e->code == LV_EVENT_CLICKED)
+  {
+    static uint16_t count = 0;
+    count++;
+    lv_obj_t * label = lv_obj_get_child(btn, 0);
+    lv_label_set_text_fmt(label, "Pressed: %d", count);
+  }
+  
 }
 /* USER CODE END 0 */
 
@@ -177,7 +143,7 @@ int main(void)
 //  LCD_Clear(RED);//清全屏白色
 	lv_init();                             // LVGL 初始化
 	lv_port_disp_init();  
- 
+  lv_port_indev_init();
 //  lv_color_t red = lv_color_make(255, 0, 0);   // 红色
 //  lv_color_t green = lv_color_make(0, 255, 0); // 绿色
 //  lv_color_t blue = lv_color_make(0, 0, 255);  // 蓝色
@@ -191,36 +157,53 @@ int main(void)
 //  uint8_t color_index = 0;
 	
 	    // 按钮
- lv_obj_t *myBtn = lv_btn_create(lv_scr_act());                               // 创建按钮; 父对象：当前活动屏幕
- lv_obj_set_pos(myBtn, 10, 10);                                               // 设置坐标
- lv_obj_set_size(myBtn, 120, 50);                                             // 设置大小
- 
- // 按钮上的文本
- lv_obj_t *label_btn = lv_label_create(myBtn);                                // 创建文本标签，父对象：上面的btn按钮
- lv_obj_align(label_btn, LV_ALIGN_CENTER, 0, 0);                              // 对齐于：父对象
- lv_label_set_text(label_btn, "Test");                                        // 设置标签的文本
+  lv_obj_t *myBtn = lv_btn_create(lv_scr_act());                               // 创建按钮; 父对象：当前活动屏幕
+  lv_obj_set_pos(myBtn, 10, 10);                                               // 设置坐标
+  lv_obj_set_size(myBtn, 120, 50);                                             // 设置大小
+  lv_obj_add_event_cb(myBtn, mybtn_cb, LV_EVENT_CLICKED, NULL); // 添加点击事件回调
+  
+  // 按钮上的文本
+  lv_obj_t *label_btn = lv_label_create(myBtn);                                // 创建文本标签，父对象：上面的btn按钮
+  lv_obj_align(label_btn, LV_ALIGN_CENTER, 0, 0);                              // 对齐于：父对象
+  lv_label_set_text(label_btn, "Test");                                        // 设置标签的文本
 
- // 独立的标签
- lv_obj_t *myLabel = lv_label_create(lv_scr_act());                           // 创建文本标签; 父对象：当前活动屏幕
- lv_label_set_text(myLabel, "Hello world!");                                  // 设置标签的文本
- lv_obj_align(myLabel, LV_ALIGN_CENTER, 0, 0);                                // 对齐于：父对象
- lv_obj_align_to(myBtn, myLabel, LV_ALIGN_OUT_TOP_MID, 0, -20);               // 对齐于：某对象
+  // 独立的标签
+  lv_obj_t *myLabel = lv_label_create(lv_scr_act());                           // 创建文本标签; 父对象：当前活动屏幕
+  lv_label_set_text(myLabel, "Hello world!");                                  // 设置标签的文本
+  lv_obj_align(myLabel, LV_ALIGN_CENTER, 0, 0);                                // 对齐于：父对象
+  lv_obj_align_to(myBtn, myLabel, LV_ALIGN_OUT_TOP_MID, 0, -20);               // 对齐于：某对象
+
+ 
+  lv_obj_t* slider = lv_slider_create(lv_scr_act());                           // 创建滑块; 父对象：当前活动屏幕
+  lv_obj_set_pos(slider, (320 - 200) / 2, 200);                                               // 设置坐标
+  lv_obj_set_size(slider, 200, 20);                                             // 设置大小
+  lv_slider_set_value(slider, 0, LV_ANIM_OFF);                                 // 设置初始值  
+  lv_slider_set_range(slider, 0, 180);                                 // 设置范围0-100
+
+  label = lv_label_create(lv_scr_act());
+  lv_label_set_text(label, "0");
+  lv_obj_align_to(label, slider, LV_ALIGN_OUT_TOP_MID, 0, -30);    /*Align top of the slider*/
+  lv_obj_add_event_cb(slider, slider_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
+
   HAL_TIM_Base_Start_IT(&htim1); // 启动定时器中断
+
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    if(FT6336_Scan())
-    {
-      printf("Touch at (%d, %d)\n", tp_dev.x[0], tp_dev.y[0]);
-      // lv_indev_data_t data;
-      // data.point.x = tp_dev.x[0];
-      // data.point.y = tp_dev.y[0];
-      // data.state = LV_INDEV_STATE_PR; // 触摸按下状态
-      // lv_indev_set_point(lv_get_indev(LV_INDEV_TYPE_POINTER), &data);
-    }
+    // if(FT6336_Scan())
+    // {
+    //   printf("Touch at (%d, %d)\n", tp_dev.x[0], tp_dev.y[0]);
+    //   // lv_indev_data_t data;
+    //   // data.point.x = tp_dev.x[0];
+    //   // data.point.y = tp_dev.y[0];
+    //   // data.state = LV_INDEV_STATE_PR; // 触摸按下状态
+    //   // lv_indev_set_point(lv_get_indev(LV_INDEV_TYPE_POINTER), &data);
+    
+	  // }
     // else
     // {
     //   lv_indev_data_t data;

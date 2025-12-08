@@ -121,8 +121,8 @@ uint8_t FT6336_Init(void)
 //	temp[0]=0;
 //	FT6336_WR_Reg(FT_DEVIDE_MODE,temp,1);	//进入正常操作模式 
 //	FT6336_WR_Reg(FT_ID_G_MODE,temp,1);		//查询模式 
-	//temp[0]=40;								//触摸有效值，22，越小越灵敏	
-	//FT6336_WR_Reg(FT_ID_G_THGROUP,temp,1);	//设置触摸有效值
+	temp[0]=22;								//触摸有效值，22，越小越灵敏	
+	FT6336_WR_Reg(FT_ID_G_THGROUP,temp,1);	//设置触摸有效值
 	FT6336_RD_Reg(FT_ID_G_FOCALTECH_ID,&temp[0],1);
 	if(temp[0]!=0x11)
 	{
@@ -178,7 +178,7 @@ uint8_t FT6336_Scan(void)
 	uint8_t mode;
 	static uint8_t t=0;//控制查询间隔,从而降低CPU占用率   
 	t++;
-	if((t%10)==0||t<10)//空闲时,每进入10次CTP_Scan函数才检测1次,从而节省CPU使用率
+	if(1)//空闲时,每进入10次CTP_Scan函数才检测1次,从而节省CPU使用率
 	{
 		FT6336_RD_Reg(FT_REG_NUM_FINGER,&mode,1);//读取触摸点的状态  
 		if(mode&&(mode<3))
