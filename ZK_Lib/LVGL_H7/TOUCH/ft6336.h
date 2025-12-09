@@ -56,7 +56,18 @@
 
 #include "main.h"
 #include "i2c.h"
+#include <stdbool.h>
 #define CTP_MAX_TOUCH 2
+
+typedef enum{
+    FT6336_DIR_0 = 0,
+    FT6336_DIR_90 = 1,
+    FT6336_DIR_180 = 2, 
+    FT6336_DIR_270 = 3,
+}FT6336_DIR;
+
+#define LCD_WIDTH   240
+#define LCD_HEIGHT  320
 
 //与电容触摸屏连接的芯片引脚(未包含IIC引脚) 
 //IO操作函数	 
@@ -90,6 +101,8 @@ uint8_t FT6336_WR_Reg(uint16_t reg,uint8_t *buf,uint8_t len);
 void FT6336_RD_Reg(uint16_t reg,uint8_t *buf,uint8_t len);
 uint8_t FT6336_Init(void);
 uint8_t FT6336_Scan(void);
+bool FT6336_Scan_Status(uint8_t *mode);
+bool FT6336_ReadTouch(uint16_t *x, uint16_t *y,FT6336_DIR dir);
 
 #endif
 

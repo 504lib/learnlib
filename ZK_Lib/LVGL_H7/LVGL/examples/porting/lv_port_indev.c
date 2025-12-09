@@ -211,7 +211,8 @@ static void touchpad_read(lv_indev_drv_t * indev_drv, lv_indev_data_t * data)
 static bool touchpad_is_pressed(void)
 {
     /*Your code comes here*/
-    bool pressed = FT6336_Scan();
+    uint8_t temp = 0;
+    bool pressed = FT6336_Scan_Status(&temp);
     // if (pressed)
     // {
     //     printf("Touch at (%d, %d)\n", tp_dev.x[0], tp_dev.y[0]);
@@ -224,8 +225,7 @@ static void touchpad_get_xy(lv_coord_t * x, lv_coord_t * y)
 {
     /*Your code comes here*/
 
-    (*x) = tp_dev.x[0];
-    (*y) = tp_dev.y[0];
+    FT6336_ReadTouch((uint16_t *)x, (uint16_t *)y,FT6336_DIR_90);
     LCD_DrawPoint((*x), (*y), RED); // 在触摸点画一个红色点，便于调试
 }
 

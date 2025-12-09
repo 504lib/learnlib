@@ -234,7 +234,52 @@ uint8_t FT6336_Scan(void)
 	return res;
 }
  
+bool FT6336_Scan_Status(uint8_t *mode)
+{
+	FT6336_RD_Reg(FT_REG_NUM_FINGER,mode,1);//¶ÁÈ¡´¥ÃþµãµÄ×´Ì¬  
+	if(*mode&&(*mode<3))
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
 
+bool FT6336_ReadTouch(uint16_t *x, uint16_t *y,FT6336_DIR dir)
+{
+	uint8_t buf[4];
+	uint8_t mode;
+	if(!FT6336_Scan_Status(&mode))
+	{
+		return false; // No touch detected
+	}
+	for (uint8_t i = 0; i < mode; i++)
+	{
+		FT6336_RD_Reg(FT6336_TPX_TBL[i],buf,4);
+		switch(dir)
+		{
+			case 0:
+				*x = ((uint16_t)(buf[0]&0X0F)<<8)+buf[1];
+				*y = ((uint16_t)(buf[2]&0X0F)<<8)+buf[3];						
+				break;
+			case 1:
+				*y = LCD_WIDTH-(((uint16_t)(buf[0]&0X0F)<<8)+buf[1]);
+				*x = ((uint16_t)(buf[2]&0X0F)<<8)+buf[3];						
+				break;
+			case 2:
+				*x = LCD_WIDTH-(((uint16_t)(buf[0]&0X0F)<<8)+buf[1]);
+				*y = LCD_HEIGHT-(((uint16_t)(buf[2]&0X0F)<<8)+buf[3]);								
+				break;
+			case 3:
+				*y = ((uint16_t)(buf[0]&0X0F)<<8)+buf[1];
+				*x = LCD_HEIGHT-(((uint16_t)(buf[2]&0X0F)<<8)+buf[3]);	
+				break;
+		} 
+	}
+	return true;	
+}
 
 
 
