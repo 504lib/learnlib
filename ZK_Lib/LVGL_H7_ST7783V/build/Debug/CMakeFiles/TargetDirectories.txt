@@ -1,0 +1,12 @@
+D:/learnlib/ZK_Lib/LVGL_H7_ST7783V/build/Debug/CMakeFiles/LVGL_H7_ST7783V.dir
+D:/learnlib/ZK_Lib/LVGL_H7_ST7783V/build/Debug/CMakeFiles/edit_cache.dir
+D:/learnlib/ZK_Lib/LVGL_H7_ST7783V/build/Debug/CMakeFiles/rebuild_cache.dir
+D:/learnlib/ZK_Lib/LVGL_H7_ST7783V/build/Debug/cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir
+D:/learnlib/ZK_Lib/LVGL_H7_ST7783V/build/Debug/cmake/stm32cubemx/CMakeFiles/edit_cache.dir
+D:/learnlib/ZK_Lib/LVGL_H7_ST7783V/build/Debug/cmake/stm32cubemx/CMakeFiles/rebuild_cache.dir
+D:/learnlib/ZK_Lib/LVGL_H7_ST7783V/build/Debug/LCD/CMakeFiles/lcd.dir
+D:/learnlib/ZK_Lib/LVGL_H7_ST7783V/build/Debug/LCD/CMakeFiles/edit_cache.dir
+D:/learnlib/ZK_Lib/LVGL_H7_ST7783V/build/Debug/LCD/CMakeFiles/rebuild_cache.dir
+D:/learnlib/ZK_Lib/LVGL_H7_ST7783V/build/Debug/LVGL/CMakeFiles/lvgl.dir
+D:/learnlib/ZK_Lib/LVGL_H7_ST7783V/build/Debug/LVGL/CMakeFiles/edit_cache.dir
+D:/learnlib/ZK_Lib/LVGL_H7_ST7783V/build/Debug/LVGL/CMakeFiles/rebuild_cache.dir
