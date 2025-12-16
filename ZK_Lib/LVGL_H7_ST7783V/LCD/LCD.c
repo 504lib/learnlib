@@ -1,8 +1,10 @@
 #include "lcd.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include "font.h" 
+#include "stm32h7xx_hal_def.h"
+#include "stm32h7xx_hal_spi.h"
 #include <string.h>
-
 
 //LCDµÄ»­±ÊÑÕÉ«ºÍ±³¾°É«	   
 uint16_t POINT_COLOR=0x0000;	//»­±ÊÑÕÉ«
@@ -28,7 +30,7 @@ void LCD_WR_DATA(uint8_t data)
 {
 	LCD_CS_CLR;
 	LCD_RS_SET;
-    HAL_SPI_Transmit_DMA(&hspi1, &data,1); 
+    HAL_SPI_Transmit(&hspi1, &data,1,HAL_MAX_DELAY); 
     while(HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY);
 	LCD_CS_SET;
 }
@@ -61,7 +63,7 @@ void LCD_WriteRAM(uint16_t RGB_Code)
 	LCD_RS_SET;  
     // HAL_SPI_Transmit_DMA(&hspi1, &data_high,1); 
     // HAL_SPI_Transmit_DMA(&hspi1, &data_low,1); 
-	HAL_SPI_Transmit_DMA(&hspi1, data_buffer,2);
+	HAL_SPI_Transmit(&hspi1, data_buffer,2,HAL_MAX_DELAY);
     while(HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY);
 	LCD_CS_SET;
 
@@ -212,13 +214,13 @@ void LCD_Init(void)
 {
 	
 
-	
+	printf("test\n");	
 	LCD_RST_SET;
-	HAL_Delay(1);
+	HAL_Delay(50);
 	LCD_RST_CLR;
-	HAL_Delay(10);
+	HAL_Delay(100);	
 	LCD_RST_SET;
-	HAL_Delay(120);  
+	HAL_Delay(50);
 
 
 //************* Start Initial Sequence **********//

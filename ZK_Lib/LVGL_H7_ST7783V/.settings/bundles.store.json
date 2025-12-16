@@ -23,6 +23,10 @@
     {
       "name": "stlink-gdbserver",
       "version": "7.11.0+st.1"
+    },
+    {
+      "name": "st-arm-clang-hybrid",
+      "version": "19.1.6+st.3"
     }
   ]
 }

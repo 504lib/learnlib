@@ -21,6 +21,7 @@
 #include "dma.h"
 #include "i2c.h"
 #include "spi.h"
+#include "stm32h7xx_hal_gpio.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -34,7 +35,6 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -104,8 +104,11 @@ int main(void)
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
   LCD_Init();
+  HAL_GPIO_WritePin(SPI1_BLK_GPIO_Port, SPI1_BLK_Pin, GPIO_PIN_SET);
+  LCD_DisplayOn();
   LCD_Display_Dir(3);
   LCD_Clear(WHITE);
+  printf("Hello, LCD!\n");
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -113,8 +116,8 @@ int main(void)
   while (1)
   {
     HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
-    HAL_UART_Transmit(&huart1, (uint8_t *)"Hello, World!\r\n", 15, HAL_MAX_DELAY);
-    printf("Hello via printf!\r\n");    
+    // HAL_UART_Transmit(&huart1, (uint8_t *)"Hello, World!\r\n", 15, HAL_MAX_DELAY);
+    // printf("Hello via printf!\r\n");    
     HAL_Delay(1000);
     /* USER CODE END WHILE */
 
