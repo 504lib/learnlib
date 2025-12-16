@@ -1,0 +1,10 @@
+{
+	"InstallScripts" : 
+	[
+		"D:/learnlib/ZK_Lib/LVGL_H7_ST7783V/build/Debug/cmake_install.cmake",
+		"D:/learnlib/ZK_Lib/LVGL_H7_ST7783V/build/Debug/cmake/stm32cubemx/cmake_install.cmake",
+		"D:/learnlib/ZK_Lib/LVGL_H7_ST7783V/build/Debug/LCD/cmake_install.cmake",
+		"D:/learnlib/ZK_Lib/LVGL_H7_ST7783V/build/Debug/LVGL/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

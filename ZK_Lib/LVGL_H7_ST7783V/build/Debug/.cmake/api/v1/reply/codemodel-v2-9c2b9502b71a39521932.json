@@ -1,0 +1,138 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"childIndexes" : 
+					[
+						1,
+						2,
+						3
+					],
+					"jsonFile" : "directory-.-Debug-d0094a50bb2071803777.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.22"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0
+					]
+				},
+				{
+					"build" : "cmake/stm32cubemx",
+					"jsonFile" : "directory-cmake.stm32cubemx-Debug-a874d3cc84b5982fda2e.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.22"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "cmake/stm32cubemx",
+					"targetIndexes" : 
+					[
+						1
+					]
+				},
+				{
+					"build" : "LCD",
+					"jsonFile" : "directory-LCD-Debug-fd7569b5211cd75ba633.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.22"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "LCD",
+					"targetIndexes" : 
+					[
+						2
+					]
+				},
+				{
+					"build" : "LVGL",
+					"jsonFile" : "directory-LVGL-Debug-b179710b4e1f6659a635.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.22"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "LVGL",
+					"targetIndexes" : 
+					[
+						3
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3
+					],
+					"name" : "LVGL_H7_ST7783V",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "LVGL_H7_ST7783V::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LVGL_H7_ST7783V-Debug-1538aa477c03abc5b246.json",
+					"name" : "LVGL_H7_ST7783V",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "STM32_Drivers::@768a070a0fe75716b479",
+					"jsonFile" : "target-STM32_Drivers-Debug-350b2e4ded9b68193d52.json",
+					"name" : "STM32_Drivers",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 2,
+					"id" : "lcd::@cfc57f79e67780a9b4dd",
+					"jsonFile" : "target-lcd-Debug-0423107a72a68f3b73f7.json",
+					"name" : "lcd",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 3,
+					"id" : "lvgl::@327e0791cda5379b9874",
+					"jsonFile" : "target-lvgl-Debug-e238af73d22f5b5b7cc6.json",
+					"name" : "lvgl",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "D:/learnlib/ZK_Lib/LVGL_H7_ST7783V/build/Debug",
+		"source" : "D:/learnlib/ZK_Lib/LVGL_H7_ST7783V"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 8
+	}
+}

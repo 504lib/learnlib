@@ -1,0 +1,4 @@
+D:/learnlib/ZK_Lib/LVGL_H7_ST7783V/Core/Src/usart.c:31:6:MX_USART1_UART_Init	8	static
+D:/learnlib/ZK_Lib/LVGL_H7_ST7783V/Core/Src/usart.c:74:6:HAL_UART_MspInit	232	static
+D:/learnlib/ZK_Lib/LVGL_H7_ST7783V/Core/Src/usart.c:115:6:HAL_UART_MspDeInit	8	static
+D:/learnlib/ZK_Lib/LVGL_H7_ST7783V/Core/Src/usart.c:139:5:_write	8	static
