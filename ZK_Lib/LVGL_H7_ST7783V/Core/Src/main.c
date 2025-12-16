@@ -29,6 +29,7 @@
 /* USER CODE BEGIN Includes */
 #include "lvgl.h"
 #include "LCD.h"
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -113,6 +114,7 @@ int main(void)
   {
     HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
     HAL_UART_Transmit(&huart1, (uint8_t *)"Hello, World!\r\n", 15, HAL_MAX_DELAY);
+    printf("Hello via printf!\r\n");    
     HAL_Delay(1000);
     /* USER CODE END WHILE */
 

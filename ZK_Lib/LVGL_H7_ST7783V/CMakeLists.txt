@@ -54,6 +54,10 @@ target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE
     -fno-common
 )
 
+target_link_options(${CMAKE_PROJECT_NAME} PRIVATE
+    -u _printf_float
+)
+
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined library search paths
