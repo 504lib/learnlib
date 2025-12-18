@@ -1,4 +1,5 @@
 #include "lcd.h"
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "font.h" 
@@ -14,45 +15,67 @@ uint16_t BACK_COLOR=0xFFFF;  //背景色
 //默认为竖屏
 _lcd_dev lcddev;
 	 					    
-//写寄存器函数
-//data:寄存器值
+/*****************************************************************************
+ * @name       :void LCD_WR_REG(uint8_t data)
+ * @date       :2018-08-09 
+ * @function   :Write an 8-bit command to the LCD screen
+ * @parameters :data:Command value to be written
+ * @retvalue   :None
+******************************************************************************/
 void LCD_WR_REG(uint8_t data)
 { 
 	LCD_CS_CLR;     
 	LCD_RS_CLR;	  
-    HAL_SPI_Transmit_DMA(&hspi1, &data,1); 
-    while(HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY);
+    HAL_SPI_Transmit(&hspi1, &data,1,HAL_MAX_DELAY); 
+    while(HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY){;};
 	LCD_CS_SET;	
 }
-//写数据函数
-//data:寄存器值
+
+/*****************************************************************************
+ * @name       :void LCD_WR_DATA(uint8_t data)
+ * @date       :2018-08-09 
+ * @function   :Write an 8-bit data to the LCD screen
+ * @parameters :data:data value to be written
+ * @retvalue   :None
+******************************************************************************/
 void LCD_WR_DATA(uint8_t data)
 {
 	LCD_CS_CLR;
 	LCD_RS_SET;
     HAL_SPI_Transmit(&hspi1, &data,1,HAL_MAX_DELAY); 
-    while(HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY);
+    while(HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY){;};
 	LCD_CS_SET;
 }
 
-//写寄存器
-//LCD_Reg:寄存器编号
-//LCD_RegValue:要写入的值
+/*****************************************************************************
+ * @name       :void LCD_WriteReg(uint8_t LCD_Reg, uint16_t LCD_RegValue)
+ * @date       :2018-08-09 
+ * @function   :Write data into registers
+ * @parameters :LCD_Reg:Register address
+                LCD_RegValue:Data to be written
+ * @retvalue   :None
+******************************************************************************/
 void LCD_WriteReg(uint16_t LCD_Reg,uint16_t LCD_RegValue)
 {	
 	LCD_WR_REG(LCD_Reg);  
-	LCD_WriteRAM(LCD_RegValue);	    		 
+	LCD_WR_DATA(LCD_RegValue);	    		 
 }   
 
-//开始写GRAM
+/*****************************************************************************
+ * @name       :void LCD_WriteRAM_Prepare(void)
+ * @date       :2018-08-09 
+ * @function   :Write GRAM
+ * @parameters :None
+ * @retvalue   :None
+******************************************************************************/	 
 void LCD_WriteRAM_Prepare(void)
 {
 	LCD_WR_REG(lcddev.wramcmd);
-} 
+}	 
 //LCD写GRAM
 //RGB_Code:颜色值
 void LCD_WriteRAM(uint16_t RGB_Code)
-{							    
+{							 
 	uint8_t data_buffer[2];
 	data_buffer[0] = RGB_Code >> 8;    // 高字节
 	data_buffer[1] = RGB_Code & 0xFF;  // 低字节
@@ -64,10 +87,10 @@ void LCD_WriteRAM(uint16_t RGB_Code)
     // HAL_SPI_Transmit_DMA(&hspi1, &data_high,1); 
     // HAL_SPI_Transmit_DMA(&hspi1, &data_low,1); 
 	HAL_SPI_Transmit(&hspi1, data_buffer,2,HAL_MAX_DELAY);
-    while(HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY);
+    // while(HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY){;};
 	LCD_CS_SET;
 
-
+	// printf("count=%d\r\n",count++);
 	// uint8_t data_buffer[2];
 	// data_buffer[0] = Data >> 8;    // 高字节
 	// data_buffer[1] = Data & 0xFF;  // 低字节
@@ -79,13 +102,6 @@ void LCD_WriteRAM(uint16_t RGB_Code)
 	// HAL_SPI_Transmit(&hspi1, data_buffer, 2, 100);
 	
 	// LCD_CS_SET;
-}
-
-//当mdk -O1时间优化时需要设置
-//延时i
-void opt_delay(uint8_t i)
-{
-	while(i--);
 }
 
 //LCD开启显示
@@ -214,7 +230,6 @@ void LCD_Init(void)
 {
 	
 
-	printf("test\n");	
 	LCD_RST_SET;
 	HAL_Delay(50);
 	LCD_RST_CLR;
@@ -224,70 +239,186 @@ void LCD_Init(void)
 
 
 //************* Start Initial Sequence **********//
-LCD_WR_REG(0x11);
-HAL_Delay(120); //Delay 120ms
-//--------display and color format setting-----------//
-LCD_WR_REG(0x36);
-LCD_WR_DATA(0x00);
-LCD_WR_REG(0x3a);
-LCD_WR_DATA(0x05);
-//--------ST7789V Frame rate setting------------//
-LCD_WR_REG(0xb2);
-LCD_WR_DATA(0x0c);
-LCD_WR_DATA(0x0c);
-LCD_WR_DATA(0x00);
-LCD_WR_DATA(0x33);
-LCD_WR_DATA(0x33);
-LCD_WR_REG(0xb7);
-LCD_WR_DATA(0x35);
-//-----------ST7789V Power setting---------------//
-LCD_WR_REG(0xbb);
-LCD_WR_DATA(0x28);
-LCD_WR_REG(0xc0);
-LCD_WR_DATA(0x2c);
-LCD_WR_REG(0xc2);
-LCD_WR_DATA(0x01);
-LCD_WR_REG(0xc3);
-LCD_WR_DATA(0x0b);
-LCD_WR_REG(0xc4);
-LCD_WR_DATA(0x20);
-LCD_WR_REG(0xc6);
-LCD_WR_DATA(0x0f);
-LCD_WR_REG(0xd0);
-LCD_WR_DATA(0xa4);
-LCD_WR_DATA(0xa1);
-//------------ST7789V gamma setting-------------//
-LCD_WR_REG(0xe0);
-LCD_WR_DATA(0xd0);
-LCD_WR_DATA(0x01);
-LCD_WR_DATA(0x08);
-LCD_WR_DATA(0x0f);
-LCD_WR_DATA(0x11);
-LCD_WR_DATA(0x2a);
-LCD_WR_DATA(0x36);
-LCD_WR_DATA(0x55);
-LCD_WR_DATA(0x44);
-LCD_WR_DATA(0x3a);
-LCD_WR_DATA(0x0b);
-LCD_WR_DATA(0x06);
-LCD_WR_DATA(0x11);
-LCD_WR_DATA(0x20);
-LCD_WR_REG(0xe1);
-LCD_WR_DATA(0xd0);
-LCD_WR_DATA(0x02);
-LCD_WR_DATA(0x07);
-LCD_WR_DATA(0x0a);
-LCD_WR_DATA(0x0b);
-LCD_WR_DATA(0x18);
-LCD_WR_DATA(0x34);
-LCD_WR_DATA(0x43);
-LCD_WR_DATA(0x4a);
-LCD_WR_DATA(0x2b);
-LCD_WR_DATA(0x1b);
-LCD_WR_DATA(0x1c);
-LCD_WR_DATA(0x22);
-LCD_WR_DATA(0x1f);
-LCD_WR_REG(0x29);
+
+	// printf("test\n");	
+	LCD_WR_REG(0x11);
+	HAL_Delay(120); //Delay 120ms
+	//--------display and color format setting-----------//
+	LCD_WR_REG(0x36);
+	LCD_WR_DATA(0x00);
+	LCD_WR_REG(0x3a);
+	LCD_WR_DATA(0x05);
+	//--------ST7789V Frame rate setting------------//
+	LCD_WR_REG(0xb2);
+	LCD_WR_DATA(0x0c);
+	LCD_WR_DATA(0x0c);
+	LCD_WR_DATA(0x00);
+	LCD_WR_DATA(0x33);
+	LCD_WR_DATA(0x33);
+	LCD_WR_REG(0xb7);
+	LCD_WR_DATA(0x35);
+	//-----------ST7789V Power setting---------------//
+	LCD_WR_REG(0xbb);
+	LCD_WR_DATA(0x28);
+	LCD_WR_REG(0xc0);
+	LCD_WR_DATA(0x2c);
+	LCD_WR_REG(0xc2);
+	LCD_WR_DATA(0x01);
+	LCD_WR_REG(0xc3);
+	LCD_WR_DATA(0x0b);
+	LCD_WR_REG(0xc4);
+	LCD_WR_DATA(0x20);
+	LCD_WR_REG(0xc6);
+	LCD_WR_DATA(0x0f);
+	LCD_WR_REG(0xd0);
+	LCD_WR_DATA(0xa4);
+	LCD_WR_DATA(0xa1);
+	//------------ST7789V gamma setting-------------//
+	LCD_WR_REG(0xe0);
+	LCD_WR_DATA(0xd0);
+	LCD_WR_DATA(0x01);
+	LCD_WR_DATA(0x08);
+	LCD_WR_DATA(0x0f);
+	LCD_WR_DATA(0x11);
+	LCD_WR_DATA(0x2a);
+	LCD_WR_DATA(0x36);
+	LCD_WR_DATA(0x55);
+	LCD_WR_DATA(0x44);
+	LCD_WR_DATA(0x3a);
+	LCD_WR_DATA(0x0b);
+	LCD_WR_DATA(0x06);
+	LCD_WR_DATA(0x11);
+	LCD_WR_DATA(0x20);
+	LCD_WR_REG(0xe1);
+	LCD_WR_DATA(0xd0);
+	LCD_WR_DATA(0x02);
+	LCD_WR_DATA(0x07);
+	LCD_WR_DATA(0x0a);
+	LCD_WR_DATA(0x0b);
+	LCD_WR_DATA(0x18);
+	LCD_WR_DATA(0x34);
+	LCD_WR_DATA(0x43);
+	LCD_WR_DATA(0x4a);
+	LCD_WR_DATA(0x2b);
+	LCD_WR_DATA(0x1b);
+	LCD_WR_DATA(0x1c);
+	LCD_WR_DATA(0x22);
+	LCD_WR_DATA(0x1f);
+	LCD_WR_REG(0x11);       //Exit Sleep 
+	HAL_Delay(120); 
+	LCD_WR_REG(0x29);       //Display on 
+
+	// LCD_WR_REG(0xCF);  
+	// LCD_WR_DATA(0x00); 
+	// LCD_WR_DATA(0xC1); 
+	// LCD_WR_DATA(0x30); 
+ 
+	// LCD_WR_REG(0xED);  
+	// LCD_WR_DATA(0x64); 
+	// LCD_WR_DATA(0x03); 
+	// LCD_WR_DATA(0X12); 
+	// LCD_WR_DATA(0X81); 
+ 
+	// LCD_WR_REG(0xE8);  
+	// LCD_WR_DATA(0x85); 
+	// LCD_WR_DATA(0x00); 
+	// LCD_WR_DATA(0x78); 
+
+	// LCD_WR_REG(0xCB);  
+	// LCD_WR_DATA(0x39); 
+	// LCD_WR_DATA(0x2C); 
+	// LCD_WR_DATA(0x00); 
+	// LCD_WR_DATA(0x34); 
+	// LCD_WR_DATA(0x02); 
+	
+	// LCD_WR_REG(0xF7);  
+	// LCD_WR_DATA(0x20); 
+ 
+	// LCD_WR_REG(0xEA);  
+	// LCD_WR_DATA(0x00); 
+	// LCD_WR_DATA(0x00); 
+
+	// LCD_WR_REG(0xC0);       //Power control 
+	// LCD_WR_DATA(0x13);     //VRH[5:0] 
+ 
+	// LCD_WR_REG(0xC1);       //Power control 
+	// LCD_WR_DATA(0x13);     //SAP[2:0];BT[3:0] 
+ 
+	// LCD_WR_REG(0xC5);       //VCM control 
+	// LCD_WR_DATA(0x22);   //22
+	// LCD_WR_DATA(0x35);   //35
+ 
+	// LCD_WR_REG(0xC7);       //VCM control2 
+	// LCD_WR_DATA(0xBD);  //AF
+
+	// LCD_WR_REG(0x21);
+
+	// LCD_WR_REG(0x36);       // Memory Access Control 
+	// LCD_WR_DATA(0x08); 
+
+	// LCD_WR_REG(0xB6);  
+	// LCD_WR_DATA(0x0A); 
+	// LCD_WR_DATA(0xA2); 
+
+	// LCD_WR_REG(0x3A);       
+	// LCD_WR_DATA(0x55); 
+
+	// LCD_WR_REG(0xF6);  //Interface Control
+	// LCD_WR_DATA(0x01); 
+	// LCD_WR_DATA(0x30);  //MCU
+
+	// LCD_WR_REG(0xB1);       //VCM control 
+	// LCD_WR_DATA(0x00); 
+	// LCD_WR_DATA(0x1B); 
+ 
+	// LCD_WR_REG(0xF2);       // 3Gamma Function Disable 
+	// LCD_WR_DATA(0x00); 
+ 
+	// LCD_WR_REG(0x26);       //Gamma curve selected 
+	// LCD_WR_DATA(0x01); 
+ 
+	// LCD_WR_REG(0xE0);       //Set Gamma 
+	// LCD_WR_DATA(0x0F); 
+	// LCD_WR_DATA(0x35); 
+	// LCD_WR_DATA(0x31); 
+	// LCD_WR_DATA(0x0B); 
+	// LCD_WR_DATA(0x0E); 
+	// LCD_WR_DATA(0x06); 
+	// LCD_WR_DATA(0x49); 
+	// LCD_WR_DATA(0xA7); 
+	// LCD_WR_DATA(0x33); 
+	// LCD_WR_DATA(0x07); 
+	// LCD_WR_DATA(0x0F); 
+	// LCD_WR_DATA(0x03); 
+	// LCD_WR_DATA(0x0C); 
+	// LCD_WR_DATA(0x0A); 
+	// LCD_WR_DATA(0x00); 
+ 
+	// LCD_WR_REG(0XE1);       //Set Gamma 
+	// LCD_WR_DATA(0x00); 
+	// LCD_WR_DATA(0x0A); 
+	// LCD_WR_DATA(0x0F); 
+	// LCD_WR_DATA(0x04); 
+	// LCD_WR_DATA(0x11); 
+	// LCD_WR_DATA(0x08); 
+	// LCD_WR_DATA(0x36); 
+	// LCD_WR_DATA(0x58); 
+	// LCD_WR_DATA(0x4D); 
+	// LCD_WR_DATA(0x07); 
+	// LCD_WR_DATA(0x10); 
+	// LCD_WR_DATA(0x0C); 
+	// LCD_WR_DATA(0x32); 
+	// LCD_WR_DATA(0x34); 
+	// LCD_WR_DATA(0x0F); 
+
+	// LCD_WR_REG(0x11);       //Exit Sleep 
+	// HAL_Delay(120); 
+	// LCD_WR_REG(0x29);       //Display on 
+
+
+	LCD_LED(1);
+ 	LCD_Display_Dir(USE_LCM_DIR); //设置LCD显示方向
+	LCD_Clear(WHITE);//清全屏白色
 
 } 
 
@@ -298,7 +429,7 @@ LCD_WR_REG(0x29);
 //返回值:此点的颜色
 uint16_t LCD_ReadPoint(uint16_t x,uint16_t y)
 {
-	uint8_t i,r,g,b,reg=0x2e;
+	// uint8_t i,r,g,b,reg=0x2e;
  	uint16_t color;
 	if(x>=lcddev.width||y>=lcddev.height)return 0;	//超过了范围,直接返回		   
 	LCD_SetCursor(x,y);
@@ -334,6 +465,53 @@ void LCD_Clear(uint16_t color)
 	LCD_WriteRAM_Prepare();     		//开始写入GRAM	  	  
 	for(index=0;index<totalpoint;index++)LCD_WriteRAM(color);
 }  
+
+// 高效DMA清屏函数
+void LCD_Clear_DMA(uint16_t color)
+{
+    // 检查DMA是否就绪
+    if(hspi1.hdmatx == NULL || 
+       HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY) {
+        // 退回到阻塞方式
+        return;
+    }
+    
+	// uint8_t data_buffer[2];
+	// data_buffer[0] = color >> 8;    // 高字节
+	// data_buffer[1] = color & 0xFF;  // 低字节
+    static uint16_t fill_buffer[320];  // 一行像素缓冲区
+    
+    // 填充一行颜色数据
+    for(int i = 0; i < 320; i++) {
+		fill_buffer[i] = color;
+    }
+    
+    // 设置光标和窗口
+    LCD_SetCursor(0, 0);
+    LCD_WriteRAM_Prepare();
+    
+    LCD_CS_CLR;
+    LCD_RS_SET;
+    
+    // 逐行发送，避免大缓冲区
+    for(int y = 0; y < 240; y++) {
+        // 使用DMA发送一行数据
+        HAL_SPI_Transmit_DMA(&hspi1, (uint8_t*)fill_buffer, 320 * 2);
+ 		while(HAL_SPI_GetState(&hspi1) == HAL_SPI_STATE_BUSY_TX){;} // 等待最后一次完成
+		// printf("finish y: %d\r\n",y);
+        // 等待DMA传输完成
+        // uint32_t timeout = HAL_GetTick();
+        // while(__HAL_DMA_GET_FLAG(hspi1.hdmatx, DMA_FLAG_TCIF0_4) == RESET) {
+        //     if(HAL_GetTick() - timeout > 50) {
+        //         LCD_CS_SET;
+			// 	printf("timeout for DMA\r\n");
+            //     return;
+            // }
+        // __HAL_DMA_CLEAR_FLAG(hspi1.hdmatx, DMA_FLAG_TCIF0_4);
+    }
+    
+    LCD_CS_SET;
+}
 //在指定区域内填充指定颜色
 //区域大小:(xend-xsta+1)*(yend-ysta+1)
 //xsta
@@ -813,7 +991,7 @@ void Load_Drow_Dialog(void)
 	LCD_Clear(WHITE);//清屏   
  	POINT_COLOR=BLUE;//设置字体为蓝色
 	BACK_COLOR=WHITE;
-	LCD_ShowString(lcddev.width-24,0,200,16,16,"RST");//显示清屏区域
+	LCD_ShowString(lcddev.width-24,0,200,16,16,(uint8_t*)"RST");//显示清屏区域
   POINT_COLOR=RED;//设置画笔蓝色 
 }
 ////////////////////////////////////////////////////////////////////////////////

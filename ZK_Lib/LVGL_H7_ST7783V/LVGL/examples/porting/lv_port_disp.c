@@ -13,6 +13,7 @@
 #include <stdbool.h>
 // #include "lcd.h"
 #include "spi.h"
+#include "LCD.h"
 #include <stdio.h>
 /*********************
  *      DEFINES
@@ -162,105 +163,6 @@ void disp_disable_update(void)
 static lv_disp_drv_t *disp_drv_for_callback = NULL;
 static const lv_area_t *flush_area = NULL;
 
-volatile uint8_t lcd_dma_complete = 1;  // DMA完成标志
-
-// 等待DMA完成
-void LCD_WaitForDMA(void)
-{
-    uint32_t timeout = 100000;  // 超时计数
-    
-    while(lcd_dma_complete == 0 && timeout > 0) {
-        timeout--;
-    }
-    
-    if(timeout == 0) {
-        printf("DMA timeout!\n");
-    }
-}
-
-// DMA传输完成回调
-void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
-{
-    if(hspi->Instance == SPI1) {
-        lcd_dma_complete = 1;
-    }
-}
-
-// 逐行传输函数（最稳定的版本）
-void LCD_WriteBuffer_DMA_LineByLine(uint16_t xsta, uint16_t ysta, uint16_t xend, uint16_t yend, lv_color_t *color_buffer)
-{
-    // uint16_t width = xend - xsta + 1;
-    // uint16_t height = yend - ysta + 1;
-    
-    // 设置窗口（整个区域）
-    // LCD_SetWindows(xsta, ysta, xend, yend);
-    
-    // // 注意：这里我们不保持CS为低，而是每行都重新拉低CS
-    // // 这样更符合ILI9341的要求
-    
-    // // 逐行传输
-    // for(uint16_t y = 0; y < height; y++) {
-    //     // 等待上一次DMA完成
-    //     LCD_WaitForDMA();
-        
-    //     // 设置DMA完成标志为0
-    //     lcd_dma_complete = 0;
-        
-    //     // 拉低CS并设置RS
-    //     LCD_CS_CLR;
-    //     LCD_RS_SET;
-        
-    //     // 为当前行准备缓冲区（静态或动态）
-    //     static uint16_t line_buffer[320];  // 假设最大宽度为320
-        
-    //     // 转换当前行的颜色数据
-    //     for(uint16_t x = 0; x < width; x++) {
-    //         lv_color_t lv_color = color_buffer[y * width + x];
-            
-    //         // 调试：输出第一行的第一个像素
-    //         if(y == 0 && x == 0) {
-    //             // printf("First pixel: R=%d, G=%d, B=%d, full=0x%08X\n", 
-    //             //        lv_color.ch.red, lv_color.ch.green, lv_color.ch.blue, lv_color.full);
-    //         }
-            
-    //         // 颜色转换：根据LVGL配置选择正确的转换方式
-    //         #if LV_COLOR_DEPTH == 16
-    //             // LVGL已经是16位颜色
-    //             uint16_t color = lv_color.full;
-                
-    //             // 注意：可能需要字节交换
-    //             #if LV_COLOR_16_SWAP == 1
-    //                 color = (color >> 8) | (color << 8);
-    //             #endif
-                
-    //         #elif LV_COLOR_DEPTH == 32
-    //             // 从ARGB8888转换为RGB565
-    //             uint8_t r = (lv_color.ch.red >> 3) & 0x1F;
-    //             uint8_t g = (lv_color.ch.green >> 2) & 0x3F;
-    //             uint8_t b = (lv_color.ch.blue >> 3) & 0x1F;
-    //             uint16_t color = (r << 11) | (g << 5) | b;
-                
-    //         #else
-    //             // 默认处理
-    //             uint16_t color = lv_color.full;
-    //         #endif
-            
-    //         line_buffer[x] = color;
-    //     }
-        
-    //     // 启动DMA传输当前行
-    //     HAL_SPI_Transmit_DMA(&hspi1, (uint8_t*)line_buffer, width * 2);
-        
-    //     // 等待DMA完成（同步方式，更稳定）
-    //     LCD_WaitForDMA();
-        
-    //     // 拉高CS
-    //     LCD_CS_SET;
-        
-    //     // 延迟一小段时间（可选，某些屏幕需要）
-    //     // for(int i = 0; i < 10; i++);
-    // }
-}
 
 
 /*Flush the content of the internal buffer the specific area on the display
@@ -271,11 +173,11 @@ static void disp_flush(lv_disp_drv_t * disp_drv, const lv_area_t * area, lv_colo
 
     if(disp_flush_enabled) {
         /*The most simple case (but also the slowest) to put all pixels to the screen one-by-one*/
-#if 1
+#if 0
         // disp_drv_for_callback = disp_drv;
         // flush_area = area;
 
-        LCD_WriteBuffer_DMA_LineByLine(area->x1, area->y1, area->x2, area->y2, color_p);
+        // LCD_WriteBuffer_DMA_LineByLine(area->x1, area->y1, area->x2, area->y2, color_p);
         // 启动异步DMA传输
         // LCD_WriteBuffer_DMA_Async(area->x1, area->y1, area->x2, area->y2, color_p);
 	}

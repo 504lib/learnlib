@@ -7,7 +7,7 @@
 #include <stdint.h>
 #include "main.h"
 #include "spi.h"
-#define USE_LCM_DIR  	  0   	//定义液晶屏顺时针旋转方向 	0-0度旋转，1-180度旋转，2-270度旋转，3-90度旋转
+#define USE_LCM_DIR  	  3   	//定义液晶屏顺时针旋转方向 	0-0度旋转，1-180度旋转，2-270度旋转，3-90度旋转
 #define USE_TP_TYPE   	CTP 	//定义触摸类型  CTP = 电容模式 , RTP = 电阻模式
 
 #define CTP 0X80		//电容模式
@@ -81,6 +81,7 @@ void LCD_Init(void);													   	//初始化
 void LCD_DisplayOn(void);													//开显示
 void LCD_DisplayOff(void);													//关显示
 void LCD_Clear(uint16_t Color);	 												//清屏
+void LCD_Clear_DMA(uint16_t color);
 void LCD_SetCursor(uint16_t Xpos, uint16_t Ypos);										//设置光标
 void LCD_DrawPoint(uint16_t x,uint16_t y);											//画点
 void LCD_Fast_DrawPoint(uint16_t x,uint16_t y,uint16_t color);								//快速画点

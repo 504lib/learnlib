@@ -18,10 +18,12 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "core/lv_obj.h"
 #include "dma.h"
 #include "i2c.h"
+#include "lcd.h"
 #include "spi.h"
-#include "stm32h7xx_hal_gpio.h"
+#include "stm32h7xx_hal_uart.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -29,8 +31,11 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "lvgl.h"
-#include "LCD.h"
+#include <stdint.h>
 #include <stdio.h>
+#include <sys/_intsup.h>
+#include "LCD.h"
+#include "lv_port_disp.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -62,7 +67,6 @@ static void MPU_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
 /* USER CODE END 0 */
 
 /**
@@ -104,20 +108,30 @@ int main(void)
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
   LCD_Init();
-  HAL_GPIO_WritePin(SPI1_BLK_GPIO_Port, SPI1_BLK_Pin, GPIO_PIN_SET);
-  LCD_DisplayOn();
-  LCD_Display_Dir(3);
-  LCD_Clear(WHITE);
-  printf("Hello, LCD!\n");
+  lv_init();
+  lv_port_disp_init();
+  // HAL_GPIO_WritePin(SPI1_BLK_GPIO_Port, SPI1_BLK_Pin, GPIO_PIN_SET);
+  // LCD_DisplayOn();
+  // LCD_Display_Dir(3);
+  LCD_Clear(YELLOW);
+  // printf("Hello, LCD!\n");
+  printf("test orient printf\n");
+  // Check_DMA_Clock_Config();
+  // char buf[20] = {0};
+  // int len = sprintf(buf, "test Dma\r\n");
+  // HAL_UART_Transmit_DMA(&huart1, (uint8_t*)buf, len);
+  // 直接检查USART->CR3寄存器
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    static bool toggle = false;
     HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
-    // HAL_UART_Transmit(&huart1, (uint8_t *)"Hello, World!\r\n", 15, HAL_MAX_DELAY);
-    // printf("Hello via printf!\r\n");    
+    LCD_Clear_DMA(!toggle?YELLOW:GREEN);
+    toggle = !toggle;
+    // SPI1_DMA_Test();
     HAL_Delay(1000);
     /* USER CODE END WHILE */
 
