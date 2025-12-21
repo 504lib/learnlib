@@ -30,40 +30,62 @@ Vehicle_Info vehicle(vehicle_data);
 RouterScheduler router_scheduler(station_repo,network_client,vehicle);
 
 
-#define UART_ACK_REQUIRED (1 << 0u)
+#define UART_ACK_REQUIRED   (1 << 0u)                       // UART_ACK事件组
 
-#define LED_Pin LED_BUILTIN
+#define LED_Pin             LED_BUILTIN                     // 内置LED引脚
 
 
-protocol uart_protocol(0xAA,0x55,0x0D,0x0A);
+#define WAIT_ACK_TIMEOUS_MS 200                             // ACK超时时间（毫秒）
+#define WAIT_ACK_RETRAY_COUNT        3                               // 重传次数
 
+
+protocol uart_protocol(0xAA,0x55,0x0D,0x0A);                // 协议对象，SOF = 0xAA55, EOF = 0x0D0A
+
+
+/**
+ * @brief    数据帧处理任务
+ * @details  该任务从UART接收队列中获取接收到的字节，并将其传递给协议处理对象进行处理。
+ * @param    pvParameters   function of param
+ */
 void Rx_Task(void* pvParameters)
 {
-  uint8_t rx_byte = 0;
+  uint8_t rx_byte = 0;                                      // 接受字节变量
   for(;;)
   { 
-    if (xQueueReceive(xUartRxQueue,&rx_byte,portMAX_DELAY))
+    if (xQueueReceive(xUartRxQueue,&rx_byte,portMAX_DELAY)) // 从队列中接收字节
     {
-       uart_protocol.Receive_Uart_Frame(rx_byte);
+       uart_protocol.Receive_Uart_Frame(rx_byte);       // 传递字节给协议处理对象
       //  Serial.println("rx_byte:" + rx_byte);
     }
   }
 }
 
+
+/**
+ * @brief    串口接收任务
+ * @details  用于接受来自STM32的串口数据，并将接收到的字节放入队列中以供后续处理。
+ * @param    p         function of param
+ */
 void Serial_Task(void* p)
 {
-  uint8_t Serial_Rx_byte = 0;
+  uint8_t Serial_Rx_byte = 0;               // 接受字节变量
   for(;;)
   {
-    if (Serial1.available())
+    if (Serial1.available())                // 检查是否有数据可读
     {
-      Serial_Rx_byte = Serial1.read();
-      xQueueSend(xUartRxQueue,&Serial_Rx_byte,portMAX_DELAY);
+      Serial_Rx_byte = Serial1.read();      // 读取一个二进制字节数据
+      xQueueSend(xUartRxQueue,&Serial_Rx_byte,portMAX_DELAY);       // 向队列发送接收到的字节
     }
-    vTaskDelay(5 / portTICK_PERIOD_MS); 
+    vTaskDelay(5 / portTICK_PERIOD_MS);
   }
 }
 
+
+/**
+ * @brief    数据帧发送任务与ACK处理任务
+ * @details  该任务从命令队列中获取要发送的数据帧，并通过协议对象发送数据帧。具有ACK重传机制。
+ * @param    pvParametersfunction of param
+ */
 void ACK_Task(void* pvParameters)
 {
   ACK_Queue_t ack_queue_t;
@@ -72,9 +94,9 @@ void ACK_Task(void* pvParameters)
   {
     if (xQueueReceive(xCommandQueue,&ack_queue_t,portMAX_DELAY))
     {
-      bool ACK_required = true;
-      const TickType_t ack_timeout = pdMS_TO_TICKS(200); // 200 ms
-      for (uint8_t i = 0; i < 3 && ACK_required; i++)
+      bool ACK_required = true;                                                 // 是否需要等待ACK 
+      const TickType_t ack_timeout = pdMS_TO_TICKS(WAIT_ACK_TIMEOUS_MS);        // 200 ms
+      for (uint8_t i = 0; i < WAIT_ACK_RETRAY_COUNT && ACK_required; i++)
       {
         switch (ack_queue_t.type)
         {
@@ -98,14 +120,14 @@ void ACK_Task(void* pvParameters)
           break;
         }
         flags = xEventGroupWaitBits(evt,UART_ACK_REQUIRED,pdTRUE,pdFALSE,ack_timeout);
-        if(flags & UART_ACK_REQUIRED)
+        if(flags & UART_ACK_REQUIRED)       // 收到ACK
         {
-          ACK_required = false;
+          ACK_required = false;             // 退出重试循环
           Serial.printf("Recived ACK for %d",static_cast<uint8_t>(ack_queue_t.type));
         }
-        else
+        else                                // 超时未收到ACK,重试
         {
-          Serial.printf("time out!!! (%d/3)",i+1);
+          Serial.printf("time out!!! (%d/%d)",i+1,WAIT_ACK_RETRAY_COUNT);
           if (i >= 2)
           {
             Serial.printf("time out:%d",static_cast<uint8_t>(ack_queue_t.type));
@@ -118,37 +140,40 @@ void ACK_Task(void* pvParameters)
   }
 }
 
-
+/**
+ * @brief    调度器任务
+ * @details  调用路由调度器的执行函数以处理站点和车辆调度逻辑。
+ * @param    pvParameters   function of param
+ */
 void Bus_scheduler_Task(void* pvParameters)
 {
-    Station_t station1("normal_univercity","师范学院",target_ssid,target_password,target_station_server);
+    Station_t station1("normal_univercity","师范学院",target_ssid,target_password,target_station_server);       // 添加一个站点
     station_repo.Add_Station_to_Tail(station1);
-    station_repo.Add_Station_to_Tail(Station_t("central_hospital","中心医院","test","",target_station_server));   
+    station_repo.Add_Station_to_Tail(Station_t("central_hospital","中心医院","test","",target_station_server));   // 添加一个站点
     for(;;)
     {
-        router_scheduler.RouterScheduler_Executer();
+        router_scheduler.RouterScheduler_Executer();                // 调度器执行
         vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 }
 
 void setup() 
 {
-    
-    evt = xEventGroupCreate();
+    evt = xEventGroupCreate();                          // 创建事件组
     uart_protocol.setAckCallback([](){
-        if (evt == nullptr) return;
-        xEventGroupSetBits(evt,UART_ACK_REQUIRED);
+        if (evt == nullptr) return;                 // 检查事件组是否有效
+        xEventGroupSetBits(evt,UART_ACK_REQUIRED);              // ACK收到,设置事件标志
     });
     uart_protocol.setVehicleStatusCallback([](VehicleStatus status){
-        Serial.printf("Received Vehicle Status Change Request: %d\n", static_cast<uint8_t>(status));
-      if (status != VehicleStatus::STATUS_ARRIVING && status != VehicleStatus::STATUS_LEAVING && status != VehicleStatus::STATUS_WAITING)
+        Serial.printf("Received Vehicle Status Change Request: %d\n", static_cast<uint8_t>(status));            // 公交车用户切换状态
+      if (status != VehicleStatus::STATUS_ARRIVING && status != VehicleStatus::STATUS_LEAVING && status != VehicleStatus::STATUS_WAITING)           // 仅入站和离站可以更改状态
       {
         Serial.printf("No permission to change status !!!\n");
         return;
       }
-      vehicle.Update_Vehicle_Status(status);
+      vehicle.Update_Vehicle_Status(status);                // 更新车辆状态
     });
-    router_scheduler.setCommandQueueCallback([](const ACK_Queue_t ack){
+    router_scheduler.setCommandQueueCallback([](const ACK_Queue_t ack){         // 路由调度器命令队列回调函数
         if(xQueueSend(xCommandQueue,&ack,portMAX_DELAY))
         {
             Serial.printf("Command queued: %d\n", static_cast<uint8_t>(ack.type));
@@ -631,7 +656,7 @@ void setup()
     network_client.addWebRoute("/api/info",[&](AsyncWebServerRequest *request){
         request->send(200, "application/json", router_scheduler.Get_RouterInfo_JSON());
     });
-    network_client.beginWebServer();
+    network_client.beginWebServer();                // 启动Web服务器
 }
 
 void loop() 

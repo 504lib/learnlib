@@ -43,7 +43,14 @@ bool RouterScheduler::Connect_To_Station(uint8_t index)
     }
 }
 
-
+/**
+ * @brief    计算站点得分
+ * @details  根据多个规则计算站点的优先级得分，不存在的SSID得分极低。
+ *           优先级: 下一目标站点 > 信号强度 > 未访问过 > 长时间未访问 > 访问次数少
+ * @date     2025-12-20 2:33
+ * @param    index     站点索引
+ * @return   float     站点得分 
+ */
 float RouterScheduler::CalculateStationScore(uint8_t index)
 {
     uint8_t current_index = station_repo.Get_Current_Index();
@@ -89,7 +96,12 @@ float RouterScheduler::CalculateStationScore(uint8_t index)
     return score;
 }
 
-
+/**
+ * @brief    找出最佳站点
+ * @details  根据计算的站点得分选择最佳站点进行连接。
+ * @date     2025-12-20 2:34
+ * @return   int       最佳站点索引，找不到返回-1
+ */
 int RouterScheduler::FindBestStation()
 {
     uint8_t used_num = station_repo.Get_Station_Count();
@@ -102,7 +114,7 @@ int RouterScheduler::FindBestStation()
 
     int bestIndex = -1;
     float bestScore = -1000.0f;
-    
+    // 遍历所有站点，计算得分并选择最佳
     for (uint8_t i = 0; i < used_num; i++) 
     {
         Station_t& station = station_repo.Get_Index_Station(i);
@@ -123,7 +135,11 @@ int RouterScheduler::FindBestStation()
     return bestIndex;
 }
 
-
+/**
+ * @brief    检查是否到达站点并决定是否离开
+ * @todo     此函数在STATUS_CONNECTED状态下调用，但是其函数涉及到网络连接和HTTP请求，
+ *           需要进行解耦，以增加维护性
+ */
 void RouterScheduler::CheckArrivingAndMaybeLeave()
 {
     uint8_t used_num = station_repo.Get_Station_Count();
@@ -180,7 +196,7 @@ void RouterScheduler::CheckArrivingAndMaybeLeave()
         vehicle_info.Update_Vehicle_Status(VehicleStatus::STATUS_LEAVING);
         return;
     }
-    if (commandQueueCallback)
+    if (commandQueueCallback)       // 这个队列来自 main.cpp 的回调设置
     {
         ACK_Queue_t ack;
         ack.type = CmdType::VEHICLE_STATUS;
@@ -193,12 +209,23 @@ void RouterScheduler::CheckArrivingAndMaybeLeave()
 }
 
 
-
+/**
+ * @brief    设置命令队列回调函数
+ * 
+ * @param    callback  
+ */
 void RouterScheduler::setCommandQueueCallback(CommandQueueCallback callback)
 {
     commandQueueCallback = callback;
 }
 
+/**
+ * @brief    发送单次状态POST请求
+ * 
+ * @param    index     站点索引
+ * @return   true      POST请求成功
+ * @return   false     POST请求失败
+ */
 bool RouterScheduler::sendSinglePost(uint8_t index)
 {
     if(WiFi.status() != WL_CONNECTED)
@@ -217,7 +244,10 @@ bool RouterScheduler::sendSinglePost(uint8_t index)
     return network_client.sendPostRequest(station.ip + "/api/vehicle_report", postData);
 }
 
-
+/**
+ * @brief    路线调度器执行函数
+ * @date     2025-12-20 13:08
+ */
 void RouterScheduler::RouterScheduler_Executer()
 {
     VehicleStatus status = vehicle_info.Get_Vehicle_Status();

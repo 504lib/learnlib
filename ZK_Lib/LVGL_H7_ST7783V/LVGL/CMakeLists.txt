@@ -13,8 +13,13 @@ target_sources(${LVGL_LIB} PRIVATE ${LVGL_SOURCES})
 target_include_directories(${LVGL_LIB} PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/../Core/Inc   # spi.h, usart.h 等
     ${CMAKE_CURRENT_SOURCE_DIR}/examples/porting
-    ${CMAKE_SOURCE_DIR}/LCD  # LCD.h
+    ${CMAKE_SOURCE_DIR}/LCD
+    ${CMAKE_SOURCE_DIR}/Core/Inc
+    ${CMAKE_SOURCE_DIR}/Drivers/STM32H7xx_HAL_Driver/Inc
+    ${CMAKE_SOURCE_DIR}/Drivers/CMSIS/Device/ST/STM32H7xx/Include
+    ${CMAKE_SOURCE_DIR}/Drivers/CMSIS/Include
 )
+
+target_compile_definitions(${LVGL_LIB} PUBLIC USE_HAL_DRIVER STM32H743xx)
 

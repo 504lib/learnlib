@@ -160,8 +160,6 @@ void disp_disable_update(void)
     disp_flush_enabled = false;
 }
 
-static lv_disp_drv_t *disp_drv_for_callback = NULL;
-static const lv_area_t *flush_area = NULL;
 
 
 
@@ -186,7 +184,7 @@ static void disp_flush(lv_disp_drv_t * disp_drv, const lv_area_t * area, lv_colo
         uint16_t height = area->y2 - area->y1 + 1;
         
         // 设置窗口
-        LCD_SetWindows(area->x1, area->y1, area->x2, area->y2);
+        LCD_Set_Window(area->x1, area->y1, area->x2, area->y2);
         
         // 批量传输数据
         LCD_CS_CLR;

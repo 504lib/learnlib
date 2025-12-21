@@ -19,10 +19,15 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "core/lv_obj.h"
+#include "core/lv_obj_pos.h"
 #include "dma.h"
 #include "i2c.h"
 #include "lcd.h"
+#include "lv_api_map.h"
+#include "misc/lv_area.h"
 #include "spi.h"
+#include "stm32h743xx.h"
+#include "stm32h7xx_hal_tim.h"
 #include "stm32h7xx_hal_uart.h"
 #include "tim.h"
 #include "usart.h"
@@ -33,13 +38,15 @@
 #include "lvgl.h"
 #include <stdint.h>
 #include <stdio.h>
-#include <sys/_intsup.h>
 #include "LCD.h"
 #include "lv_port_disp.h"
+#include "widgets/lv_btn.h"
+#include <stdbool.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+volatile bool g_lv_hander_flag = false;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -110,29 +117,35 @@ int main(void)
   LCD_Init();
   lv_init();
   lv_port_disp_init();
-  // HAL_GPIO_WritePin(SPI1_BLK_GPIO_Port, SPI1_BLK_Pin, GPIO_PIN_SET);
-  // LCD_DisplayOn();
-  // LCD_Display_Dir(3);
   LCD_Clear(YELLOW);
-  // printf("Hello, LCD!\n");
-  printf("test orient printf\n");
-  // Check_DMA_Clock_Config();
-  // char buf[20] = {0};
-  // int len = sprintf(buf, "test Dma\r\n");
-  // HAL_UART_Transmit_DMA(&huart1, (uint8_t*)buf, len);
-  // 直接检查USART->CR3寄存器
+
+  lv_obj_t* button = lv_btn_create(lv_scr_act()); // 在当前活动屏幕上创建一个按钮
+  lv_obj_set_pos(button, 10 , 10);
+  lv_obj_set_size(button, 120, 50);
+
+  lv_obj_t* label = lv_label_create(button); // 在按钮上创建一个标签
+  lv_obj_align(label, LV_ALIGN_CENTER,0 , 0);
+  lv_label_set_text(label, "Hello LVGL");
+
+  HAL_TIM_Base_Start_IT(&htim1);
+  printf("init completed\n");
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    static bool toggle = false;
+    // static bool toggle = false;
     HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
-    LCD_Clear_DMA(!toggle?YELLOW:GREEN);
-    toggle = !toggle;
-    // SPI1_DMA_Test();
-    HAL_Delay(1000);
+    // LCD_Clear_DMA(!toggle?YELLOW:GREEN);
+    // toggle = !toggle;
+    // // SPI1_DMA_Test();
+    // HAL_Delay(1000);
+    if (g_lv_hander_flag)
+    {
+      lv_task_handler();
+      g_lv_hander_flag = false;
+    }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -200,6 +213,15 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  if (htim->Instance == TIM1)
+  {
+    static uint32_t count = 0;
+    g_lv_hander_flag = true;
+    printf("current timer count: %lu\r\n", (unsigned long)count++);
+  }
+}
 /* USER CODE END 4 */
 
  /* MPU Configuration */
