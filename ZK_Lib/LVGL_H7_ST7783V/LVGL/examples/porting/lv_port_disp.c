@@ -184,8 +184,8 @@ static void disp_flush(lv_disp_drv_t * disp_drv, const lv_area_t * area, lv_colo
         uint16_t height = area->y2 - area->y1 + 1;
         
         // 设置窗口
-        LCD_Set_Window(area->x1, area->y1, area->x2, area->y2);
-        
+        LCD_Set_Window(area->x1, area->y1, width, height);
+        LCD_WriteRAM_Prepare();
         // 批量传输数据
         LCD_CS_CLR;
         LCD_RS_SET;

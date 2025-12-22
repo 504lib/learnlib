@@ -169,12 +169,13 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
 int _write(int file, char *ptr, int len)
 {
     // 等待上一次DMA完成
-    while (HAL_UART_GetState(&huart1) == HAL_UART_STATE_BUSY_TX) { /* spin */ }
-    if (HAL_UART_Transmit_DMA(&huart1, (uint8_t *)ptr, len) != HAL_OK) {
-      return -1;
-    }
-    // 等待本次DMA完成
-    while (HAL_UART_GetState(&huart1) == HAL_UART_STATE_BUSY_TX) { /* spin */ }
+    // while (HAL_UART_GetState(&huart1) == HAL_UART_STATE_BUSY_TX) { /* spin */ }
+    // if (HAL_UART_Transmit_DMA(&huart1, (uint8_t *)ptr, len) != HAL_OK) {
+    //   return -1;
+    // }
+    // // 等待本次DMA完成
+    // while (HAL_UART_GetState(&huart1) == HAL_UART_STATE_BUSY_TX) { /* spin */ }
+    HAL_UART_Transmit(&huart1, (uint8_t *)ptr, len, HAL_MAX_DELAY);
     return len;
 }
 /* USER CODE END 1 */

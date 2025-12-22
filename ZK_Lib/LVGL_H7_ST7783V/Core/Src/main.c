@@ -21,12 +21,15 @@
 #include "core/lv_obj.h"
 #include "core/lv_obj_pos.h"
 #include "dma.h"
+#include "hal/lv_hal_tick.h"
 #include "i2c.h"
 #include "lcd.h"
 #include "lv_api_map.h"
 #include "misc/lv_area.h"
+#include "misc/lv_timer.h"
 #include "spi.h"
 #include "stm32h743xx.h"
+#include "stm32h7xx_hal.h"
 #include "stm32h7xx_hal_tim.h"
 #include "stm32h7xx_hal_uart.h"
 #include "tim.h"
@@ -117,10 +120,10 @@ int main(void)
   LCD_Init();
   lv_init();
   lv_port_disp_init();
-  LCD_Clear(YELLOW);
+  // LCD_Clear(YELLOW);
 
   lv_obj_t* button = lv_btn_create(lv_scr_act()); // 在当前活动屏幕上创建一个按钮
-  lv_obj_set_pos(button, 10 , 10);
+  lv_obj_set_pos(button, 60 , 10);
   lv_obj_set_size(button, 120, 50);
 
   lv_obj_t* label = lv_label_create(button); // 在按钮上创建一个标签
@@ -135,17 +138,13 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    // static bool toggle = false;
     HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
-    // LCD_Clear_DMA(!toggle?YELLOW:GREEN);
-    // toggle = !toggle;
-    // // SPI1_DMA_Test();
-    // HAL_Delay(1000);
     if (g_lv_hander_flag)
     {
-      lv_task_handler();
+      lv_timer_handler();
       g_lv_hander_flag = false;
     }
+    // HAL_Delay(200);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -217,9 +216,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   if (htim->Instance == TIM1)
   {
-    static uint32_t count = 0;
+    // static uint32_t count = 0;
+    lv_tick_inc(1);
+    // lv_timer_handler();
     g_lv_hander_flag = true;
-    printf("current timer count: %lu\r\n", (unsigned long)count++);
+    // printf("current timer count: %lu\r\n", (unsigned long)count++);
   }
 }
 /* USER CODE END 4 */
