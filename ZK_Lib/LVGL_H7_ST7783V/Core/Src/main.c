@@ -18,20 +18,9 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "core/lv_obj.h"
-#include "core/lv_obj_pos.h"
 #include "dma.h"
-#include "hal/lv_hal_tick.h"
 #include "i2c.h"
-#include "lcd.h"
-#include "lv_api_map.h"
-#include "misc/lv_area.h"
-#include "misc/lv_timer.h"
 #include "spi.h"
-#include "stm32h743xx.h"
-#include "stm32h7xx_hal.h"
-#include "stm32h7xx_hal_tim.h"
-#include "stm32h7xx_hal_uart.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -45,6 +34,8 @@
 #include "lv_port_disp.h"
 #include "widgets/lv_btn.h"
 #include <stdbool.h>
+#include "ft6336.h"
+#include "lv_port_indev.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -77,6 +68,19 @@ static void MPU_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+static lv_obj_t *g_btn_label = NULL;
+static uint32_t g_btn_count = 0;
+
+static void btn_event_cb(lv_event_t *e)
+{
+  if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+    return; // Only handle click events
+  }
+
+  // Update label text with the current count, then increment for next click
+  lv_label_set_text_fmt(g_btn_label, "count:%lu", (unsigned long)g_btn_count);
+  g_btn_count++;
+}
 /* USER CODE END 0 */
 
 /**
@@ -99,7 +103,6 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -119,16 +122,20 @@ int main(void)
   /* USER CODE BEGIN 2 */
   LCD_Init();
   lv_init();
+  FT6336_Init();
   lv_port_disp_init();
+  lv_port_indev_init();
   // LCD_Clear(YELLOW);
 
   lv_obj_t* button = lv_btn_create(lv_scr_act()); // 在当前活动屏幕上创建一个按钮
   lv_obj_set_pos(button, 60 , 10);
   lv_obj_set_size(button, 120, 50);
 
-  lv_obj_t* label = lv_label_create(button); // 在按钮上创建一个标签
-  lv_obj_align(label, LV_ALIGN_CENTER,0 , 0);
-  lv_label_set_text(label, "Hello LVGL");
+  g_btn_label = lv_label_create(button); // 在按钮上创建一个标签
+  lv_obj_align(g_btn_label, LV_ALIGN_CENTER,0 , 0);
+  lv_label_set_text(g_btn_label, "count:0");
+
+  lv_obj_add_event_cb(button, btn_event_cb, LV_EVENT_CLICKED, NULL);
 
   HAL_TIM_Base_Start_IT(&htim1);
   printf("init completed\n");
@@ -138,12 +145,16 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
+    // HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
     if (g_lv_hander_flag)
     {
       lv_timer_handler();
       g_lv_hander_flag = false;
     }
+    // if (FT6336_ReadTouch(&x, &y, FT6336_DIR_270))
+    // {
+    //   printf("x= %u,y= %u\r\n",x,y);
+    // } 
     // HAL_Delay(200);
     /* USER CODE END WHILE */
 

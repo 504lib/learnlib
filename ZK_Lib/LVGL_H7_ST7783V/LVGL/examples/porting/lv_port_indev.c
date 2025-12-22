@@ -4,14 +4,16 @@
  */
 
 /*Copy this file as "lv_port_indev.c" and set this value to "1" to enable content*/
-#if 0
+#include "lcd.h"
+#include <stdint.h>
+#if 1
 
 /*********************
  *      INCLUDES
  *********************/
 #include "lv_port_indev.h"
 #include "lvgl.h"
-// #include "touch.h"
+#include "ft6336.h"
 // #include "lcd.h"
 #include <stdio.h>
 /*********************
@@ -211,14 +213,14 @@ static void touchpad_read(lv_indev_drv_t * indev_drv, lv_indev_data_t * data)
 static bool touchpad_is_pressed(void)
 {
     /*Your code comes here*/
-    // uint8_t temp = 0;
-    // bool pressed = FT6336_Scan_Status(&temp);
-    // // if (pressed)
-    // // {
-    // //     printf("Touch at (%d, %d)\n", tp_dev.x[0], tp_dev.y[0]);
-    // // }
-    // return pressed;
-    return false;
+    uint8_t temp = 0;
+    bool pressed = FT6336_Scan_Status(&temp);
+    // if (pressed)
+    // {
+    //     printf("Touch at (%d, %d)\n", x,y);
+    // }
+    return pressed;
+    // return false;
 }
 
 /*Get the x and y coordinates if the touchpad is pressed*/
@@ -226,8 +228,8 @@ static void touchpad_get_xy(lv_coord_t * x, lv_coord_t * y)
 {
     /*Your code comes here*/
 
-    // FT6336_ReadTouch((uint16_t *)x, (uint16_t *)y,FT6336_DIR_90);
-    // LCD_DrawPoint((*x), (*y), RED); // 在触摸点画一个红色点，便于调试
+    FT6336_ReadTouch((uint16_t *)x, (uint16_t *)y,FT6336_DIR_90);
+    LCD_DrawPoint((*x), (*y)); // 在触摸点画一个红色点，便于调试
 }
 
 /*------------------

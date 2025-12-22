@@ -41,6 +41,7 @@ add_executable(${CMAKE_PROJECT_NAME})
 add_subdirectory(cmake/stm32cubemx)
 add_subdirectory(LCD)
 add_subdirectory(LVGL)
+add_subdirectory(TOUCH)
 
 target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE
     $<$<CONFIG:Debug>:-Og -g3 -ggdb -Wall -fstack-usage>
@@ -76,5 +77,6 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     stm32cubemx
     lcd
     lvgl
+    FT6336u
     # Add user defined libraries
 )
