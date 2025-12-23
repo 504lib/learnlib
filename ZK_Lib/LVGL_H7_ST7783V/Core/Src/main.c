@@ -36,6 +36,10 @@
 #include <stdbool.h>
 #include "ft6336.h"
 #include "lv_port_indev.h"
+#include "gui_guider.h"
+#include "events_init.h"
+#include "custom.h"
+// #include "lv_demo_widgets.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -70,6 +74,7 @@ static void MPU_Config(void);
 /* USER CODE BEGIN 0 */
 static lv_obj_t *g_btn_label = NULL;
 static uint32_t g_btn_count = 0;
+lv_ui ui;
 
 static void btn_event_cb(lv_event_t *e)
 {
@@ -79,6 +84,7 @@ static void btn_event_cb(lv_event_t *e)
 
   // Update label text with the current count, then increment for next click
   lv_label_set_text_fmt(g_btn_label, "count:%lu", (unsigned long)g_btn_count);
+  printf("clicked count: %lu\r\n",(unsigned long)g_btn_count);
   g_btn_count++;
 }
 /* USER CODE END 0 */
@@ -125,18 +131,22 @@ int main(void)
   FT6336_Init();
   lv_port_disp_init();
   lv_port_indev_init();
+  setup_ui(&ui);
+  custom_init(&ui);
+  events_init(&ui);
   // LCD_Clear(YELLOW);
 
-  lv_obj_t* button = lv_btn_create(lv_scr_act()); // 在当前活动屏幕上创建一个按钮
-  lv_obj_set_pos(button, 60 , 10);
-  lv_obj_set_size(button, 120, 50);
+  // lv_obj_t* button = lv_btn_create(lv_scr_act()); // 在当前活动屏幕上创建一个按钮
+  // lv_obj_set_pos(button, 60 , 10);
+  // lv_obj_set_size(button, 120, 50);
 
-  g_btn_label = lv_label_create(button); // 在按钮上创建一个标签
-  lv_obj_align(g_btn_label, LV_ALIGN_CENTER,0 , 0);
-  lv_label_set_text(g_btn_label, "count:0");
+  // g_btn_label = lv_label_create(button); // 在按钮上创建一个标签
+  // lv_obj_align(g_btn_label, LV_ALIGN_CENTER,0 , 0);
+  // lv_label_set_text(g_btn_label, "count:0");
 
-  lv_obj_add_event_cb(button, btn_event_cb, LV_EVENT_CLICKED, NULL);
+  // lv_obj_add_event_cb(button, btn_event_cb, LV_EVENT_CLICKED, NULL);
 
+  // lv_demo_widgets();
   HAL_TIM_Base_Start_IT(&htim1);
   printf("init completed\n");
   /* USER CODE END 2 */
@@ -225,12 +235,17 @@ void SystemClock_Config(void)
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
+  static uint32_t count = 0;
   if (htim->Instance == TIM1)
   {
+    if (count % 10 == 0)
+    {
+      lv_tick_inc(10);
+      g_lv_hander_flag = true;
+    }
+    count++;
     // static uint32_t count = 0;
-    lv_tick_inc(1);
     // lv_timer_handler();
-    g_lv_hander_flag = true;
     // printf("current timer count: %lu\r\n", (unsigned long)count++);
   }
 }

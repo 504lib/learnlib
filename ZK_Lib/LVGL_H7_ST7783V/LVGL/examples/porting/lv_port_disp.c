@@ -4,6 +4,7 @@
  */
 
 /*Copy this file as "lv_port_disp.c" and set this value to "1" to enable content*/
+#include <stddef.h>
 #if 1
 
 /*********************
@@ -92,9 +93,9 @@ void lv_port_disp_init(void)
 
     /* Example for 2) */
    static lv_disp_draw_buf_t draw_buf_dsc_2;
-   static lv_color_t buf_2_1[MY_DISP_HOR_RES * 10];                        /*A buffer for 10 rows*/
-   static lv_color_t buf_2_2[MY_DISP_HOR_RES * 10];                        /*An other buffer for 10 rows*/
-   lv_disp_draw_buf_init(&draw_buf_dsc_2, buf_2_1, buf_2_2, MY_DISP_HOR_RES * 10);   /*Initialize the display buffer*/
+   static lv_color_t buf_2_1[MY_DISP_HOR_RES * 60];                        /*A buffer for 10 rows*/
+   static lv_color_t buf_2_2[MY_DISP_HOR_RES * 60];                        /*An other buffer for 10 rows*/
+   lv_disp_draw_buf_init(&draw_buf_dsc_2, buf_2_1, buf_2_2, MY_DISP_HOR_RES * 60);   /*Initialize the display buffer*/
 
 //    /* Example for 3) also set disp_drv.full_refresh = 1 below*/
 //    static lv_disp_draw_buf_t draw_buf_dsc_3;
@@ -145,7 +146,7 @@ static void disp_init(void)
 }
 
 volatile bool disp_flush_enabled = true;
-
+static lv_disp_drv_t *s_disp_in_flush = NULL;
 /* Enable updating the screen (the flushing process) when disp_flush() is called by LVGL
  */
 void disp_enable_update(void)
@@ -215,26 +216,36 @@ static void disp_flush(lv_disp_drv_t * disp_drv, const lv_area_t * area, lv_colo
     //     current_buffer = next_buffer;
     //     next_buffer = temp;
     // }
-    
-    for (uint16_t y = 0; y < height; y++) {
-        HAL_SPI_Transmit_DMA(&hspi1, (uint8_t *)(color_p + y * width), width * 2);
-        while(HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY);
-    }
+    s_disp_in_flush = disp_drv;
+    size_t bytes = width * height * 2;
+    // for (uint16_t y = 0; y < height; y++) {
+    //     HAL_SPI_Transmit_DMA(&hspi1, (uint8_t *)(color_p + y * width), width * 2);
+    //     while(HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY);
+    // }
     // HAL_SPI_Transmit_DMA(&hspi1, (uint8_t *)color_p, width * height * 2);
-
-    while(HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY);
-    LCD_CS_SET;
+    HAL_SPI_Transmit_DMA(&hspi1, (uint8_t *)color_p, bytes);
+    // while(HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY);
+    // LCD_CS_SET;
     }
         
     /*IMPORTANT!!!	
      *Inform the graphics library that you are ready with the flushing*/
-    lv_disp_flush_ready(disp_drv);
+    // lv_disp_flush_ready(disp_drv);
 #endif		
 
     
 
 }
-
+void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
+{
+    if (hspi == &hspi1) {
+        LCD_CS_SET;
+        if (s_disp_in_flush) {
+            lv_disp_flush_ready(s_disp_in_flush);
+            s_disp_in_flush = NULL;
+        }
+    }
+}
 /*OPTIONAL: GPU INTERFACE*/
 
 /*If your MCU has hardware accelerator (GPU) then you can use it to fill a memory with a color*/

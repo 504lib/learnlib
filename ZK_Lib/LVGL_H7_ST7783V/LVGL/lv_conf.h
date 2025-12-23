@@ -569,6 +569,11 @@
 #define LV_USE_WIN        1
 
 /*-----------
+ * Custom widgets
+ *----------*/
+#define LV_USE_DCLOCK     1
+
+/*-----------
  * Themes
  *----------*/
 
