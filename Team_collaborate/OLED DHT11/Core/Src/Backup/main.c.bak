@@ -25,6 +25,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "oled.h"
+#include "stdio.h"
+#include "stm32f1xx_hal.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -50,6 +52,12 @@
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+// redirect  the printf function
+int fputc(int ch, FILE *f)
+{
+    HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, 0xFFFF);
+    return ch;
+}
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -91,6 +99,11 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_I2C1_Init();
+  MX_USART1_UART_Init();
+  /* USER CODE BEGIN 2 */
+    OLED_Init();
+
+  /* USER CODE END 2 */
 /* USER CODE BEGIN 2 */
 
 /* USER CODE END 2 */
@@ -107,6 +120,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+
+    
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

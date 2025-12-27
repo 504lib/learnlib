@@ -21,7 +21,8 @@
 #include "i2c.h"
 #include "usart.h"
 #include "gpio.h"
-
+#include "stdio.h"
+#include "string.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "oled.h"
@@ -34,7 +35,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define LED_PIN GPIO_PIN_13
+#define LED_GPIO_PORT GPIOC
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -45,6 +47,17 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+uint8_t uart_rx_data;           
+uint8_t uart_rx_buffer[4];     
+uint8_t uart_rx_index = 0;     
+uint8_t uart_rx_flag = 0;       
+uint8_t system_state = 1;     
+uint32_t last_send_time = 0;    
+const uint32_t SEND_INTERVAL = 1000; 
+
+float temperature = 25.0f;      
+float humidity = 50.0f;         
+/* USER CODE END PV */
 
 /* USER CODE END PV */
 
@@ -92,7 +105,10 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
     OLED_Init();
-
+printf("System Started - UART Control Example\r\n");
+printf("Send 'ON' to start, 'OFF' to stop\r\n");
+HAL_UART_Receive_IT(&huart1, &uart_rx_data, 1); 
+last_send_time = HAL_GetTick();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -104,14 +120,23 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
+while (1)
+{
+  /* USER CODE END WHILE */
+
+  /* USER CODE BEGIN 3 */
+  uint32_t current_time = HAL_GetTick();
+  if (system_state == 1) 
   {
-
-    
-    /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
+      if ((current_time - last_send_time) >= SEND_INTERVAL) 
+      {
+          printf("Temp:%.1fC, Hum:%.1f%%\r\n", temperature, humidity);
+          HAL_GPIO_TogglePin(LED_GPIO_PORT, LED_PIN);
+          last_send_time = current_time; 
+      }
   }
+  HAL_Delay(10);
+}
   /* USER CODE END 3 */
 }
 
@@ -155,10 +180,45 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-
-
-
-
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+  if(huart->Instance == USART1)
+  {
+    if (uart_rx_data == '\r' || uart_rx_data == '\n') 
+    {
+        uart_rx_buffer[uart_rx_index] = '\0';
+        if (strcmp((char *)uart_rx_buffer, "ON") == 0) 
+        {
+            system_state = 1;
+            printf("System state: ON - Start reading and sending\r\n");
+        }
+        else if (strcmp((char *)uart_rx_buffer, "OFF") == 0) 
+        {
+            system_state = 0;
+            printf("System state: OFF - Stop reading and sending\r\n");
+        }
+        else
+        {
+            printf("Unknown command: %s\r\n", uart_rx_buffer);
+        }
+        
+        uart_rx_index = 0; 
+    }
+    else 
+    {
+        if (uart_rx_index < sizeof(uart_rx_buffer) - 1) 
+        {
+            uart_rx_buffer[uart_rx_index++] = uart_rx_data;
+        }
+        else
+        {
+            uart_rx_index = 0;
+            printf("Command too long, resetting buffer\r\n");
+        }
+    }
+    HAL_UART_Receive_IT(&huart1, &uart_rx_data, 1);
+  }
+}
 /* USER CODE END 4 */
 
 /**
@@ -191,3 +251,4 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
+
