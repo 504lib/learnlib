@@ -4,6 +4,7 @@
  */
 
 /*Copy this file as "lv_port_disp.c" and set this value to "1" to enable content*/
+#include "misc/lv_color.h"
 #include <stddef.h>
 #if 1
 
@@ -19,10 +20,13 @@
 /*********************
  *      DEFINES
  *********************/
+#define MY_DISP_HOR_RES  320
 #ifndef MY_DISP_HOR_RES
     #warning Please define or replace the macro MY_DISP_HOR_RES with the actual screen width, default value 320 is used for now.
     #define MY_DISP_HOR_RES    320
 #endif
+
+#define MY_DISP_VER_RES    240
 
 #ifndef MY_DISP_VER_RES
     #warning Please define or replace the macro MY_DISP_HOR_RES with the actual screen height, default value 240 is used for now.
@@ -170,17 +174,9 @@ void disp_disable_update(void)
 static void disp_flush(lv_disp_drv_t * disp_drv, const lv_area_t * area, lv_color_t * color_p)
 {
 
-    if(disp_flush_enabled) {
+    if(disp_flush_enabled) 
+    {
         /*The most simple case (but also the slowest) to put all pixels to the screen one-by-one*/
-#if 0
-        // disp_drv_for_callback = disp_drv;
-        // flush_area = area;
-
-        // LCD_WriteBuffer_DMA_LineByLine(area->x1, area->y1, area->x2, area->y2, color_p);
-        // 启动异步DMA传输
-        // LCD_WriteBuffer_DMA_Async(area->x1, area->y1, area->x2, area->y2, color_p);
-	}
-#else
 		uint16_t width = area->x2 - area->x1 + 1;
         uint16_t height = area->y2 - area->y1 + 1;
         
@@ -190,57 +186,20 @@ static void disp_flush(lv_disp_drv_t * disp_drv, const lv_area_t * area, lv_colo
         // 批量传输数据
         LCD_CS_CLR;
         LCD_RS_SET;
-        
-        // 一次传输一行数据
-// static uint16_t line_buffer_1[320];
-//     static uint16_t line_buffer_2[320];
-//     uint16_t *current_buffer = line_buffer_1;
-//     uint16_t *next_buffer = line_buffer_2;
-
-//     for (uint16_t y = 0; y < height; y++) {
-//         // 准备下一行数据
-//         for (uint16_t x = 0; x < width; x++) {
-//             next_buffer[x] = color_p->full;
-//             color_p++;
-//         }
-
-//         // 等待上一次 DMA 完成
-//         while(HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY);
-
-//         // 启动 DMA 传输当前行
-//         lcd_dma_complete = 0;
-        // HAL_SPI_Transmit_DMA(&hspi1, (uint8_t *)current_buffer, width * 2);
-
-        // 交换缓冲区
-    //     uint16_t *temp = current_buffer;
-    //     current_buffer = next_buffer;
-    //     next_buffer = temp;
-    // }
-    s_disp_in_flush = disp_drv;
-    size_t bytes = width * height * 2;
-    // for (uint16_t y = 0; y < height; y++) {
-    //     HAL_SPI_Transmit_DMA(&hspi1, (uint8_t *)(color_p + y * width), width * 2);
-    //     while(HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY);
-    // }
-    // HAL_SPI_Transmit_DMA(&hspi1, (uint8_t *)color_p, width * height * 2);
-    HAL_SPI_Transmit_DMA(&hspi1, (uint8_t *)color_p, bytes);
-    // while(HAL_SPI_GetState(&hspi1) != HAL_SPI_STATE_READY);
-    // LCD_CS_SET;
+        s_disp_in_flush = disp_drv;
+        size_t bytes = width * height * sizeof(lv_color_t);
+        HAL_SPI_Transmit_DMA(&hspi1, (uint8_t *)color_p, bytes);
     }
-        
     /*IMPORTANT!!!	
      *Inform the graphics library that you are ready with the flushing*/
     // lv_disp_flush_ready(disp_drv);
-#endif		
-
-    
-
 }
 void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
 {
     if (hspi == &hspi1) {
         LCD_CS_SET;
-        if (s_disp_in_flush) {
+        if (s_disp_in_flush) 
+        {
             lv_disp_flush_ready(s_disp_in_flush);
             s_disp_in_flush = NULL;
         }

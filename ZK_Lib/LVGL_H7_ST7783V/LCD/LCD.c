@@ -213,16 +213,16 @@ void LCD_Set_Window(uint16_t sx,uint16_t sy,uint16_t width,uint16_t height)
 	twidth=sx+width-1;
 	theight=sy+height-1;
 
-		LCD_WR_REG(lcddev.setxcmd); 
-		LCD_WR_DATA(sx>>8); 
-		LCD_WR_DATA(sx&0XFF);	 
-		LCD_WR_DATA(twidth>>8); 
-		LCD_WR_DATA(twidth&0XFF);  
-		LCD_WR_REG(lcddev.setycmd); 
-		LCD_WR_DATA(sy>>8); 
-		LCD_WR_DATA(sy&0XFF); 
-		LCD_WR_DATA(theight>>8); 
-		LCD_WR_DATA(theight&0XFF); 
+	LCD_WR_REG(lcddev.setxcmd); 
+	LCD_WR_DATA(sx>>8); 
+	LCD_WR_DATA(sx&0XFF);	 
+	LCD_WR_DATA(twidth>>8); 
+	LCD_WR_DATA(twidth&0XFF);  
+	LCD_WR_REG(lcddev.setycmd); 
+	LCD_WR_DATA(sy>>8); 
+	LCD_WR_DATA(sy&0XFF); 
+	LCD_WR_DATA(theight>>8); 
+	LCD_WR_DATA(theight&0XFF); 
 
 }
 //≥ı ºªØlcd
