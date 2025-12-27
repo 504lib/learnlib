@@ -22,8 +22,7 @@
 #include "gpio.h"
 
 /* USER CODE BEGIN 0 */
-#define LED_PIN GPIO_PIN_13
-#define LED_GPIO_PORT GPIOC
+
 /* USER CODE END 0 */
 
 /*----------------------------------------------------------------------------*/

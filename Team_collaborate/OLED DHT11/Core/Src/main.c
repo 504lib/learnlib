@@ -21,10 +21,12 @@
 #include "i2c.h"
 #include "usart.h"
 #include "gpio.h"
-
+#include "string.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "oled.h"
+#include "stdio.h"
+#include "stm32f1xx_hal.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -39,17 +41,29 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+#define LED_PIN GPIO_PIN_13
+#define LED_GPIO_PORT GPIOC
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+// define the receive buffer
+uint8_t uart_rx_data;
+uint8_t uart_rx_buffer[4];     
+uint8_t uart_rx_index = 0;       
+uint8_t uart_rx_flag = 0;        
+uint8_t system_state = 1;       
+uint32_t last_send_time = 0;     
+const uint32_t SEND_INTERVAL = 1000; 
 
+float temperature = 0.0f;        
+float humidity = 0.0f;         
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -91,28 +105,41 @@ int main(void)
   MX_I2C1_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-    OLED_Init();
+  OLED_Init();
+  printf("System Started - Non-blocking UART Example\r\n");
 
+
+  // Enable UART interrupt receive
+  // Parameters: UART handle, receive data buffer, length of data to receive
+  HAL_UART_Receive_IT(&huart1, &uart_rx_data, 1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
-//		OLED_ShowCHinese(48,0,17);c
+//  OLED_ShowCHinese(48,0,17);
 
-  /* USER CODE END 2 */
-
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
   while (1)
   {
-
-    
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    uint32_t current_time = HAL_GetTick();
+    if (system_state == 1) 
+    {
+        if ((current_time - last_send_time) >= SEND_INTERVAL) 
+        {
+            // 读取DHT11传感器数据（这里用你的实际读取函数）
+            // read_dht11_data(&temperature, &humidity);
+            // 向串口发送温度和湿度数据
+            printf("Temp:%.1fC, Hum:%.1f%%\r\n", temperature, humidity);
+            HAL_GPIO_TogglePin(LED_GPIO_PORT, LED_PIN);
+            last_send_time = current_time; 
+        }
+    }
+    HAL_Delay(10);
+    /* USER CODE END 3 */
   }
-  /* USER CODE END 3 */
 }
 
 /**
@@ -155,11 +182,51 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-
-
-
-
+/**
+  * @brief  Rx Transfer completed callbacks.
+  * @param  huart  Pointer to a UART_HandleTypeDef structure.
+  * @retval None
+  */
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+  if(huart->Instance == USART1)
+  {
+    if (uart_rx_data == '\r' || uart_rx_data == '\n') 
+    {
+        uart_rx_buffer[uart_rx_index] = '\0';
+        if (strcmp((char *)uart_rx_buffer, "ON") == 0) 
+        {
+            system_state = 1;
+            printf("System state: ON - Start reading and sending\r\n");
+        }
+        else if (strcmp((char *)uart_rx_buffer, "OFF") == 0) 
+        {
+            system_state = 0;
+            printf("System state: OFF - Stop reading and sending\r\n");
+        }
+        else
+        {
+            printf("Unknown command: %s\r\n", uart_rx_buffer);
+        }       
+        uart_rx_index = 0; 
+    }
+    else 
+    {
+        if (uart_rx_index < sizeof(uart_rx_buffer) - 1) 
+        {
+            uart_rx_buffer[uart_rx_index++] = uart_rx_data;
+        }
+        else
+        {
+            uart_rx_index = 0;
+            printf("Command too long, resetting buffer\r\n");
+        }
+    }
+    HAL_UART_Receive_IT(&huart1, &uart_rx_data, 1);
+  }
+}
 /* USER CODE END 4 */
+
 
 /**
   * @brief  This function is executed in case of error occurrence.
@@ -191,3 +258,4 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
+
