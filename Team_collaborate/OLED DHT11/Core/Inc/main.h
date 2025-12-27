@@ -31,7 +31,18 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+// ϵͳ״̬
+typedef enum {
+    SYS_RUNNING = 0,
+    SYS_STOPPED
+} SystemState;
 
+// ȫ�ֱ�������
+extern SystemState g_systemState;
+
+// ΢����ʱ����
+void delay_us(uint32_t us);
+void delay_ms(uint32_t ms);
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/

@@ -23,6 +23,27 @@
 #define __OLED_H			  	 
 #include "stdlib.h"
 #include "main.h"
+#include <string.h>
+#include "stm32f1xx_hal.h"
+
+
+// 添加类型定义
+typedef uint8_t u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+
+// 修正引脚宏定义 - 使用大写PIN
+#define OLED_SCL_Clr() HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET)
+#define OLED_SCL_Set() HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET)
+
+#define OLED_SDA_Clr() HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_RESET)
+#define OLED_SDA_Set() HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_SET)
+
+#define OLED_RES_Clr() HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET)
+#define OLED_RES_Set() HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET)
+
+#define OLED_CMD  0
+#define OLED_DATA 1
 
 #define OLED_MODE 0
 #define SIZE 8
@@ -70,6 +91,7 @@ void Write_IIC_Command(unsigned char IIC_Command);
 void Write_IIC_Data(unsigned char IIC_Data);
 void Write_IIC_Byte(unsigned char IIC_Byte);
 void OLED_ShowFloat(uint8_t x, uint8_t y, float num, uint8_t precision);
+void OLED_ShowTempHumidity(float temp, float humidity); 
 
 void IIC_Wait_Ack(void);
 
