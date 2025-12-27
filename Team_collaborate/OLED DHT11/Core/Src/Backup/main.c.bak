@@ -73,6 +73,7 @@ int fputc(int ch, FILE *f)
   */
 int main(void)
 {
+// ???printf
 
   /* USER CODE BEGIN 1 */
 
@@ -90,6 +91,7 @@ int main(void)
   /* Configure the system clock */
   SystemClock_Config();
 
+
   /* USER CODE BEGIN SysInit */
 
   /* USER CODE END SysInit */
@@ -102,6 +104,10 @@ int main(void)
     OLED_Init();
 
   /* USER CODE END 2 */
+/* USER CODE BEGIN 2 */
+
+/* USER CODE END 2 */
+
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */

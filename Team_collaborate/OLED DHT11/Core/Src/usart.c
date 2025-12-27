@@ -113,7 +113,7 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
 }
 
 /* USER CODE BEGIN 1 */
-#include <stdio.h>
+#include "stdio.h"
 
 
 int __io_putchar(int ch)
