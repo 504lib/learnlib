@@ -32,7 +32,7 @@
 #include "Log.h"
 #include "rtc.h"
 #define MENU_USE_CMSIS_OS2
-#include "../../shared/multikey/multikey.h"
+#include "multikey.h"
 #include "HX711.h"
 #include "Motor.h"
 #include "tim.h"

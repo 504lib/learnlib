@@ -59,34 +59,38 @@ void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, HX711_SCK_Pin|BIN1_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : PtPin */
+  /*Configure GPIO pin : LED_Pin */
   GPIO_InitStruct.Pin = LED_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PAPin PAPin PAPin PAPin */
+  /*Configure GPIO pins : CS_OLED_Pin DC_OLED_Pin RES_OLED_Pin AIN1_Pin */
   GPIO_InitStruct.Pin = CS_OLED_Pin|DC_OLED_Pin|RES_OLED_Pin|AIN1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PBPin PBPin PBPin PBPin
-                           PBPin */
-  GPIO_InitStruct.Pin = KEY_UP_Pin|KEY_DOWN_Pin|KEY_ENTER_Pin|KEY_CANCEL_Pin
-                          |HX711_DOUT_Pin;
+  /*Configure GPIO pins : KEY_UP_Pin KEY_DOWN_Pin KEY_ENTER_Pin KEY_CANCEL_Pin */
+  GPIO_InitStruct.Pin = KEY_UP_Pin|KEY_DOWN_Pin|KEY_ENTER_Pin|KEY_CANCEL_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PBPin PBPin */
+  /*Configure GPIO pins : HX711_SCK_Pin BIN1_Pin */
   GPIO_InitStruct.Pin = HX711_SCK_Pin|BIN1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : HX711_DOUT_Pin */
+  GPIO_InitStruct.Pin = HX711_DOUT_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(HX711_DOUT_GPIO_Port, &GPIO_InitStruct);
 
 }
 

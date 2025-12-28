@@ -55,7 +55,7 @@ extern osEventFlagsId_t UART_EVENTHandle;
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-// 空闲中断缓冲�?
+// 空闲中断缓冲�?
 uint8_t temp[64] = {0};
 extern DMA_HandleTypeDef hdma_usart1_rx;
 /* USER CODE END PV */
@@ -111,10 +111,9 @@ int main(void)
   // 坯动空闲中断
 	HAL_UARTEx_ReceiveToIdle_DMA(&huart1,temp,sizeof(temp));  
   /* USER CODE END 2 */
-  /* Init scheduler */
-  osKernelInitialize();
 
-  /* Call init function for freertos objects (in cmsis_os2.c) */
+  /* Init scheduler */
+  osKernelInitialize();  /* Call init function for freertos objects (in cmsis_os2.c) */
   MX_FREERTOS_Init();
 
   /* Start scheduler */
@@ -192,7 +191,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
     osEventFlagsSet(UART_EVENTHandle,UART_RECEIVE_EVENT );
 	  HAL_UARTEx_ReceiveToIdle_DMA(&huart1,temp,sizeof(temp));
     Uart_Buffer_Put_frame(frame, temp, Size);
-	  __HAL_DMA_DISABLE_IT(&hdma_usart1_rx,DMA_IT_HT);      //过坊中断，为了保话数杮完整�?�，必须�?坯它
+	  __HAL_DMA_DISABLE_IT(&hdma_usart1_rx,DMA_IT_HT);      //过坊中断，为了保话数杮完整�?�，必须�?坯它
   }
   
 
@@ -231,7 +230,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   /* USER CODE BEGIN Callback 0 */
 
   /* USER CODE END Callback 0 */
-  if (htim->Instance == TIM4) {
+  if (htim->Instance == TIM4)
+  {
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
@@ -253,8 +253,7 @@ void Error_Handler(void)
   }
   /* USER CODE END Error_Handler_Debug */
 }
-
-#ifdef  USE_FULL_ASSERT
+#ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
