@@ -31,7 +31,18 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+// 系统状态
+typedef enum {
+    SYS_RUNNING = 0,
+    SYS_STOPPED
+} SystemState;
 
+// 全局变量声明
+extern SystemState g_systemState;
+
+// 微秒延时函数
+void delay_us(uint32_t us);
+void delay_ms(uint32_t ms);
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -57,7 +68,8 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-
+#define DATA_Pin GPIO_PIN_0
+#define DATA_GPIO_Port GPIOA
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */

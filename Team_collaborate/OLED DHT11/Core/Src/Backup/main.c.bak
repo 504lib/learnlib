@@ -19,14 +19,16 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "i2c.h"
+#include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "dht11.h"
 #include "oled.h"
-#include "stdio.h"
-#include "stm32f1xx_hal.h"
+#include <string.h>
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -36,7 +38,10 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define LED_PIN GPIO_PIN_13
+#define LED_GPIO_PORT GPIOC
 
+SystemState g_systemState = SYS_RUNNING;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -47,17 +52,51 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+DHT11_Data_TypeDef DHT11_Data;
 
+// 微秒延时函数（使用TIM2）
+void delay_us(uint32_t us)
+{
+    __HAL_TIM_SET_COUNTER(&htim2, 0);
+    HAL_TIM_Base_Start(&htim2);
+    while (__HAL_TIM_GET_COUNTER(&htim2) < us);
+    HAL_TIM_Base_Stop(&htim2);
+}
+
+// 毫秒延时函数
+void delay_ms(uint32_t ms)
+{
+    for (uint32_t i = 0; i < ms; i++)
+    {
+        delay_us(1000);
+    }
+}
+
+void LED_Blink(void)
+{
+    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+    delay_ms(500);
+    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+//	HAL_Delay(50);
+}
+
+uint8_t uart_rx_data;           
+uint8_t uart_rx_buffer[64];     
+uint8_t uart_rx_index = 0;     
+uint8_t uart_rx_flag = 0;       
+uint8_t system_state = 1; 
+// 上次发送时间
+uint32_t last_send_time = 0; 
+uint32_t last_read_time = 0;
+
+const uint32_t SEND_INTERVAL = 1000; 
+
+float temperature = 25.0f;      
+float humidity = 50.0f;         
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
-// redirect  the printf function
-int fputc(int ch, FILE *f)
-{
-    HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, 0xFFFF);
-    return ch;
-}
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -73,7 +112,6 @@ int fputc(int ch, FILE *f)
   */
 int main(void)
 {
-// ???printf
 
   /* USER CODE BEGIN 1 */
 
@@ -85,12 +123,11 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  DHT11_Init();
   /* USER CODE END Init */
 
   /* Configure the system clock */
   SystemClock_Config();
-
 
   /* USER CODE BEGIN SysInit */
 
@@ -100,19 +137,27 @@ int main(void)
   MX_GPIO_Init();
   MX_I2C1_Init();
   MX_USART1_UART_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-    OLED_Init();
-
+  HAL_UART_Receive_IT(&huart1, &uart_rx_buffer[0], 1); // 启动串口接收中断  
+  OLED_Init();
+  OLED_Clear();   // 清屏	
+  OLED_ShowString(0, 0, (uint8_t *)"DHT11 Sensor", 8);
+  OLED_ShowString(0, 1, (uint8_t *)"Initializing...", 8);
+//  OLED_Refresh();
+  HAL_Delay(1000);
+  
+//  printf("System Started - UART Control Example\r\n");
+//  printf("Send 'ON' to start, 'OFF' to stop\r\n");
+  HAL_UART_Receive_IT(&huart1, &uart_rx_data, 1); 
+  last_send_time = HAL_GetTick();
+  OLED_Clear();
   /* USER CODE END 2 */
-/* USER CODE BEGIN 2 */
-
-/* USER CODE END 2 */
-
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
-//		OLED_ShowCHinese(48,0,17);c
+//		OLED_ShowCHinese(48,0,17);
 
   /* USER CODE END 2 */
 
@@ -120,8 +165,57 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-
-    
+	  HAL_GPIO_TogglePin(LED_GPIO_PORT,LED_PIN);
+	  HAL_Delay(200);
+        uint32_t current_time = HAL_GetTick();
+        
+        if (g_systemState == SYS_RUNNING)
+        {
+            // 每2秒读取一次DHT11
+            if (current_time - last_read_time >= 10)
+            {
+                if (DHT11_Read(&DHT11_Data) == SUCCESS)
+                {
+                    // 计算浮点数值
+                    float temp = DHT11_Data.temp_int + DHT11_Data.temp_deci * 0.1f;
+                    float humidity = DHT11_Data.humi_int + DHT11_Data.humi_deci * 0.1f;
+                    
+                    // 使用oled.c中的OLED_ShowTempHumidity函数显示
+                    OLED_ShowTempHumidity(temp, humidity);
+//                    LED_Blink();
+                    // 串口输出（1000ms间隔）
+                    if (current_time - last_send_time >= 1000)
+                    {
+//                        printf("temp:%.2f hum:%.2f\r\n", temp, humidity);
+                        last_send_time = current_time;
+                        
+                        // LED闪烁
+                        LED_Blink();
+                    }
+                }
+                else
+                {
+                    // 读取失败，显示错误信息
+//                    OLED_Clear();
+                    OLED_ShowString(0, 0, (uint8_t *)"DHT11 Error", 16);
+//                    OLED_Refresh();
+                }
+                last_read_time = current_time;
+            }
+        }
+        else if (g_systemState == SYS_STOPPED)
+        {
+            // 系统停止状态，可以显示停止信息
+            static uint8_t stopped_displayed = 0;
+            if (!stopped_displayed)
+            {
+//                OLED_Clear();
+                OLED_ShowString(0, 0, (uint8_t *)"System Stopped", 16);
+                OLED_ShowString(0, 2, (uint8_t *)"Send 'ON' to start", 16);
+//                OLED_Refresh();
+                stopped_displayed = 1;
+            }
+        }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -169,10 +263,45 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-
-
-
-
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+  if(huart->Instance == USART1)
+  {
+    if (uart_rx_data == '\r' || uart_rx_data == '\n') 
+    {
+        uart_rx_buffer[uart_rx_index] = '\0';
+        if (strcmp((char *)uart_rx_buffer, "ON") == 0) 
+        {
+            system_state = 1;
+            printf("System state: ON - Start reading and sending\r\n");
+        }
+        else if (strcmp((char *)uart_rx_buffer, "OFF") == 0) 
+        {
+            system_state = 0;
+            printf("System state: OFF - Stop reading and sending\r\n");
+        }
+        else
+        {
+            printf("Unknown command: %s\r\n", uart_rx_buffer);
+        }
+        
+        uart_rx_index = 0; 
+    }
+    else 
+    {
+        if (uart_rx_index < sizeof(uart_rx_buffer) - 1) 
+        {
+            uart_rx_buffer[uart_rx_index++] = uart_rx_data;
+        }
+        else
+        {
+            uart_rx_index = 0;
+            printf("Command too long, resetting buffer\r\n");
+        }
+    }
+    HAL_UART_Receive_IT(&huart1, &uart_rx_data, 1);
+  }
+}
 /* USER CODE END 4 */
 
 /**

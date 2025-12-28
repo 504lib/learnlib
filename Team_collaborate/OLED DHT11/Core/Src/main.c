@@ -19,13 +19,16 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "i2c.h"
+#include "tim.h"
 #include "usart.h"
 #include "gpio.h"
-#include "stdio.h"
-#include "string.h"
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "dht11.h"
 #include "oled.h"
+#include <string.h>
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -37,6 +40,8 @@
 /* USER CODE BEGIN PD */
 #define LED_PIN GPIO_PIN_13
 #define LED_GPIO_PORT GPIOC
+
+SystemState g_systemState = SYS_RUNNING;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -47,18 +52,47 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+DHT11_Data_TypeDef DHT11_Data;
+
+// ΢����ʱ������ʹ��TIM2��
+void delay_us(uint32_t us)
+{
+    __HAL_TIM_SET_COUNTER(&htim2, 0);
+    HAL_TIM_Base_Start(&htim2);
+    while (__HAL_TIM_GET_COUNTER(&htim2) < us);
+    HAL_TIM_Base_Stop(&htim2);
+}
+
+// ������ʱ����
+void delay_ms(uint32_t ms)
+{
+    for (uint32_t i = 0; i < ms; i++)
+    {
+        delay_us(1000);
+    }
+}
+
+void LED_Blink(void)
+{
+    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+    delay_ms(500);
+    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+//	HAL_Delay(50);
+}
+
 uint8_t uart_rx_data;           
-uint8_t uart_rx_buffer[4];     
+uint8_t uart_rx_buffer[64];     
 uint8_t uart_rx_index = 0;     
 uint8_t uart_rx_flag = 0;       
-uint8_t system_state = 1;     
-uint32_t last_send_time = 0;    
+uint8_t system_state = 1; 
+// �ϴη���ʱ��
+uint32_t last_send_time = 0; 
+uint32_t last_read_time = 0;
+
 const uint32_t SEND_INTERVAL = 1000; 
 
 float temperature = 25.0f;      
 float humidity = 50.0f;         
-/* USER CODE END PV */
-
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -89,7 +123,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  DHT11_Init();
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -103,40 +137,89 @@ int main(void)
   MX_GPIO_Init();
   MX_I2C1_Init();
   MX_USART1_UART_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-    OLED_Init();
-printf("System Started - UART Control Example\r\n");
-printf("Send 'ON' to start, 'OFF' to stop\r\n");
-HAL_UART_Receive_IT(&huart1, &uart_rx_data, 1); 
-last_send_time = HAL_GetTick();
+  HAL_UART_Receive_IT(&huart1, &uart_rx_buffer[0], 1); // �������ڽ����ж�  
+  OLED_Init();
+  OLED_Clear();   // ����	
+  OLED_ShowString(0, 0, (uint8_t *)"DHT11 Sensor", 8);
+  OLED_ShowString(0, 1, (uint8_t *)"Initializing...", 8);
+//  OLED_Refresh();
+  HAL_Delay(1000);
+  
+//  printf("System Started - UART Control Example\r\n");
+//  printf("Send 'ON' to start, 'OFF' to stop\r\n");
+  HAL_UART_Receive_IT(&huart1, &uart_rx_data, 1); 
+  last_send_time = HAL_GetTick();
+  OLED_Clear();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
-//		OLED_ShowCHinese(48,0,17);c
+//		OLED_ShowCHinese(48,0,17);
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-while (1)
-{
-  /* USER CODE END WHILE */
-
-  /* USER CODE BEGIN 3 */
-  uint32_t current_time = HAL_GetTick();
-  if (system_state == 1) 
+  while (1)
   {
-      if ((current_time - last_send_time) >= SEND_INTERVAL) 
-      {
-          printf("Temp:%.1fC, Hum:%.1f%%\r\n", temperature, humidity);
-          HAL_GPIO_TogglePin(LED_GPIO_PORT, LED_PIN);
-          last_send_time = current_time; 
-      }
+//	  HAL_GPIO_TogglePin(LED_GPIO_PORT,LED_PIN);
+//	  HAL_Delay(200);
+        uint32_t current_time = HAL_GetTick();
+        
+        if (g_systemState == SYS_RUNNING)
+        {
+            // ÿ2���ȡһ��DHT11
+            if (current_time - last_read_time >= 100)
+            {
+                if (DHT11_Read(&DHT11_Data) == SUCCESS)
+                {
+                    // ���㸡����ֵ
+                    float temp = DHT11_Data.temp_int + DHT11_Data.temp_deci * 0.1f;
+                    float humidity = DHT11_Data.humi_int + DHT11_Data.humi_deci * 0.1f;
+                    
+                    // ʹ��oled.c�е�OLED_ShowTempHumidity������ʾ
+                    OLED_ShowTempHumidity(temp, humidity);
+//                    LED_Blink();
+                    // ���������1000ms�����
+                    if (current_time - last_send_time >= 1000)
+                    {
+//                        printf("temp:%.2f hum:%.2f\r\n", temp, humidity);
+                        last_send_time = current_time;
+                        
+                        // LED��˸
+                        LED_Blink();
+                    }
+                }
+                else
+                {
+                    // ��ȡʧ�ܣ���ʾ������Ϣ
+//                    OLED_Clear();
+                    OLED_ShowString(0, 0, (uint8_t *)"DHT11 Error", 16);
+//                    OLED_Refresh();
+                }
+                last_read_time = current_time;
+            }
+        }
+        else if (g_systemState == SYS_STOPPED)
+        {
+            // ϵͳֹͣ״̬��������ʾֹͣ��Ϣ
+            static uint8_t stopped_displayed = 0;
+            if (!stopped_displayed)
+            {
+//                OLED_Clear();
+                OLED_ShowString(0, 0, (uint8_t *)"System Stopped", 16);
+                OLED_ShowString(0, 2, (uint8_t *)"Send 'ON' to start", 16);
+//                OLED_Refresh();
+                stopped_displayed = 1;
+            }
+        }
+    /* USER CODE END WHILE */
+
+    /* USER CODE BEGIN 3 */
   }
-  HAL_Delay(10);
-}
   /* USER CODE END 3 */
 }
 
@@ -251,4 +334,3 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
-
