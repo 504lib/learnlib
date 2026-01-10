@@ -267,7 +267,7 @@ void protocol::Receive_Uart_Frame(uint8_t data)
                         }
                         else
                         {
-                            LOG_DEBUG("Received INT: %d", value);
+                            LOG_INFO("Received INT: %d", value);
                             // Serial.print("Received INT: ");
                             // Serial.println(value);
                             Send_Uart_Frame_ACK();
@@ -300,6 +300,8 @@ void protocol::Receive_Uart_Frame(uint8_t data)
                     }
                     else if(frame_type == static_cast<uint8_t>(CmdType::ACK) && frame_len == 0)
                     {
+
+                            // Serial.println("Received ACK");
                         if(ackCallback)
                         {
                             ackCallback();

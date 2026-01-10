@@ -55,7 +55,7 @@ void Rx_Task(void* pvParameters)
     if (xQueueReceive(xUartRxQueue,&rx_byte,portMAX_DELAY)) // 从队列中接收字节
     {
        uart_protocol.Receive_Uart_Frame(rx_byte);       // 传递字节给协议处理对象
-      //  Serial.println("rx_byte:" + rx_byte);
+    //    Serial.println("rx_byte:" + rx_byte);
     }
   }
 }
@@ -75,6 +75,7 @@ void Serial_Task(void* p)
     {
       Serial_Rx_byte = Serial1.read();      // 读取一个二进制字节数据
       xQueueSend(xUartRxQueue,&Serial_Rx_byte,portMAX_DELAY);       // 向队列发送接收到的字节
+    //   Serial.printf("Serial Received byte: %02X\n", Serial_Rx_byte);
     }
     vTaskDelay(5 / portTICK_PERIOD_MS);
   }
@@ -152,7 +153,7 @@ void Bus_scheduler_Task(void* pvParameters)
     station_repo.Add_Station_to_Tail(Station_t("central_hospital","中心医院","test","",target_station_server));   // 添加一个站点
     for(;;)
     {
-        router_scheduler.RouterScheduler_Executer();                // 调度器执行
+        // router_scheduler.RouterScheduler_Executer();                // 调度器执行
         vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 }
@@ -663,8 +664,13 @@ void loop()
 {
     static uint32_t lastTestTick = 0;
     static bool LED_State = true;
-    if (millis() - lastTestTick > 200) // 每60秒运行一次测试
+    static int32_t data = 0;
+    static float fdata = 0.0f;
+    if (millis() - lastTestTick > 5000) // 每60秒运行一次测试
     {
+        // fdata += 1.11f;
+        // uart_protocol.Send_Uart_Frame(fdata);
+        uart_protocol.Send_Uart_Frame_ACK();
         digitalWrite(LED_Pin,LED_State); // 打开LED表示测试开始
         LED_State = !LED_State;
         lastTestTick = millis();

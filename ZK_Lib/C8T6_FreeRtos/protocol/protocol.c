@@ -1,7 +1,35 @@
 #include "protocol.h"
 
+
+
+typedef struct {
+    CmdType cmd_type;
+    FrameHandler handler;
+}CmdHandlerEntry;
+
+typedef struct{
+    UART_protocol G_UART_protocol_structure;
+    FrameTransmit transmit_function;
+    CmdHandlerEntry CmdHandlerTable[MAX_CMD_TYPE_HANDLERS];
+}G_Protocol_Context;
+
 // 静态环形缓冲区
 static UartFrame Receive_Uart_Frame_Buffer = {0};
+
+// static CmdHandlerEntry CmdHandlerTable[MAX_CMD_TYPE_HANDLERS] = {0};
+
+
+// static UART_protocol G_UART_protocol_structure = {
+//     .Headerframe1 = 0xAA,
+//     .Headerframe2 = 0x55,
+//     .Tailframe1 = 0x0D,
+//     .Tailframe2 = 0x0A
+// };
+
+// static 
+
+static G_Protocol_Context g_protocol_context = {0};
+
 
 typedef struct
 {
@@ -40,6 +68,116 @@ static uint16_t calculateChecksum(const uint8_t* data, size_t length)
 }
 
 /**
+ * @brief   大端序（网络序）辅助函数
+ * @note    协议在线路上统一采用大端序，MCU 本机为小端。
+ *          使用这些函数可保持收发一致、移植性更好。
+ */
+/**
+ * @brief   反序列化（大端→本机端）：从 4 字节大端序读出 uint32_t
+ */
+uint32_t rd_u32_be(const uint8_t* p)
+{
+    return ((uint32_t)p[0] << 24) |
+           ((uint32_t)p[1] << 16) |
+           ((uint32_t)p[2] << 8)  |
+           (uint32_t)p[3];
+}
+
+/**
+ * @brief   序列化（本机端→大端）：将 uint32_t 按大端序写入 4 字节
+ */
+void wr_u32_be(uint8_t* p, uint32_t v)
+{
+    p[0] = (uint8_t)((v >> 24) & 0xFF);
+    p[1] = (uint8_t)((v >> 16) & 0xFF);
+    p[2] = (uint8_t)((v >> 8)  & 0xFF);
+    p[3] = (uint8_t)(v & 0xFF);
+}
+
+/**
+ * @brief   反序列化（大端→本机端）：从 4 字节大端序读出 float
+ * @note    通过 memcpy 将位模式搬运到本机 float
+ */
+float rd_f32_be(const uint8_t* p)
+{
+    uint32_t u = rd_u32_be(p);
+    float f;
+    memcpy(&f, &u, sizeof(u));
+    return f;
+}
+
+/**
+ * @brief   序列化（本机端→大端）：将 float 按大端序写入 4 字节
+ * @note    通过 memcpy 将位模式搬运为 uint32_t 后写入
+ */
+void wr_f32_be(uint8_t* p, float f)
+{
+    uint32_t u;
+    memcpy(&u, &f, sizeof(u));
+    wr_u32_be(p, u);
+}
+
+void UART_Protocol_Init(UART_protocol UART_protocol_structure,FrameTransmit transmit_function)
+{
+    if (!transmit_function)
+    {
+        return;
+    }
+    g_protocol_context.G_UART_protocol_structure = UART_protocol_structure;
+    g_protocol_context.transmit_function = transmit_function;
+}
+
+
+void UART_Protocol_Register_Hander(CmdType cmd_type, FrameHandler handler)
+{
+    if ((size_t)cmd_type >= MAX_CMD_TYPE_HANDLERS) {
+        return;
+    }
+    g_protocol_context.CmdHandlerTable[cmd_type].cmd_type = cmd_type;
+    g_protocol_context.CmdHandlerTable[cmd_type].handler = handler;
+}
+
+
+void UART_Protocol_Transmit(prama_Cmd_packet* cmd_packet)
+{
+    if (cmd_packet == NULL) return;
+    if (cmd_packet->param_length > MAX_PAYLOAD_LEN) return;
+    if (!g_protocol_context.transmit_function) return;
+
+    uint8_t len = cmd_packet->param_length;
+    uint8_t frame_buffer[MAX_PAYLOAD_LEN + 8];  // 至少 payload + 8
+    uint16_t index = 0;
+
+    // 帧头
+    frame_buffer[index++] = g_protocol_context.G_UART_protocol_structure.Headerframe1;
+    frame_buffer[index++] = g_protocol_context.G_UART_protocol_structure.Headerframe2;
+
+    // 类型与长度
+    frame_buffer[index++] = (uint8_t)cmd_packet->cmd_type;
+    frame_buffer[index++] = len;
+
+    // 载荷（发送侧应直接拷贝，不调用接收处理器）
+    if (len) 
+    {
+        memcpy(&frame_buffer[index], cmd_packet->param_value, len);
+        index += len;
+    }
+
+    // 校验（覆盖 CMD+LEN+PAYLOAD）
+    uint16_t check = calculateChecksum(&frame_buffer[2], 2 + len);
+    frame_buffer[index++] = (check >> 8) & 0xff;
+    frame_buffer[index++] = check & 0xff;
+
+    // 帧尾
+    frame_buffer[index++] = g_protocol_context.G_UART_protocol_structure.Tailframe1;
+    frame_buffer[index++] = g_protocol_context.G_UART_protocol_structure.Tailframe2;
+
+    // 发送
+    g_protocol_context.transmit_function(frame_buffer, index);
+}
+
+
+/**
  * @brief    处理INT数据
  * @details  通过Receive_Uart_Frame()函数,帧解包为INT类型对数据进行处理的函数
  * @if       未设置INT回调函数，执行echo行为
@@ -75,6 +213,7 @@ static void handle_INT(int32_t value)
  */
 static void handle_FLOAT(float value)
 {
+    LOG_INFO("handle_FLOAT called with value: %f", value);
     if (callbacks.float_callback) 
     {
         callbacks.float_callback(value);
@@ -600,29 +739,34 @@ void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uin
     LOG_DEBUG("tail matched.");
     LOG_DEBUG("the frame is valid: type=%d, len=%d", frame_type, frame_len);
     // 解析数据
-    if(frame_type == INT && frame_len == 4)
+    if(frame_type == g_protocol_context.CmdHandlerTable[frame_type].cmd_type)
     {
-        int32_t value = (payload[0] << 24) | (payload[1] << 16) | (payload[2] << 8) | payload[3];
-        handle_INT(value);
-        UART_Protocol_ACK(UART_protocol_structure);
+        g_protocol_context.CmdHandlerTable[frame_type].handler(payload);
+        return;
     }
-    else if(frame_type == FLOAT && frame_len == 4)
-    {
-        union {
-            float f;
-            uint8_t b[4];
-        } u;
-        u.b[0] = payload[3];
-        u.b[1] = payload[2];
-        u.b[2] = payload[1];
-        u.b[3] = payload[0];
-        handle_FLOAT(u.f);
-        UART_Protocol_ACK(UART_protocol_structure);
-    }
-    else if(frame_type == ACK && frame_len == 0)
-    {
-        handle_ACK();
-    }
+    // else if(frame_type == FLOAT && frame_len == 4)
+    // {
+    //     int32_t value = (payload[0] << 24) | (payload[1] << 16) | (payload[2] << 8) | payload[3];
+    //     handle_INT(value);
+    //     UART_Protocol_ACK(UART_protocol_structure);
+    // }
+    // else if(frame_type == FLOAT && frame_len == 4)
+    // {
+    //     union {
+    //         float f;
+    //         uint8_t b[4];
+    //     } u;
+    //     u.b[0] = payload[3];
+    //     u.b[1] = payload[2];
+    //     u.b[2] = payload[1];
+    //     u.b[3] = payload[0];
+    //     handle_FLOAT(u.f);
+    //     UART_Protocol_ACK(UART_protocol_structure);
+    // }
+    // else if(frame_type == ACK && frame_len == 0)
+    // {
+    //     handle_ACK();
+    // }
     else if (frame_type == PASSENGER_NUM && frame_len == 2)
     {
         Rounter router = (uint8_t)*payload;
