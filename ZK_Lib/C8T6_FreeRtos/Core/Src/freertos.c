@@ -48,7 +48,11 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+prama_Cmd_packet Ack_packet = {
+  .cmd_type = ACK,
+  .param_length = 0,
+  .param_value = {0}
+};
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -260,6 +264,25 @@ void test()
   osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
 }
 
+
+static void uart_tx(uint8_t* data,uint8_t length)
+{
+  HAL_UART_Transmit(&huart1, data, length, HAL_MAX_DELAY);
+}
+
+static void INT_Handler(uint8_t* data) 
+{
+  int32_t value = (int32_t)rd_u32_be(data);
+  LOG_INFO("handle_INT called with value: %d", value);
+  UART_Protocol_Transmit(&Ack_packet);
+}
+
+static void FLOAT_Handler(uint8_t* data) 
+{
+  float value = rd_f32_be(data);
+  LOG_INFO("handle_FLOAT called with value: %f", value);
+  UART_Protocol_Transmit(&Ack_packet);
+}
 
 /**
  * @brief    作为sub1_sub3的回调函�???
@@ -621,7 +644,7 @@ void synchronized_passengers(Rounter rounter,uint8_t value)
   passenger_num[rounter] = value;
 }
 
-void ACK_Event_mutex()
+void ACK_Event_mutex(uint8_t* data)
 {
   if (UART_TXMuteHandle != NULL)
   {
@@ -656,7 +679,17 @@ void VehicleStatus_Callback(VehicleStatus status)
 void KEY_Task(void *argument)
 {
   /* USER CODE BEGIN KEY_Task */
-
+  prama_Cmd_packet packet = {
+    .cmd_type = ACK,
+    .param_length = 0,
+    .param_value = {0}
+  };
+  // packet.param_value[0] = (uint8_t)Route_2;
+  // packet.param_value[1] = 21;
+  // packet.param_value[0] = (uint8_t)STAUS_DISCONNECTED;
+  // wr_f32_be(packet.param_value,3.14f);   
+  // wr_u32_be(packet.param_value,1234);
+  static uint32_t last_tick = 0;
   MulitKey_t Key_UP_S;                  // UP按键对象
   MulitKey_t Key_DOWN_S;                // DOWN按键对象
   MulitKey_t Key_ENTER_S;               // ENTER按键对象
@@ -665,6 +698,17 @@ void KEY_Task(void *argument)
   MulitKey_Init(&Key_DOWN_S,Key_DOWN_ReadPin,KEY_DOWN_Pressed,KEY_DOWN_Pressed,FALL_BORDER_TRIGGER);
   MulitKey_Init(&Key_ENTER_S,Key_ENTER_ReadPin,KEY_ENTER_Pressed,KEY_ENTER_Pressed,FALL_BORDER_TRIGGER);
   MulitKey_Init(&Key_CANCEL_S,Key_CANCEL_ReadPin,KEY_CANCEL_Pressed,KEY_CANCEL_Pressed,FALL_BORDER_TRIGGER);
+  UART_protocol UART_protocol_structure = {
+    .Headerframe1 = 0xAA,
+    .Headerframe2 = 0x55,
+    .Tailframe1 = 0x0D,
+    .Tailframe2 = 0x0A
+  }; 
+  UART_Protocol_Init(UART_protocol_structure,uart_tx);
+  UART_Protocol_Register_Hander(INT,INT_Handler);
+  UART_Protocol_Register_Hander(FLOAT,FLOAT_Handler);
+  UART_Protocol_Register_Hander(ACK,ACK_Event_mutex);
+  LOG_INFO("KEY task has been init ...");
   /* Infinite loop */
   for(;;)
   {
@@ -672,6 +716,12 @@ void KEY_Task(void *argument)
     MulitKey_Scan(&Key_DOWN_S);
     MulitKey_Scan(&Key_ENTER_S);
     MulitKey_Scan(&Key_CANCEL_S);
+    if(osKernelGetTickCount() - last_tick > 1000)
+    {
+      // UART_Protocol_Transmit(&packet);
+      // printf("send test int cmd\r\n");
+      last_tick = osKernelGetTickCount();
+    }
     osDelay(1);
   }
   /* USER CODE END KEY_Task */
@@ -699,7 +749,7 @@ void uart_task(void *argument)
   uint32_t flags;                                                     // 事件�???
   LOG_INFO("UART_RX task has been init ...");
   set_PASSENGER_Callback(synchronized_passengers);
-  set_ACK_Callback(ACK_Event_mutex);
+  // set_ACK_Callback(ACK_Event_mutex);
   set_Clear_Callback(Clear_Event);
   set_VehicleStatus_Callback(VehicleStatus_Callback);
   /* Infinite loop */
