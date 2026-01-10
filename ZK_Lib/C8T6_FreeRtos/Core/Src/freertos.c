@@ -639,9 +639,13 @@ void KEY_CANCEL_Pressed(MulitKey_t* key)
  * @brief    该函数是收到PASSENGER信息的回调函�???
  * @param    value     function of param
  */
-void synchronized_passengers(Rounter rounter,uint8_t value)
+void synchronized_passengers(uint8_t* data)
 { 
+  Rounter rounter = (Rounter)data[0];
+  uint8_t value = data[1];
   passenger_num[rounter] = value;
+  LOG_INFO("Synchronized passenger num:%d for router:%d",value,rounter);
+  UART_Protocol_Transmit(&Ack_packet);
 }
 
 void ACK_Event_mutex(uint8_t* data)
@@ -654,20 +658,17 @@ void ACK_Event_mutex(uint8_t* data)
   
 }
 
-void Clear_Event(Rounter rounter)
+void Clear_Event(uint8_t* data)
 {
-  LOG_INFO("rounter test");
+  Rounter rounter = (Rounter)data[0];
+  LOG_INFO("Clear passenger num for router:%d",rounter);
   passenger_num[rounter] = 0;
-  passenger_temp[rounter] = 0;
+  UART_Protocol_Transmit(&Ack_packet);
 }
 
-void VehicleStatus_Callback(VehicleStatus status)
+void VehicleStatus_Callback(uint8_t* data)
 {
-  // Ack_Queue_t ack_queue_t = {
-  //   .type = VEHICLE_STATUS,
-  //   .value.status_value = status,
-  // };
-  // osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
+  VehicleStatus status = (VehicleStatus)data[0];
   LOG_INFO("Vehicle status changed:%d",status);
 }
 /**
@@ -708,6 +709,9 @@ void KEY_Task(void *argument)
   UART_Protocol_Register_Hander(INT,INT_Handler);
   UART_Protocol_Register_Hander(FLOAT,FLOAT_Handler);
   UART_Protocol_Register_Hander(ACK,ACK_Event_mutex);
+  UART_Protocol_Register_Hander(PASSENGER_NUM,synchronized_passengers);
+  UART_Protocol_Register_Hander(CLEAR,Clear_Event);
+  UART_Protocol_Register_Hander(VEHICLE_STATUS,NULL);
   LOG_INFO("KEY task has been init ...");
   /* Infinite loop */
   for(;;)
@@ -748,9 +752,9 @@ void uart_task(void *argument)
   UartFrame* frame_buffer = Get_Uart_Frame_Buffer();                  // 获得环形环形缓冲区的指针
   uint32_t flags;                                                     // 事件�???
   LOG_INFO("UART_RX task has been init ...");
-  set_PASSENGER_Callback(synchronized_passengers);
+  // set_PASSENGER_Callback(synchronized_passengers);
   // set_ACK_Callback(ACK_Event_mutex);
-  set_Clear_Callback(Clear_Event);
+  // set_Clear_Callback(Clear_Event);
   set_VehicleStatus_Callback(VehicleStatus_Callback);
   /* Infinite loop */
   for(;;)

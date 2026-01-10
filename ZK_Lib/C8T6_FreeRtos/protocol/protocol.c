@@ -767,28 +767,28 @@ void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uin
     // {
     //     handle_ACK();
     // }
-    else if (frame_type == PASSENGER_NUM && frame_len == 2)
-    {
-        Rounter router = (uint8_t)*payload;
-        uint8_t passenger = *(payload + 1);
-        handle_PASSENGER(router,passenger); 
-        UART_Protocol_ACK(UART_protocol_structure);
-    }
-    else if (frame_type == CLEAR && frame_len == 1)
-    {
-        Rounter router = (uint8_t)*payload;
-        handle_CLEAR(router);
-        UART_Protocol_ACK(UART_protocol_structure);
-    }
-    else if (frame_type == VEHICLE_STATUS && frame_len == 1)
-    {
-        VehicleStatus status = (uint8_t)*payload;
-        if(callbacks.vehiclestatus_callback)
-        {
-            callbacks.vehiclestatus_callback(status);
-        }
-        UART_Protocol_ACK(UART_protocol_structure);
-    }
+    // else if (frame_type == PASSENGER_NUM && frame_len == 2)
+    // {
+    //     Rounter router = (uint8_t)*payload;
+    //     uint8_t passenger = *(payload + 1);
+    //     handle_PASSENGER(router,passenger); 
+    //     UART_Protocol_ACK(UART_protocol_structure);
+    // }
+    // else if (frame_type == CLEAR && frame_len == 1)
+    // {
+    //     Rounter router = (uint8_t)*payload;
+    //     handle_CLEAR(router);
+    //     UART_Protocol_ACK(UART_protocol_structure);
+    // }
+    // else if (frame_type == VEHICLE_STATUS && frame_len == 1)
+    // {
+    //     VehicleStatus status = (uint8_t)*payload;
+    //     if(callbacks.vehiclestatus_callback)
+    //     {
+    //         callbacks.vehiclestatus_callback(status);
+    //     }
+    //     UART_Protocol_ACK(UART_protocol_structure);
+    // }
     else
     {
         LOG_DEBUG("Unknown frame type: %d or invalid length: %d", frame_type, frame_len);

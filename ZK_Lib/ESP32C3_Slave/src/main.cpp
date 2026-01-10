@@ -670,7 +670,7 @@ void loop()
     {
         // fdata += 1.11f;
         // uart_protocol.Send_Uart_Frame(fdata);
-        uart_protocol.Send_Uart_Frame_ACK();
+        uart_protocol.Set_Vehicle_Status(vehicle.Get_Vehicle_Status());
         digitalWrite(LED_Pin,LED_State); // 打开LED表示测试开始
         LED_State = !LED_State;
         lastTestTick = millis();
