@@ -108,13 +108,13 @@ void ACK_Task(void* pvParameters)
           uart_protocol.Send_Uart_Frame(ack_queue_t.value.float_value);
           break;
         case CmdType::PASSENGER_NUM:
-          uart_protocol.Send_Uart_Frame_PASSENGER_NUM(ack_queue_t.value.passenger.router,ack_queue_t.value.passenger.passenger_num);
+          uart_protocol.Send_Uart_Frame(ack_queue_t.value.passenger.router,ack_queue_t.value.passenger.passenger_num);
           break;
         case CmdType::CLEAR:
-          uart_protocol.Send_Uart_Frame_CLEAR(ack_queue_t.value.passenger.router);
+          uart_protocol.Send_Uart_Frame(ack_queue_t.value.passenger.router);
           break;
         case CmdType::VEHICLE_STATUS:
-          uart_protocol.Set_Vehicle_Status(ack_queue_t.value.status);
+          uart_protocol.Send_Uart_Frame(ack_queue_t.value.status);
           break;
         default:
           Serial.printf("unknown type!!!");
@@ -161,18 +161,71 @@ void Bus_scheduler_Task(void* pvParameters)
 void setup() 
 {
     evt = xEventGroupCreate();                          // 创建事件组
-    uart_protocol.setAckCallback([](){
+    // uart_protocol.setAckCallback([](){
+    //     if (evt == nullptr) return;                 // 检查事件组是否有效
+    //     xEventGroupSetBits(evt,UART_ACK_REQUIRED);              // ACK收到,设置事件标志
+    // });
+    uart_protocol.Register_Hander(CmdType::INT,[](CmdType cmd, const uint8_t* payload, uint8_t len){
+        if (len != 4) 
+        {
+            Serial.println("Invalid INT payload length");
+            return;
+        }
+        int32_t int_value = rd_u32_be(&payload[0]);
+        Serial.printf("Received INT: %d\n", int_value);
+        uart_protocol.Send_Uart_Frame_ACK();          // 发送ACK
+    });
+    uart_protocol.Register_Hander(CmdType::FLOAT,[](CmdType cmd, const uint8_t* payload, uint8_t len){
+        if (len != 4) 
+        {
+            Serial.println("Invalid FLOAT payload length");
+            return;
+        }
+        float float_value = rd_f32_be(&payload[0]);
+        Serial.printf("Received FLOAT: %f\n", float_value);
+        uart_protocol.Send_Uart_Frame_ACK();          // 发送ACK
+    });
+    uart_protocol.Register_Hander(CmdType::ACK,[](CmdType cmd, const uint8_t* payload, uint8_t len){
+        Serial.printf("Received ACK Frame\n");
         if (evt == nullptr) return;                 // 检查事件组是否有效
         xEventGroupSetBits(evt,UART_ACK_REQUIRED);              // ACK收到,设置事件标志
     });
-    uart_protocol.setVehicleStatusCallback([](VehicleStatus status){
-        Serial.printf("Received Vehicle Status Change Request: %d\n", static_cast<uint8_t>(status));            // 公交车用户切换状态
-      if (status != VehicleStatus::STATUS_ARRIVING && status != VehicleStatus::STATUS_LEAVING && status != VehicleStatus::STATUS_WAITING)           // 仅入站和离站可以更改状态
-      {
-        Serial.printf("No permission to change status !!!\n");
-        return;
-      }
-      vehicle.Update_Vehicle_Status(status);                // 更新车辆状态
+    uart_protocol.Register_Hander(CmdType::PASSENGER_NUM,[](CmdType cmd, const uint8_t* payload, uint8_t len){
+        if (len != 2) 
+        {
+            Serial.println("Invalid PASSENGER_NUM payload length");
+            return;
+        }
+        Rounter router = static_cast<Rounter>(payload[0]);
+        uint8_t passenger_num = payload[1];
+        Serial.printf("Received PASSENGER_NUM: Router=%d, Num=%d\n", static_cast<uint8_t>(router), passenger_num);
+        uart_protocol.Send_Uart_Frame_ACK();          // 发送ACK
+    });
+    uart_protocol.Register_Hander(CmdType::CLEAR,[](CmdType cmd, const uint8_t* payload, uint8_t len){
+        if (len != 1) 
+        {
+            Serial.println("Invalid CLEAR payload length");
+            return;
+        }
+        Rounter router = static_cast<Rounter>(payload[0]);
+        Serial.printf("Received CLEAR Command: Router=%d\n", static_cast<uint8_t>(router));
+        uart_protocol.Send_Uart_Frame_ACK();          // 发送ACK
+    });
+    uart_protocol.Register_Hander(CmdType::VEHICLE_STATUS,[](CmdType cmd, const uint8_t* payload, uint8_t len){
+        if (len != 1) 
+        {
+            Serial.println("Invalid VEHICLE_STATUS payload length");
+            return;
+        }
+        VehicleStatus status = static_cast<VehicleStatus>(payload[0]);
+        Serial.printf("Received VEHICLE_STATUS: Status=%d\n", static_cast<uint8_t>(status));
+        if (status != VehicleStatus::STATUS_ARRIVING && status != VehicleStatus::STATUS_LEAVING && status != VehicleStatus::STATUS_WAITING)           // 仅入站和离站可以更改状态
+        {
+            Serial.printf("No permission to change status !!!\n");
+            return;
+        }
+        vehicle.Update_Vehicle_Status(status);                // 更新车辆状态
+        uart_protocol.Send_Uart_Frame_ACK();          // 发送ACK
     });
     router_scheduler.setCommandQueueCallback([](const ACK_Queue_t ack){         // 路由调度器命令队列回调函数
         if(xQueueSend(xCommandQueue,&ack,portMAX_DELAY))

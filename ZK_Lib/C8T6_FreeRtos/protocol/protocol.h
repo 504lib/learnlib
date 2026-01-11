@@ -74,13 +74,6 @@ typedef struct
     uint8_t param_value[MAX_PAYLOAD_LEN];         // 参数值 
 }prama_Cmd_packet;
 
-// todo: 待淘汰
-typedef void (*INT_Callback)(int32_t value);                // 整形回调函数模板
-typedef void (*FLOAT_Callback)(float value);                // 浮点回调函数模板
-typedef void (*ACK_Callback)(void);                         // ACK信号回调函数模板
-typedef void (*PASSENGER_NUM_Callback)(Rounter router,uint8_t value);      // 乘客回调函数模板
-typedef void (*CLEAR_Callback)(Rounter router);                       // 清理指令回调函数模板
-typedef void (*VehicleStatusCallback)(VehicleStatus status);               // 车辆状态回调函数模板a
 
 typedef void (*FrameHandler)(uint8_t* data); // 帧处理函数模板
 typedef void (*FrameTransmit)(uint8_t* data,uint8_t length); // 帧发送函数模板

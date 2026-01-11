@@ -38,11 +38,6 @@ static uint16_t calculateChecksum(const uint8_t* data, size_t length)
 }
 
 /**
- * @brief   大端序（网络序）辅助函数
- * @note    协议在线路上统一采用大端序，MCU 本机为小端。
- *          使用这些函数可保持收发一致、移植性更好。
- */
-/**
  * @brief   反序列化（大端→本机端）：从 4 字节大端序读出 uint32_t
  */
 uint32_t rd_u32_be(const uint8_t* p)

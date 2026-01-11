@@ -264,6 +264,7 @@ void test()
     .cmd_type = INT,
     .param_value = {0}
   };
+  wr_u32_be(ack_queue_t.param_value, (uint32_t)test_var);
   osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
 }
 
@@ -300,6 +301,7 @@ void test2()
     .cmd_type = FLOAT,
     .param_value = {0}
   };
+  wr_u32_be(ack_queue_t.param_value, *((uint32_t*)&(float){3.3f}));
   osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
  
 }
@@ -703,14 +705,14 @@ void KEY_Task(void *argument)
 {
   /* USER CODE BEGIN KEY_Task */
   prama_Cmd_packet packet = {
-    .cmd_type = INT,
+    .cmd_type = VEHICLE_STATUS,
     .param_value = {0}
   };
-  // packet.param_value[0] = (uint8_t)Route_2;
-  // packet.param_value[1] = 21;
-  // packet.param_value[0] = (uint8_t)STAUS_DISCONNECTED;
+  // packet.param_value[0] = (uint8_t)Route_3;
+  // packet.param_value[1] = 45;
+  packet.param_value[0] = (uint8_t)STAUS_DISCONNECTED;
   // wr_f32_be(packet.param_value,3.14f);   
-  wr_u32_be(packet.param_value,1234);
+  // wr_u32_be(packet.param_value,1234);
   static uint32_t last_tick = 0;
   MulitKey_t Key_UP_S;                  // UP按键对象
   MulitKey_t Key_DOWN_S;                // DOWN按键对象
@@ -736,6 +738,7 @@ void KEY_Task(void *argument)
     MulitKey_Scan(&Key_CANCEL_S);
     if(osKernelGetTickCount() - last_tick > 5000)
     {
+      UART_Protocol_Transmit(&packet);
       // Ack_Queue_t ack_queue_t = {
       //   .type = INT,
       //   .value.int_value = test_var

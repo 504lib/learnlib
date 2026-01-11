@@ -1,5 +1,51 @@
 #include "protocol.hpp"
 
+
+/**
+ * @brief   反序列化（大端→本机端）：从 4 字节大端序读出 uint32_t
+ */
+uint32_t rd_u32_be(const uint8_t* p)
+{
+    return ((uint32_t)p[0] << 24) |
+           ((uint32_t)p[1] << 16) |
+           ((uint32_t)p[2] << 8)  |
+           (uint32_t)p[3];
+}
+
+/**
+ * @brief   序列化（本机端→大端）：将 uint32_t 按大端序写入 4 字节
+ */
+void wr_u32_be(uint8_t* p, uint32_t v)
+{
+    p[0] = (uint8_t)((v >> 24) & 0xFF);
+    p[1] = (uint8_t)((v >> 16) & 0xFF);
+    p[2] = (uint8_t)((v >> 8)  & 0xFF);
+    p[3] = (uint8_t)(v & 0xFF);
+}
+
+/**
+ * @brief   反序列化（大端→本机端）：从 4 字节大端序读出 float
+ * @note    通过 memcpy 将位模式搬运到本机 float
+ */
+float rd_f32_be(const uint8_t* p)
+{
+    uint32_t u = rd_u32_be(p);
+    float f;
+    memcpy(&f, &u, sizeof(u));
+    return f;
+}
+
+/**
+ * @brief   序列化（本机端→大端）：将 float 按大端序写入 4 字节
+ * @note    通过 memcpy 将位模式搬运为 uint32_t 后写入
+ */
+void wr_f32_be(uint8_t* p, float f)
+{
+    uint32_t u;
+    memcpy(&u, &f, sizeof(u));
+    wr_u32_be(p, u);
+}
+
 protocol::protocol(uint8_t header1, uint8_t header2, uint8_t tail1, uint8_t tail2)
     : Headerframe1(header1), Headerframe2(header2), Tailframe1(tail1), Tailframe2(tail2)
 {
@@ -7,6 +53,7 @@ protocol::protocol(uint8_t header1, uint8_t header2, uint8_t tail1, uint8_t tail
     Serial1.begin(115200, SERIAL_8N1,5,4);
      // RX1=16, TX1=17
 }
+
 
 void protocol::Send_Uart_Frame(int32_t num)
 {
@@ -26,10 +73,7 @@ void protocol::Send_Uart_Frame(int32_t num)
     frame[2] = static_cast<uint8_t>(CmdType::INT);
     frame[3] = 4;
 
-    frame[4] = data.value_arr[3];
-    frame[5] = data.value_arr[2];
-    frame[6] = data.value_arr[1];
-    frame[7] = data.value_arr[0];
+    wr_u32_be(&frame[4], static_cast<uint32_t>(num));
 
     uint16_t check = calculateChecksum(&frame[2],6);
     frame[8] = (check >> 8) & 0xff;
@@ -45,14 +89,6 @@ void protocol::Send_Uart_Frame(int32_t num)
 
 void protocol::Send_Uart_Frame(float num)
 {
-    union dataunion
-    {
-        float value;
-        uint8_t value_arr[4];
-    };
-
-    dataunion data;
-    data.value = num;
     uint8_t frame[12];
 
     frame[0] = Headerframe1;
@@ -61,10 +97,7 @@ void protocol::Send_Uart_Frame(float num)
     frame[2] = static_cast<uint8_t>(CmdType::FLOAT);
     frame[3] = 4;
 
-    frame[4] = data.value_arr[3];
-    frame[5] = data.value_arr[2];
-    frame[6] = data.value_arr[1];
-    frame[7] = data.value_arr[0];
+    wr_f32_be(&frame[4], num);
 
     uint16_t check = calculateChecksum(&frame[2],6);
     frame[8] = (check >> 8) & 0xff;
@@ -112,7 +145,7 @@ void protocol::Send_Uart_Frame_ACK()
               frame[6], frame[7]);
 }
 
-void protocol::Send_Uart_Frame_PASSENGER_NUM(Rounter rounter,uint8_t value)
+void protocol::Send_Uart_Frame(Rounter rounter,uint8_t value)
 {
     uint8_t frame[10];
 
@@ -137,7 +170,7 @@ void protocol::Send_Uart_Frame_PASSENGER_NUM(Rounter rounter,uint8_t value)
               frame[6], frame[7], frame[8], frame[9]);
 }
 
-void protocol::Send_Uart_Frame_CLEAR(Rounter rounter)
+void protocol::Send_Uart_Frame(Rounter rounter)
 {
     uint8_t frame[9];
 
@@ -161,7 +194,7 @@ void protocol::Send_Uart_Frame_CLEAR(Rounter rounter)
               frame[6], frame[7], frame[8]);
 }
 
-void protocol::Set_Vehicle_Status(VehicleStatus status)
+void protocol::Send_Uart_Frame(VehicleStatus status)
 {
     uint8_t frame[9];
 
@@ -184,6 +217,16 @@ void protocol::Set_Vehicle_Status(VehicleStatus status)
     LOG_DEBUG("Sending VEHICLE_STATUS Frame: %02X %02X %02X %02X %02X %02X %02X %02X %02X",
               frame[0], frame[1], frame[2], frame[3], frame[4], frame[5],
               frame[6], frame[7], frame[8]);
+}
+
+void protocol::Register_Hander(CmdType cmd, CmdHandler handler)
+{
+    if (handler == nullptr || static_cast<uint8_t>(cmd) >= MAX_CMD_TYPE_NUM)
+    {
+        LOG_INFO("Invalid handler or command type");
+        return;
+    }
+    handlers[static_cast<uint8_t>(cmd)] = handler;
 }
 
 void protocol::Receive_Uart_Frame(uint8_t data)
@@ -257,96 +300,100 @@ void protocol::Receive_Uart_Frame(uint8_t data)
                 LOG_DEBUG("Calculated Checksum: 0x%04X, Received Checksum: 0x%04X", calc_check, recv_check);
                 if(calc_check == recv_check)
                 {
-                    if(frame_type == static_cast<uint8_t>(CmdType::INT) && frame_len == 4)
+                    // if(frame_type == static_cast<uint8_t>(CmdType::INT) && frame_len == 4)
+                    // {
+                    //     int32_t value = (data_buf[0] << 24) | (data_buf[1] << 16) | (data_buf[2] << 8) | data_buf[3];
+                    //     if(intCallback)
+                    //     {
+                    //         intCallback(value);
+                    //         Send_Uart_Frame_ACK();
+                    //     }
+                    //     else
+                    //     {
+                    //         LOG_INFO("Received INT: %d", value);
+                    //         // Serial.print("Received INT: ");
+                    //         // Serial.println(value);
+                    //         Send_Uart_Frame_ACK();
+                    //     }
+                    // }
+                    if (frame_type < MAX_CMD_TYPE_NUM && handlers[frame_type] != nullptr)
                     {
-                        int32_t value = (data_buf[0] << 24) | (data_buf[1] << 16) | (data_buf[2] << 8) | data_buf[3];
-                        if(intCallback)
-                        {
-                            intCallback(value);
-                            Send_Uart_Frame_ACK();
-                        }
-                        else
-                        {
-                            LOG_INFO("Received INT: %d", value);
-                            // Serial.print("Received INT: ");
-                            // Serial.println(value);
-                            Send_Uart_Frame_ACK();
-                        }
+                        handlers[frame_type](static_cast<CmdType>(frame_type), data_buf, frame_len);
                     }
-                    else if(frame_type == static_cast<uint8_t>(CmdType::FLOAT) && frame_len == 4)
-                    {
-                        union {
-                            float f;
-                            uint8_t b[4];
-                        } u;
-                        u.b[0] = data_buf[3];
-                        u.b[1] = data_buf[2];
-                        u.b[2] = data_buf[1];
-                        u.b[3] = data_buf[0];
-                        float value = u.f;
-                        // 处理接收到的浮点值
-                        if(floatCallback)
-                        {
-                            floatCallback(value);
-                            Send_Uart_Frame_ACK();
-                        }
-                        else
-                        {
-                            LOG_DEBUG("Received FLOAT: %f", value);
-                            // Serial.print("Received FLOAT: ");
-                            // Serial.println(value);
-                            Send_Uart_Frame_ACK();
-                        }
-                    }
-                    else if(frame_type == static_cast<uint8_t>(CmdType::ACK) && frame_len == 0)
-                    {
+                    // else if(frame_type == static_cast<uint8_t>(CmdType::FLOAT) && frame_len == 4)
+                    // {
+                    //     union {
+                    //         float f;
+                    //         uint8_t b[4];
+                    //     } u;
+                    //     u.b[0] = data_buf[3];
+                    //     u.b[1] = data_buf[2];
+                    //     u.b[2] = data_buf[1];
+                    //     u.b[3] = data_buf[0];
+                    //     float value = u.f;
+                    //     // 处理接收到的浮点值
+                    //     if(floatCallback)
+                    //     {
+                    //         floatCallback(value);
+                    //         Send_Uart_Frame_ACK();
+                    //     }
+                    //     else
+                    //     {
+                    //         LOG_DEBUG("Received FLOAT: %f", value);
+                    //         // Serial.print("Received FLOAT: ");
+                    //         // Serial.println(value);
+                    //         Send_Uart_Frame_ACK();
+                    //     }
+                    // }
+                    // else if(frame_type == static_cast<uint8_t>(CmdType::ACK) && frame_len == 0)
+                    // {
 
-                            // Serial.println("Received ACK");
-                        if(ackCallback)
-                        {
-                            ackCallback();
-                        }
-                        else
-                        {
-                            LOG_DEBUG("Received ACK");
-                            // Serial.println("Received ACK");
-                        }
-                    }
-                    else if(frame_type == static_cast<uint8_t>(CmdType::PASSENGER_NUM) && frame_len == 2)
-                    {
-                        uint8_t value = data_buf[1];
-                        Rounter rounter = static_cast<Rounter>(data_buf[0]);
-                        if(passengerNumCallback)
-                        {
-                            passengerNumCallback(rounter,value);
-                            Send_Uart_Frame_ACK();
-                        }
-                        else
-                        {
-                            LOG_DEBUG("Received PASSENGER NUM: %d, Rounter: %d", value, data_buf[0]);
-                            // Serial.print("Received PASSENGER NUM:");
-                            // Serial.println(value);
-                            // Serial.print("Received Rounter:");
-                            // Serial.println(data_buf[0]);
-                            Send_Uart_Frame_ACK();
-                        }
-                    }
-                    else if (frame_type == static_cast<uint8_t>(CmdType::CLEAR) && frame_len == 1)
-                    {
-                        Rounter rounter = static_cast<Rounter>(data_buf[0]);
-                       if(clearcallback) 
-                       {
-                            clearcallback(rounter);
-                            Send_Uart_Frame_ACK();
-                       }
-                       else
-                       {
-                            LOG_DEBUG("Received Clear Rounter: %d", data_buf[0]);
-                            // Serial.print("Received Clear:");
-                            // Serial.println(data_buf[0]);
-                            Send_Uart_Frame_ACK();
-                       }
-                    }
+                    //         // Serial.println("Received ACK");
+                    //     if(ackCallback)
+                    //     {
+                    //         ackCallback();
+                    //     }
+                    //     else
+                    //     {
+                    //         LOG_DEBUG("Received ACK");
+                    //         // Serial.println("Received ACK");
+                    //     }
+                    // }
+                    // else if(frame_type == static_cast<uint8_t>(CmdType::PASSENGER_NUM) && frame_len == 2)
+                    // {
+                    //     uint8_t value = data_buf[1];
+                    //     Rounter rounter = static_cast<Rounter>(data_buf[0]);
+                    //     if(passengerNumCallback)
+                    //     {
+                    //         passengerNumCallback(rounter,value);
+                    //         Send_Uart_Frame_ACK();
+                    //     }
+                    //     else
+                    //     {
+                    //         LOG_DEBUG("Received PASSENGER NUM: %d, Rounter: %d", value, data_buf[0]);
+                    //         // Serial.print("Received PASSENGER NUM:");
+                    //         // Serial.println(value);
+                    //         // Serial.print("Received Rounter:");
+                    //         // Serial.println(data_buf[0]);
+                    //         Send_Uart_Frame_ACK();
+                    //     }
+                    // }
+                    // else if (frame_type == static_cast<uint8_t>(CmdType::CLEAR) && frame_len == 1)
+                    // {
+                    //     Rounter rounter = static_cast<Rounter>(data_buf[0]);
+                    //    if(clearcallback) 
+                    //    {
+                    //         clearcallback(rounter);
+                    //         Send_Uart_Frame_ACK();
+                    //    }
+                    //    else
+                    //    {
+                    //         LOG_DEBUG("Received Clear Rounter: %d", data_buf[0]);
+                    //         // Serial.print("Received Clear:");
+                    //         // Serial.println(data_buf[0]);
+                    //         Send_Uart_Frame_ACK();
+                    //    }
+                    // }
                     else if (frame_type == static_cast<uint8_t>(CmdType::VEHICLE_STATUS) && frame_len == 1)
                     {
                         VehicleStatus status = static_cast<VehicleStatus>(data_buf[0]);
