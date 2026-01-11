@@ -11,7 +11,7 @@
 #pragma once
 
 #ifndef MAX_PAYLOAD_LEN
-#define MAX_PAYLOAD_LEN 32
+#define MAX_PAYLOAD_LEN 10
 #endif
 
 #ifndef MAX_CMD_TYPE_HANDLERS
@@ -113,27 +113,7 @@ void UART_Protocol_Init(UART_protocol UART_protocol_structure,FrameTransmit tran
 
 void UART_Protocol_Transmit(prama_Cmd_packet* cmd_packet);
 void UART_Protocol_Register_Hander(CmdType cmd_type, FrameHandler handler,uint8_t pram_length);
-
-// todo: 待淘汰
-void UART_Protocol_INT(UART_protocol UART_protocol_structure,int32_t value);
-void UART_Protocol_FLOAT(UART_protocol UART_protocol_structure,float value);
-void UART_Protocol_ACK(UART_protocol UART_protocol_structure);
-void UART_Protocol_Passenger(UART_protocol UART_protocol_structure,Rounter router,uint8_t value);
-void UART_Protocol_Clear(UART_protocol UART_protocol_structure,Rounter router);
-void UART_Protocol_VehicleStatus(UART_protocol UART_protocol_structure,VehicleStatus status);
-
-
-////////////////////////////
-
 void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uint16_t size);
-
-/************************ 设置自定义功能 *********************** */
-void set_INT_Callback(INT_Callback cb);
-void set_FLOAT_Callback(FLOAT_Callback cb);
-void set_ACK_Callback(ACK_Callback cb);
-void set_PASSENGER_Callback(PASSENGER_NUM_Callback cb);
-void set_Clear_Callback(CLEAR_Callback cb);
-void set_VehicleStatus_Callback(VehicleStatusCallback cb);
 
 /************************ 环形缓冲区接收/放置 *********************** */
 UartFrame* Get_Uart_Frame_Buffer(void);

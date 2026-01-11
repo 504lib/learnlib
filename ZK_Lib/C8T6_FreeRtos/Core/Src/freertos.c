@@ -56,20 +56,20 @@ prama_Cmd_packet Ack_packet = {
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-typedef struct{
-  CmdType type;
-  union 
-  {
-    int32_t int_value;
-    float float_value;
-    VehicleStatus status_value;
-    struct
-    {
-      Rounter router;
-      uint8_t passenger_num;
-    }passenger;
-  }value;
-}Ack_Queue_t;
+// typedef struct{
+//   CmdType type;
+//   union 
+//   {
+//     int32_t int_value;
+//     float float_value;
+//     VehicleStatus status_value;
+//     struct
+//     {
+//       Rounter router;
+//       uint8_t passenger_num;
+//     }passenger;
+//   }value;
+// }Ack_Queue_t;
 
 typedef struct
 {
@@ -214,7 +214,7 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the queue(s) */
   /* creation of ACK_Queue */
-  ACK_QueueHandle = osMessageQueueNew (10, sizeof(Ack_Queue_t), &ACK_Queue_attributes);
+  ACK_QueueHandle = osMessageQueueNew (10, sizeof(prama_Cmd_packet), &ACK_Queue_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
@@ -256,9 +256,13 @@ static int test_var = 0;                                            // INT类型
  */
 void test()
 {
-  Ack_Queue_t ack_queue_t = {
-    .type = INT,
-    .value.int_value = test_var
+  // Ack_Queue_t ack_queue_t = {
+  //   .type = INT,
+  //   .value.int_value = test_var
+  // };
+  prama_Cmd_packet ack_queue_t = {
+    .cmd_type = INT,
+    .param_value = {0}
   };
   osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
 }
@@ -288,9 +292,13 @@ static void FLOAT_Handler(uint8_t* data)
  */
 void test2()
 {
-  Ack_Queue_t ack_queue_t = {
-    .type = FLOAT,
-    .value.float_value = 3.3
+  // Ack_Queue_t ack_queue_t = {
+  //   .type = FLOAT,
+  //   .value.float_value = 3.3
+  // };
+  prama_Cmd_packet ack_queue_t = {
+    .cmd_type = FLOAT,
+    .param_value = {0}
   };
   osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
  
@@ -301,9 +309,13 @@ void test2()
  */
 void test3()
 {
-  Ack_Queue_t ack_queue_t = {
-    .type = ACK,
-    .value.int_value = 0
+  // Ack_Queue_t ack_queue_t = {
+  //   .type = ACK,
+  //   .value.int_value = 0
+  // };
+  prama_Cmd_packet ack_queue_t = {
+    .cmd_type = ACK,
+    .param_value = {0}
   };
   osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
 }
@@ -352,20 +364,30 @@ void RTC_Set_Time()
 
 void Waitting_Signal_cb()
 {
-  Ack_Queue_t ack_queue_t = {
-    .type = VEHICLE_STATUS,
-    .value.status_value = STATUS_WAITING,
+  // Ack_Queue_t ack_queue_t = {
+  //   .type = VEHICLE_STATUS,
+  //   .value.status_value = STATUS_WAITING,
+  // };
+  prama_Cmd_packet ack_queue_t = {
+    .cmd_type = VEHICLE_STATUS,
+    .param_value[0] = {0},
   };
+  ack_queue_t.param_value[0] = (uint8_t)STATUS_WAITING;
   osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
 }
 
 
 void Leaving_Signal_cb()
 {
-  Ack_Queue_t ack_queue_t = {
-    .type = VEHICLE_STATUS,
-    .value.status_value = STATUS_LEAVING,
+  // Ack_Queue_t ack_queue_t = {
+  //   .type = VEHICLE_STATUS,
+  //   .value.status_value = STATUS_LEAVING,
+  // };
+  prama_Cmd_packet ack_queue_t = {
+    .cmd_type = VEHICLE_STATUS,
+    .param_value[0] = {0},
   };
+  ack_queue_t.param_value[0] = (uint8_t)STATUS_LEAVING;
   osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
 }
 
@@ -374,12 +396,13 @@ void Leaving_Signal_cb()
  */
 void Send_Passenger()
 {
-  Ack_Queue_t ack_queue_t;
+  // Ack_Queue_t ack_queue_t;
+  prama_Cmd_packet ack_queue_t;
   for (uint8_t i = 0; i < Router_NUM; i++)
   {
-    ack_queue_t.type = PASSENGER_NUM;
-    ack_queue_t.value.passenger.passenger_num = passenger_num[i];
-    ack_queue_t.value.passenger.router = (Rounter)i;
+    ack_queue_t.cmd_type = PASSENGER_NUM;
+    ack_queue_t.param_value[1] = passenger_num[i];
+    ack_queue_t.param_value[0] = (Rounter)i;
     osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
   }
 }
@@ -390,12 +413,12 @@ void Send_Passenger()
  */
 void Send_Clear()
 {
-  Ack_Queue_t ack_queue_t;
+  // Ack_Queue_t ack_queue_t;
+  prama_Cmd_packet ack_queue_t;
   for (uint8_t i = 0; i < Router_NUM; i++)
   {
-    ack_queue_t.type = CLEAR;
-    ack_queue_t.value.passenger.passenger_num = 0;
-    ack_queue_t.value.passenger.router = (Rounter)i;
+    ack_queue_t.cmd_type = CLEAR;
+    ack_queue_t.param_value[0] = (Rounter)i;
     osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
   }
 }
@@ -680,14 +703,14 @@ void KEY_Task(void *argument)
 {
   /* USER CODE BEGIN KEY_Task */
   prama_Cmd_packet packet = {
-    .cmd_type = ACK,
+    .cmd_type = INT,
     .param_value = {0}
   };
   // packet.param_value[0] = (uint8_t)Route_2;
   // packet.param_value[1] = 21;
   // packet.param_value[0] = (uint8_t)STAUS_DISCONNECTED;
   // wr_f32_be(packet.param_value,3.14f);   
-  // wr_u32_be(packet.param_value,1234);
+  wr_u32_be(packet.param_value,1234);
   static uint32_t last_tick = 0;
   MulitKey_t Key_UP_S;                  // UP按键对象
   MulitKey_t Key_DOWN_S;                // DOWN按键对象
@@ -711,9 +734,13 @@ void KEY_Task(void *argument)
     MulitKey_Scan(&Key_DOWN_S);
     MulitKey_Scan(&Key_ENTER_S);
     MulitKey_Scan(&Key_CANCEL_S);
-    if(osKernelGetTickCount() - last_tick > 1000)
+    if(osKernelGetTickCount() - last_tick > 5000)
     {
-      // UART_Protocol_Transmit(&packet);
+      // Ack_Queue_t ack_queue_t = {
+      //   .type = INT,
+      //   .value.int_value = test_var
+      // };
+      // osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
       // printf("send test int cmd\r\n");
       last_tick = osKernelGetTickCount();
     }
@@ -738,7 +765,7 @@ void uart_task(void *argument)
     .Tailframe1 = 0x0D,
     .Tailframe2 = 0x0A
   }; 
-  Ack_Queue_t ack_queue_t;
+  prama_Cmd_packet ack_queue_t;
   uint8_t data[32] = {0};                                             // 暂存数据帧的缓冲�???
   UartFrame* frame_buffer = Get_Uart_Frame_Buffer();                  // 获得环形环形缓冲区的指针
   uint32_t flags;                                                     // 事件�???
@@ -768,9 +795,9 @@ void uart_task(void *argument)
       {
         if(passenger_temp[i] != passenger_num[i])                             // �???旦与实际passenger不同，立刻向esp32发�?�信�???
         {
-          ack_queue_t.type = PASSENGER_NUM;
-          ack_queue_t.value.passenger.passenger_num = passenger_num[i];
-          ack_queue_t.value.passenger.router = (Rounter)i;
+          ack_queue_t.cmd_type = PASSENGER_NUM;
+          ack_queue_t.param_value[1] = passenger_num[i];
+          ack_queue_t.param_value[0] = (Rounter)i;
           osMessageQueuePut(ACK_QueueHandle,&ack_queue_t,0,osWaitForever);
           passenger_temp[i] = passenger_num[i];                               // 保持同步
         }
@@ -798,7 +825,7 @@ void uart_task(void *argument)
 void ACK_TASK(void *argument)
 {
   /* USER CODE BEGIN ACK_TASK */
-  Ack_Queue_t ack_queue_t;
+  prama_Cmd_packet ack_queue_t;
   UART_protocol UART_protocol_structure = {
     .Headerframe1 = 0xAA,
     .Headerframe2 = 0x55,
@@ -806,7 +833,7 @@ void ACK_TASK(void *argument)
     .Tailframe2 = 0x0A
   }; 
   prama_Cmd_packet packet = {
-    .cmd_type = ACK,
+    .cmd_type = INT,
     .param_value = {0}
   };
   LOG_INFO("ACK task has been init ...");
@@ -817,11 +844,11 @@ void ACK_TASK(void *argument)
   {
     if (osMessageQueueGet(ACK_QueueHandle,&ack_queue_t,NULL,osWaitForever) == osOK)
     {
-
+      // LOG_INFO("ACK task received command type:%d",ack_queue_t.type);
       flags = osEventFlagsGet(UART_EVENTHandle);
       LOG_DEBUG("flags:0x%.2x",flags);
       const uint32_t timeout_ms = 200;
-      bool ACK_required = true;
+      bool ACK_required = (ack_queue_t.cmd_type != ACK); // 如果是ACK命令，则不需要等待ACK
       for (size_t i = 0; i < 3 && ACK_required; i++)
       {
         if (osMutexAcquire(UART_TXMuteHandle,osWaitForever) != osOK)
@@ -829,38 +856,19 @@ void ACK_TASK(void *argument)
           LOG_WARN("Failed to acquire UART_TXMute mutex");
           continue;
         }
-        switch (ack_queue_t.type)
-        {
-          case INT:
-
-            UART_Protocol_INT(UART_protocol_structure,ack_queue_t.value.int_value);
-            break;
-          case FLOAT:
-            UART_Protocol_FLOAT(UART_protocol_structure,ack_queue_t.value.float_value);
-            break;
-          case PASSENGER_NUM:
-            UART_Protocol_Passenger(UART_protocol_structure,ack_queue_t.value.passenger.router,ack_queue_t.value.passenger.passenger_num);
-            break;
-          case CLEAR:
-            UART_Protocol_Clear(UART_protocol_structure,ack_queue_t.value.passenger.router);
-            break;
-          case VEHICLE_STATUS:
-            UART_Protocol_VehicleStatus(UART_protocol_structure,ack_queue_t.value.status_value);
-            break;
-          default:
-            LOG_WARN("Unknown command type in ACK task");
-            break;
-        }
+        packet.cmd_type = ack_queue_t.cmd_type;
+        memcpy(packet.param_value,ack_queue_t.param_value,sizeof(ack_queue_t.param_value));
+        UART_Protocol_Transmit(&packet);
         osMutexRelease(UART_TXMuteHandle); 
         
         flags = osEventFlagsWait(UART_EVENTHandle,UART_RECEIVE_ACK_EVENT,osFlagsWaitAny,timeout_ms);
         LOG_DEBUG("Flags:0x%.2x",flags);
         if ((int32_t)flags < 0) 
         {
-          LOG_WARN("ACK timeout for command type %d, retrying... (%d/3)", ack_queue_t.type, i + 1);
+          LOG_WARN("ACK timeout for command type %d, retrying... (%d/3)", ack_queue_t.cmd_type, i + 1);
           if (i >= 2)
           {
-            LOG_WARN("Failed to receive ACK after 3 attempts for command type %d", ack_queue_t.type);
+            LOG_WARN("Failed to receive ACK after 3 attempts for command type %d", ack_queue_t.cmd_type);
           }
         }
         else if (flags & UART_RECEIVE_ACK_EVENT)
