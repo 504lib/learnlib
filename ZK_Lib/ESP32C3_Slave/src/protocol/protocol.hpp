@@ -23,31 +23,10 @@ using CmdHandler = void (*)(CmdType cmd, const uint8_t* payload, uint8_t len);
 typedef struct
 {
   CmdType type;
-  union
-  {
-    int32_t int_value;
-    float   float_value;
-    VehicleStatus status;
-     struct
-    {
-      Rounter router;
-      uint8_t passenger_num;
-    }passenger; 
-  }value;
-}ACK_Queue_t;
+  uint8_t length;
+  uint8_t data[MAX_CMD_TYPE_NUM] = {0};
+}DataPacket_t;
 
-// enum class VehicleStatus 
-// {
-//   WAITING,     // 候车中
-//   ARRIVING,     // 即将进站
-//   LEAVING      // 离站
-// };
-typedef void (*IntCallback)(int32_t value);
-typedef void (*FloatCallback)(float value);
-typedef void (*AckCallback)(void);
-typedef void (*PassengerNumCallback)(Rounter rounter,uint8_t value);
-typedef void (*ClearCallback)(Rounter rounter);
-typedef void (*VehicleStatusCallback)(VehicleStatus status);
 class protocol
 {
 private:
@@ -56,34 +35,19 @@ private:
     uint8_t Tailframe1;
     uint8_t Tailframe2;
     uint16_t calculateChecksum(const uint8_t* data, size_t length);
-    IntCallback intCallback = nullptr;
-    FloatCallback floatCallback = nullptr;
-    AckCallback ackCallback = nullptr;
-    PassengerNumCallback passengerNumCallback = nullptr;
-    ClearCallback clearcallback = nullptr;
-    VehicleStatusCallback vehicleStatusCallback = nullptr;
-    CmdHandler handlers[6] = { nullptr };
+    CmdHandler handlers[MAX_CMD_TYPE_NUM] = { nullptr };
 public:
     protocol(uint8_t header1, uint8_t header2, uint8_t tail1, uint8_t tail2);
     ~protocol();
+    void Send_Uart_Frame(DataPacket_t packet);
     void Send_Uart_Frame(int32_t num);
     void Send_Uart_Frame(float num);
     void Send_Uart_Frame_ACK();
     void Send_Uart_Frame(Rounter rounter,uint8_t value);
-    // void Send_Uart_Frame_PASSENGER_NUM(Rounter rounter,uint8_t value);
     void Send_Uart_Frame(Rounter rounter);
-    // void Send_Uart_Frame_CLEAR(Rounter rounter);
-    // void Set_Vehicle_Status(VehicleStatus status);
     void Send_Uart_Frame(VehicleStatus status);
     void Receive_Uart_Frame(uint8_t data);
     void Register_Hander(CmdType cmd, CmdHandler handler);
-    // todo: remove
-    void setIntCallback(IntCallback cb);
-    void setFloatCallback(FloatCallback cb);
-    void setAckCallback(AckCallback cb);
-    void setPassengerNumCallback(PassengerNumCallback cb);
-    void setClearCallback(ClearCallback cb);
-    void setVehicleStatusCallback(VehicleStatusCallback cb);
 };
 
 // 序列化工具（线上统一采用大端序 BE）

@@ -55,6 +55,75 @@ protocol::protocol(uint8_t header1, uint8_t header2, uint8_t tail1, uint8_t tail
 }
 
 
+void protocol::Send_Uart_Frame(DataPacket_t packet)
+{
+    switch (packet.type)
+    {
+    case CmdType::INT:
+        {
+            if (packet.length !=4)
+            {
+                LOG_WARN("Invalid INT payload length: %d", packet.length);
+                return;
+            }
+            int32_t int_value = rd_u32_be(&packet.data[0]);
+            Send_Uart_Frame(int_value);
+        }
+        break;
+    case CmdType::FLOAT:
+        {
+            if (packet.length !=4)
+            {
+                LOG_WARN("Invalid FLOAT payload length: %d", packet.length);
+                return;
+            }
+            float float_value = rd_f32_be(&packet.data[0]);
+            Send_Uart_Frame(float_value);
+        }
+        break;
+    case CmdType::ACK:
+        Send_Uart_Frame_ACK();
+        break;
+    case CmdType::PASSENGER_NUM:
+        {
+            if (packet.length !=2)
+            {
+                LOG_WARN("Invalid PASSENGER_NUM payload length: %d", packet.length);
+                return;
+            }
+            Rounter router = static_cast<Rounter>(packet.data[0]);
+            uint8_t passenger_num = packet.data[1];
+            Send_Uart_Frame(router,passenger_num);
+        }
+        break;
+    case CmdType::CLEAR:
+        {
+            if (packet.length !=1)
+            {
+                LOG_WARN("Invalid CLEAR payload length: %d", packet.length);
+                return;
+            }
+            Rounter router = static_cast<Rounter>(packet.data[0]);
+            Send_Uart_Frame(router);
+        }
+        break;
+    case CmdType::VEHICLE_STATUS:
+        {
+            if (packet.length !=1)
+            {
+                LOG_WARN("Invalid VEHICLE_STATUS payload length: %d", packet.length);
+                return;
+            }
+            VehicleStatus status = static_cast<VehicleStatus>(packet.data[0]);
+            LOG_INFO("Sending VEHICLE_STATUS: Status=%d\n", static_cast<uint8_t>(status));
+            Send_Uart_Frame(status);
+        }
+        break;
+    default:
+        break;
+    }
+}
+
 void protocol::Send_Uart_Frame(int32_t num)
 {
     union dataunion
@@ -300,115 +369,9 @@ void protocol::Receive_Uart_Frame(uint8_t data)
                 LOG_DEBUG("Calculated Checksum: 0x%04X, Received Checksum: 0x%04X", calc_check, recv_check);
                 if(calc_check == recv_check)
                 {
-                    // if(frame_type == static_cast<uint8_t>(CmdType::INT) && frame_len == 4)
-                    // {
-                    //     int32_t value = (data_buf[0] << 24) | (data_buf[1] << 16) | (data_buf[2] << 8) | data_buf[3];
-                    //     if(intCallback)
-                    //     {
-                    //         intCallback(value);
-                    //         Send_Uart_Frame_ACK();
-                    //     }
-                    //     else
-                    //     {
-                    //         LOG_INFO("Received INT: %d", value);
-                    //         // Serial.print("Received INT: ");
-                    //         // Serial.println(value);
-                    //         Send_Uart_Frame_ACK();
-                    //     }
-                    // }
                     if (frame_type < MAX_CMD_TYPE_NUM && handlers[frame_type] != nullptr)
                     {
                         handlers[frame_type](static_cast<CmdType>(frame_type), data_buf, frame_len);
-                    }
-                    // else if(frame_type == static_cast<uint8_t>(CmdType::FLOAT) && frame_len == 4)
-                    // {
-                    //     union {
-                    //         float f;
-                    //         uint8_t b[4];
-                    //     } u;
-                    //     u.b[0] = data_buf[3];
-                    //     u.b[1] = data_buf[2];
-                    //     u.b[2] = data_buf[1];
-                    //     u.b[3] = data_buf[0];
-                    //     float value = u.f;
-                    //     // 处理接收到的浮点值
-                    //     if(floatCallback)
-                    //     {
-                    //         floatCallback(value);
-                    //         Send_Uart_Frame_ACK();
-                    //     }
-                    //     else
-                    //     {
-                    //         LOG_DEBUG("Received FLOAT: %f", value);
-                    //         // Serial.print("Received FLOAT: ");
-                    //         // Serial.println(value);
-                    //         Send_Uart_Frame_ACK();
-                    //     }
-                    // }
-                    // else if(frame_type == static_cast<uint8_t>(CmdType::ACK) && frame_len == 0)
-                    // {
-
-                    //         // Serial.println("Received ACK");
-                    //     if(ackCallback)
-                    //     {
-                    //         ackCallback();
-                    //     }
-                    //     else
-                    //     {
-                    //         LOG_DEBUG("Received ACK");
-                    //         // Serial.println("Received ACK");
-                    //     }
-                    // }
-                    // else if(frame_type == static_cast<uint8_t>(CmdType::PASSENGER_NUM) && frame_len == 2)
-                    // {
-                    //     uint8_t value = data_buf[1];
-                    //     Rounter rounter = static_cast<Rounter>(data_buf[0]);
-                    //     if(passengerNumCallback)
-                    //     {
-                    //         passengerNumCallback(rounter,value);
-                    //         Send_Uart_Frame_ACK();
-                    //     }
-                    //     else
-                    //     {
-                    //         LOG_DEBUG("Received PASSENGER NUM: %d, Rounter: %d", value, data_buf[0]);
-                    //         // Serial.print("Received PASSENGER NUM:");
-                    //         // Serial.println(value);
-                    //         // Serial.print("Received Rounter:");
-                    //         // Serial.println(data_buf[0]);
-                    //         Send_Uart_Frame_ACK();
-                    //     }
-                    // }
-                    // else if (frame_type == static_cast<uint8_t>(CmdType::CLEAR) && frame_len == 1)
-                    // {
-                    //     Rounter rounter = static_cast<Rounter>(data_buf[0]);
-                    //    if(clearcallback) 
-                    //    {
-                    //         clearcallback(rounter);
-                    //         Send_Uart_Frame_ACK();
-                    //    }
-                    //    else
-                    //    {
-                    //         LOG_DEBUG("Received Clear Rounter: %d", data_buf[0]);
-                    //         // Serial.print("Received Clear:");
-                    //         // Serial.println(data_buf[0]);
-                    //         Send_Uart_Frame_ACK();
-                    //    }
-                    // }
-                    else if (frame_type == static_cast<uint8_t>(CmdType::VEHICLE_STATUS) && frame_len == 1)
-                    {
-                        VehicleStatus status = static_cast<VehicleStatus>(data_buf[0]);
-                        if(vehicleStatusCallback) 
-                        {
-                            vehicleStatusCallback(status);
-                            Send_Uart_Frame_ACK();
-                        }
-                        else
-                        {
-                            LOG_DEBUG("Received Vehicle Status: %d", data_buf[0]);
-                            // Serial.print("Received Vehicle Status:");
-                            // Serial.println(data_buf[0]);
-                            Send_Uart_Frame_ACK();
-                        }
                     }
                     else
                     {
@@ -429,31 +392,4 @@ void protocol::Receive_Uart_Frame(uint8_t data)
 }
 protocol::~protocol()
 {
-}
-void protocol::setIntCallback(IntCallback cb)
-{
-    intCallback = cb;
-}
-
-void protocol::setFloatCallback(FloatCallback cb)
-{
-    floatCallback = cb;
-}
-void protocol::setAckCallback(AckCallback cb)
-{
-    ackCallback = cb;
-}
-void protocol::setPassengerNumCallback(PassengerNumCallback cb)
-{
-    passengerNumCallback = cb;
-}
-
-void protocol::setClearCallback(ClearCallback cb)
-{
-    clearcallback = cb;
-}
-
-void protocol::setVehicleStatusCallback(VehicleStatusCallback cb)
-{
-    vehicleStatusCallback = cb;
 }

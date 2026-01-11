@@ -198,10 +198,12 @@ void RouterScheduler::CheckArrivingAndMaybeLeave()
     }
     if (commandQueueCallback)       // 这个队列来自 main.cpp 的回调设置
     {
-        ACK_Queue_t ack;
+        DataPacket_t ack;
         ack.type = CmdType::VEHICLE_STATUS;
-        ack.value.status = VehicleStatus::STATUS_ARRIVING;
+        ack.data[0] =static_cast<uint8_t>(VehicleStatus::STATUS_ARRIVING);
+        ack.length = 1;
         commandQueueCallback(ack);
+        LOG_INFO("RouterScheduler: 状态报告发送成功 状态:%d",static_cast<uint8_t>(VehicleStatus::STATUS_ARRIVING));
     }
     
     vehicle_info.Update_Vehicle_Status(VehicleStatus::STATUS_ARRIVING);
@@ -324,10 +326,12 @@ void RouterScheduler::RouterScheduler_Executer()
             {
                 if(commandQueueCallback)
                 {
-                    ACK_Queue_t ack;
+                    DataPacket_t ack;
                     ack.type = CmdType::VEHICLE_STATUS;
-                    ack.value.status = VehicleStatus::STATUS_WAITING;
+                    ack.data[0] = static_cast<uint8_t>(VehicleStatus::STATUS_WAITING);
+                    ack.length = 1;
                     commandQueueCallback(ack);
+                    LOG_INFO("RouterScheduler: 状态报告发送成功 状态:%d",static_cast<uint8_t>(VehicleStatus::STATUS_WAITING));
                 }
                 LOG_INFO("RouterScheduler: 状态报告发送成功");
             }
@@ -353,10 +357,12 @@ void RouterScheduler::RouterScheduler_Executer()
             lastPostTime = millis();
             if (commandQueueCallback)
             {
-                ACK_Queue_t ack;
+                DataPacket_t ack;
                 ack.type = CmdType::VEHICLE_STATUS;
-                ack.value.status = VehicleStatus::STATUS_ARRIVING;
+                ack.data[0] = static_cast<uint8_t>(VehicleStatus::STATUS_ARRIVING);
+                ack.length = 1;
                 commandQueueCallback(ack);
+                LOG_INFO("RouterScheduler: 状态报告发送成功 状态:%d",static_cast<uint8_t>(VehicleStatus::STATUS_ARRIVING));
             }
             LOG_INFO("RouterScheduler: 车辆处于 ARRIVING 状态，保持连接");    
             break;
@@ -378,10 +384,12 @@ void RouterScheduler::RouterScheduler_Executer()
             }
             if (commandQueueCallback)
             {
-                ACK_Queue_t ack;
+                DataPacket_t ack;
                 ack.type = CmdType::VEHICLE_STATUS;
-                ack.value.status = VehicleStatus::STATUS_LEAVING;
+                ack.data[0] =static_cast<uint8_t>(VehicleStatus::STATUS_LEAVING);
+                ack.length = 1;
                 commandQueueCallback(ack);
+                LOG_INFO("RouterScheduler: 状态报告发送成功 状态:%d",static_cast<uint8_t>(VehicleStatus::STATUS_LEAVING));
             }
             vehicle_info.Update_Vehicle_Status(VehicleStatus::STAUS_DISCONNECTED);
             break;

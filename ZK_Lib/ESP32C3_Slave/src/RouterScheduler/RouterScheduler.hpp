@@ -19,7 +19,7 @@
 #include "../protocol/protocol.hpp"
 #include "../Log/Log.h"
 
-typedef std::function<void(const ACK_Queue_t)> CommandQueueCallback;
+typedef std::function<void(const DataPacket_t)> CommandQueueCallback;
 
 class RouterScheduler
 {

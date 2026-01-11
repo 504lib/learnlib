@@ -694,6 +694,7 @@ void VehicleStatus_Callback(uint8_t* data)
 {
   VehicleStatus status = (VehicleStatus)data[0];
   LOG_INFO("Vehicle status changed:%d",status);
+  UART_Protocol_Transmit(&Ack_packet);
 }
 /**
 * @brief Function implementing the KEY_TASK thread.
@@ -738,7 +739,7 @@ void KEY_Task(void *argument)
     MulitKey_Scan(&Key_CANCEL_S);
     if(osKernelGetTickCount() - last_tick > 5000)
     {
-      UART_Protocol_Transmit(&packet);
+      // UART_Protocol_Transmit(&packet);
       // Ack_Queue_t ack_queue_t = {
       //   .type = INT,
       //   .value.int_value = test_var

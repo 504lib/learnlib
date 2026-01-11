@@ -89,49 +89,29 @@ void Serial_Task(void* p)
  */
 void ACK_Task(void* pvParameters)
 {
-  ACK_Queue_t ack_queue_t;
+  DataPacket_t ack_queue_t;
   uint32_t flags = 0;
   for(;;)
   {
     if (xQueueReceive(xCommandQueue,&ack_queue_t,portMAX_DELAY))
     {
-      bool ACK_required = true;                                                 // 是否需要等待ACK 
+      bool ACK_required = (ack_queue_t.type != CmdType::ACK);                                                 // 是否需要等待ACK 
       const TickType_t ack_timeout = pdMS_TO_TICKS(WAIT_ACK_TIMEOUS_MS);        // 200 ms
       for (uint8_t i = 0; i < WAIT_ACK_RETRAY_COUNT && ACK_required; i++)
       {
-        switch (ack_queue_t.type)
-        {
-        case CmdType::INT:
-          uart_protocol.Send_Uart_Frame(ack_queue_t.value.int_value);
-          break;
-        case CmdType::FLOAT:
-          uart_protocol.Send_Uart_Frame(ack_queue_t.value.float_value);
-          break;
-        case CmdType::PASSENGER_NUM:
-          uart_protocol.Send_Uart_Frame(ack_queue_t.value.passenger.router,ack_queue_t.value.passenger.passenger_num);
-          break;
-        case CmdType::CLEAR:
-          uart_protocol.Send_Uart_Frame(ack_queue_t.value.passenger.router);
-          break;
-        case CmdType::VEHICLE_STATUS:
-          uart_protocol.Send_Uart_Frame(ack_queue_t.value.status);
-          break;
-        default:
-          Serial.printf("unknown type!!!");
-          break;
-        }
+        uart_protocol.Send_Uart_Frame(ack_queue_t);       // 发送数据帧
         flags = xEventGroupWaitBits(evt,UART_ACK_REQUIRED,pdTRUE,pdFALSE,ack_timeout);
         if(flags & UART_ACK_REQUIRED)       // 收到ACK
         {
           ACK_required = false;             // 退出重试循环
-          Serial.printf("Recived ACK for %d",static_cast<uint8_t>(ack_queue_t.type));
+          LOG_INFO("Recived ACK for %d",static_cast<uint8_t>(ack_queue_t.type));
         }
         else                                // 超时未收到ACK,重试
         {
-          Serial.printf("time out!!! (%d/%d)",i+1,WAIT_ACK_RETRAY_COUNT);
+          LOG_WARN("time out!!! (%d/%d)",i+1,WAIT_ACK_RETRAY_COUNT);
           if (i >= 2)
           {
-            Serial.printf("time out:%d",static_cast<uint8_t>(ack_queue_t.type));
+            LOG_WARN("time out:%d",static_cast<uint8_t>(ack_queue_t.type));
           }
         }
         
@@ -153,7 +133,7 @@ void Bus_scheduler_Task(void* pvParameters)
     station_repo.Add_Station_to_Tail(Station_t("central_hospital","中心医院","test","",target_station_server));   // 添加一个站点
     for(;;)
     {
-        // router_scheduler.RouterScheduler_Executer();                // 调度器执行
+        router_scheduler.RouterScheduler_Executer();                // 调度器执行
         vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 }
@@ -172,7 +152,7 @@ void setup()
             return;
         }
         int32_t int_value = rd_u32_be(&payload[0]);
-        Serial.printf("Received INT: %d\n", int_value);
+        // LOG_INFO("Received INT: %d\n", int_value);
         uart_protocol.Send_Uart_Frame_ACK();          // 发送ACK
     });
     uart_protocol.Register_Hander(CmdType::FLOAT,[](CmdType cmd, const uint8_t* payload, uint8_t len){
@@ -182,11 +162,11 @@ void setup()
             return;
         }
         float float_value = rd_f32_be(&payload[0]);
-        Serial.printf("Received FLOAT: %f\n", float_value);
+        // Serial.printf("Received FLOAT: %f\n", float_value);
         uart_protocol.Send_Uart_Frame_ACK();          // 发送ACK
     });
     uart_protocol.Register_Hander(CmdType::ACK,[](CmdType cmd, const uint8_t* payload, uint8_t len){
-        Serial.printf("Received ACK Frame\n");
+        // Serial.printf("Received ACK Frame\n");
         if (evt == nullptr) return;                 // 检查事件组是否有效
         xEventGroupSetBits(evt,UART_ACK_REQUIRED);              // ACK收到,设置事件标志
     });
@@ -198,7 +178,7 @@ void setup()
         }
         Rounter router = static_cast<Rounter>(payload[0]);
         uint8_t passenger_num = payload[1];
-        Serial.printf("Received PASSENGER_NUM: Router=%d, Num=%d\n", static_cast<uint8_t>(router), passenger_num);
+        // Serial.printf("Received PASSENGER_NUM: Router=%d, Num=%d\n", static_cast<uint8_t>(router), passenger_num);
         uart_protocol.Send_Uart_Frame_ACK();          // 发送ACK
     });
     uart_protocol.Register_Hander(CmdType::CLEAR,[](CmdType cmd, const uint8_t* payload, uint8_t len){
@@ -208,7 +188,7 @@ void setup()
             return;
         }
         Rounter router = static_cast<Rounter>(payload[0]);
-        Serial.printf("Received CLEAR Command: Router=%d\n", static_cast<uint8_t>(router));
+        // Serial.printf("Received CLEAR Command: Router=%d\n", static_cast<uint8_t>(router));
         uart_protocol.Send_Uart_Frame_ACK();          // 发送ACK
     });
     uart_protocol.Register_Hander(CmdType::VEHICLE_STATUS,[](CmdType cmd, const uint8_t* payload, uint8_t len){
@@ -218,27 +198,27 @@ void setup()
             return;
         }
         VehicleStatus status = static_cast<VehicleStatus>(payload[0]);
-        Serial.printf("Received VEHICLE_STATUS: Status=%d\n", static_cast<uint8_t>(status));
+        LOG_INFO("Received VEHICLE_STATUS: Status=%d\n", static_cast<uint8_t>(status));
         if (status != VehicleStatus::STATUS_ARRIVING && status != VehicleStatus::STATUS_LEAVING && status != VehicleStatus::STATUS_WAITING)           // 仅入站和离站可以更改状态
         {
-            Serial.printf("No permission to change status !!!\n");
+            LOG_INFO("No permission to change status !!!\n");
             return;
         }
         vehicle.Update_Vehicle_Status(status);                // 更新车辆状态
         uart_protocol.Send_Uart_Frame_ACK();          // 发送ACK
     });
-    router_scheduler.setCommandQueueCallback([](const ACK_Queue_t ack){         // 路由调度器命令队列回调函数
+    router_scheduler.setCommandQueueCallback([](const DataPacket_t ack){         // 路由调度器命令队列回调函数
         if(xQueueSend(xCommandQueue,&ack,portMAX_DELAY))
         {
-            Serial.printf("Command queued: %d\n", static_cast<uint8_t>(ack.type));
+            LOG_INFO("Command queued: %d 状态是:%d\n", static_cast<uint8_t>(ack.type),static_cast<uint8_t>(ack.data[0]));
         }
         else
         {
-            Serial.printf("Failed to queue command: %d\n", static_cast<uint8_t>(ack.type));
+            LOG_INFO("Failed to queue command: %d\n", static_cast<uint8_t>(ack.type));
         }
     });
     xUartRxQueue = xQueueCreate(32,sizeof(uint8_t)); 
-    xCommandQueue = xQueueCreate(32,sizeof(ACK_Queue_t));
+    xCommandQueue = xQueueCreate(32,sizeof(DataPacket_t));
     xTaskCreate(Rx_Task,"rx_task",2048,NULL,3,NULL);
     xTaskCreate(Serial_Task,"serial_task",1024,NULL,2,NULL);
     xTaskCreate(ACK_Task,"ack_task",2048,NULL,2,NULL); 
@@ -719,10 +699,18 @@ void loop()
     static bool LED_State = true;
     static int32_t test_counter = 0;
     static float test_float = 0.0f;
+    // DataPacket_t test_packet;
+    // uint8_t payload[4];
+    // test_packet.type = CmdType::VEHICLE_STATUS;
+    // test_packet.length = 1;
+    // payload[0] = static_cast<uint8_t>(VehicleStatus::STATUS_IDLE);
+    // payload[1] = 20; // 模拟乘客数量
+    // wr_u32_be(&payload[0],test_counter);
+    // memcpy(test_packet.data,payload,test_packet.length);
     if (millis() - lastTestTick > 5000) // 每60秒运行一次测试
     {
-        // uart_protocol.Set_Vehicle_Status(VehicleStatus::STATUS_WAITING);
-        test_float += 1.11f;
+        // xQueueSend(xCommandQueue,&test_packet,portMAX_DELAY);
+        // test_counter += 1;
         digitalWrite(LED_Pin,LED_State); // 打开LED表示测试开始
         LED_State = !LED_State;
         lastTestTick = millis();
