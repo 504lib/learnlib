@@ -71,7 +71,6 @@ typedef struct
 typedef struct
 {
     CmdType cmd_type;           // 命令类型
-    uint8_t param_length;
     uint8_t param_value[MAX_PAYLOAD_LEN];         // 参数值 
 }prama_Cmd_packet;
 
@@ -113,7 +112,7 @@ void UART_Protocol_Init(UART_protocol UART_protocol_structure,FrameTransmit tran
 /************************ 发送/接受 *********************** */
 
 void UART_Protocol_Transmit(prama_Cmd_packet* cmd_packet);
-void UART_Protocol_Register_Hander(CmdType cmd_type, FrameHandler handler);
+void UART_Protocol_Register_Hander(CmdType cmd_type, FrameHandler handler,uint8_t pram_length);
 
 // todo: 待淘汰
 void UART_Protocol_INT(UART_protocol UART_protocol_structure,int32_t value);

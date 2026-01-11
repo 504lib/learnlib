@@ -50,7 +50,6 @@
 /* USER CODE BEGIN PM */
 prama_Cmd_packet Ack_packet = {
   .cmd_type = ACK,
-  .param_length = 0,
   .param_value = {0}
 };
 /* USER CODE END PM */
@@ -682,7 +681,6 @@ void KEY_Task(void *argument)
   /* USER CODE BEGIN KEY_Task */
   prama_Cmd_packet packet = {
     .cmd_type = ACK,
-    .param_length = 0,
     .param_value = {0}
   };
   // packet.param_value[0] = (uint8_t)Route_2;
@@ -705,13 +703,6 @@ void KEY_Task(void *argument)
     .Tailframe1 = 0x0D,
     .Tailframe2 = 0x0A
   }; 
-  UART_Protocol_Init(UART_protocol_structure,uart_tx);
-  UART_Protocol_Register_Hander(INT,INT_Handler);
-  UART_Protocol_Register_Hander(FLOAT,FLOAT_Handler);
-  UART_Protocol_Register_Hander(ACK,ACK_Event_mutex);
-  UART_Protocol_Register_Hander(PASSENGER_NUM,synchronized_passengers);
-  UART_Protocol_Register_Hander(CLEAR,Clear_Event);
-  UART_Protocol_Register_Hander(VEHICLE_STATUS,VehicleStatus_Callback);
   LOG_INFO("KEY task has been init ...");
   /* Infinite loop */
   for(;;)
@@ -752,10 +743,13 @@ void uart_task(void *argument)
   UartFrame* frame_buffer = Get_Uart_Frame_Buffer();                  // 获得环形环形缓冲区的指针
   uint32_t flags;                                                     // 事件�???
   LOG_INFO("UART_RX task has been init ...");
-  // set_PASSENGER_Callback(synchronized_passengers);
-  // set_ACK_Callback(ACK_Event_mutex);
-  // set_Clear_Callback(Clear_Event);
-  // set_VehicleStatus_Callback(VehicleStatus_Callback);
+  UART_Protocol_Init(UART_protocol_structure,uart_tx);
+  UART_Protocol_Register_Hander(INT,INT_Handler,4);
+  UART_Protocol_Register_Hander(FLOAT,FLOAT_Handler,4);
+  UART_Protocol_Register_Hander(ACK,ACK_Event_mutex,0);
+  UART_Protocol_Register_Hander(PASSENGER_NUM,synchronized_passengers,2);
+  UART_Protocol_Register_Hander(CLEAR,Clear_Event,1);
+  UART_Protocol_Register_Hander(VEHICLE_STATUS,VehicleStatus_Callback,1);
   /* Infinite loop */
   for(;;)
   {
@@ -811,6 +805,10 @@ void ACK_TASK(void *argument)
     .Tailframe1 = 0x0D,
     .Tailframe2 = 0x0A
   }; 
+  prama_Cmd_packet packet = {
+    .cmd_type = ACK,
+    .param_value = {0}
+  };
   LOG_INFO("ACK task has been init ...");
   uint32_t flags = osEventFlagsGet(UART_EVENTHandle);
   LOG_INFO("flags:0x%.2x",flags);
@@ -834,6 +832,7 @@ void ACK_TASK(void *argument)
         switch (ack_queue_t.type)
         {
           case INT:
+
             UART_Protocol_INT(UART_protocol_structure,ack_queue_t.value.int_value);
             break;
           case FLOAT:

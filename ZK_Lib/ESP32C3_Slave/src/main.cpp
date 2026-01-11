@@ -664,8 +664,12 @@ void loop()
 {
     static uint32_t lastTestTick = 0;
     static bool LED_State = true;
-    if (millis() - lastTestTick > 1000) // 每60秒运行一次测试
+    static int32_t test_counter = 0;
+    static float test_float = 0.0f;
+    if (millis() - lastTestTick > 5000) // 每60秒运行一次测试
     {
+        // uart_protocol.Set_Vehicle_Status(VehicleStatus::STATUS_WAITING);
+        test_float += 1.11f;
         digitalWrite(LED_Pin,LED_State); // 打开LED表示测试开始
         LED_State = !LED_State;
         lastTestTick = millis();

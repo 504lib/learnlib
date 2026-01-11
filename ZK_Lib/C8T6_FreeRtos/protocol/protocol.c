@@ -4,6 +4,7 @@
 
 typedef struct {
     CmdType cmd_type;
+    uint8_t pram_length;
     FrameHandler handler;
 }CmdHandlerEntry;
 
@@ -128,11 +129,16 @@ void UART_Protocol_Init(UART_protocol UART_protocol_structure,FrameTransmit tran
 }
 
 
-void UART_Protocol_Register_Hander(CmdType cmd_type, FrameHandler handler)
+void UART_Protocol_Register_Hander(CmdType cmd_type, FrameHandler handler,uint8_t pram_length)
 {
     if ((size_t)cmd_type >= MAX_CMD_TYPE_HANDLERS) {
         return;
     }
+    if (pram_length >= MAX_PAYLOAD_LEN)
+    {
+        return;
+    }
+    g_protocol_context.CmdHandlerTable[cmd_type].pram_length = pram_length;
     g_protocol_context.CmdHandlerTable[cmd_type].cmd_type = cmd_type;
     g_protocol_context.CmdHandlerTable[cmd_type].handler = handler;
 }
@@ -141,10 +147,9 @@ void UART_Protocol_Register_Hander(CmdType cmd_type, FrameHandler handler)
 void UART_Protocol_Transmit(prama_Cmd_packet* cmd_packet)
 {
     if (cmd_packet == NULL) return;
-    if (cmd_packet->param_length > MAX_PAYLOAD_LEN) return;
     if (!g_protocol_context.transmit_function) return;
 
-    uint8_t len = cmd_packet->param_length;
+    uint8_t len = g_protocol_context.CmdHandlerTable[cmd_packet->cmd_type].pram_length;
     uint8_t frame_buffer[MAX_PAYLOAD_LEN + 8];  // 至少 payload + 8
     uint16_t index = 0;
 
@@ -711,7 +716,7 @@ void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uin
     uint8_t frame_len  = data[3];
 
     // 检查长度是否合理
-    if(size != (frame_len + 8))
+    if(size != (frame_len + 8) || frame_len > MAX_PAYLOAD_LEN)
     {
         LOG_DEBUG("Length mismatch: expected %d, got %d", frame_len + 8, size);
         return;
@@ -739,7 +744,8 @@ void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uin
     LOG_DEBUG("tail matched.");
     LOG_DEBUG("the frame is valid: type=%d, len=%d", frame_type, frame_len);
     // 解析数据
-    if(frame_type == g_protocol_context.CmdHandlerTable[frame_type].cmd_type)
+    if(frame_type == g_protocol_context.CmdHandlerTable[frame_type].cmd_type && 
+       frame_len == g_protocol_context.CmdHandlerTable[frame_type].pram_length)
     {
         g_protocol_context.CmdHandlerTable[frame_type].handler(payload);
         return;
