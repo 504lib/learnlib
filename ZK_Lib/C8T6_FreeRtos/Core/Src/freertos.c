@@ -711,7 +711,7 @@ void KEY_Task(void *argument)
   UART_Protocol_Register_Hander(ACK,ACK_Event_mutex);
   UART_Protocol_Register_Hander(PASSENGER_NUM,synchronized_passengers);
   UART_Protocol_Register_Hander(CLEAR,Clear_Event);
-  UART_Protocol_Register_Hander(VEHICLE_STATUS,NULL);
+  UART_Protocol_Register_Hander(VEHICLE_STATUS,VehicleStatus_Callback);
   LOG_INFO("KEY task has been init ...");
   /* Infinite loop */
   for(;;)
@@ -755,7 +755,7 @@ void uart_task(void *argument)
   // set_PASSENGER_Callback(synchronized_passengers);
   // set_ACK_Callback(ACK_Event_mutex);
   // set_Clear_Callback(Clear_Event);
-  set_VehicleStatus_Callback(VehicleStatus_Callback);
+  // set_VehicleStatus_Callback(VehicleStatus_Callback);
   /* Infinite loop */
   for(;;)
   {
