@@ -31,7 +31,6 @@
 #include "protocol.h"
 #include "Log.h"
 #include "rtc.h"
-#define MENU_USE_CMSIS_OS2
 #include "multikey.h"
 /* USER CODE END Includes */
 
@@ -55,21 +54,6 @@ prama_Cmd_packet Ack_packet = {
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-/* USER CODE BEGIN Variables */
-// typedef struct{
-//   CmdType type;
-//   union 
-//   {
-//     int32_t int_value;
-//     float float_value;
-//     VehicleStatus status_value;
-//     struct
-//     {
-//       Rounter router;
-//       uint8_t passenger_num;
-//     }passenger;
-//   }value;
-// }Ack_Queue_t;
 
 typedef struct
 {

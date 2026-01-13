@@ -308,7 +308,10 @@ void RouterScheduler::RouterScheduler_Executer()
         {
             Station_t& station = station_repo.Get_Index_Station(station_repo.Get_Current_Index());
             station.isConnnectd = false;
-            WiFi.disconnect();
+            if (WiFi.status() != WL_DISCONNECTED)
+            {
+                WiFi.disconnect();
+            }
             LOG_INFO("RouterScheduler: WiFi 已断开，重新扫描");
             vehicle_info.Update_Vehicle_Status(VehicleStatus::STATUS_SCANNING);
             break;
