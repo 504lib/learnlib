@@ -11,7 +11,7 @@ void NetworkClient::startWiFiScan()
         LOG_INFO("NetworkClient: 已在扫描，忽略本次触发");
         return;
     }
-    if (WiFi.status() != WL_DISCONNECTED && WiFi.status() != WL_IDLE_STATUS)
+    if (WiFi.status() != WL_DISCONNECTED && WiFi.status() != WL_IDLE_STATUS && WiFi.status() != WL_CONNECTION_LOST)
     {
         LOG_FATAL("NetworkClient: WiFi 模块未处于空闲状态，无法开始扫描,状态为:%d", WiFi.status());
         return;

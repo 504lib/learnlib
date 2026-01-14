@@ -36,7 +36,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-#define SLAVE_MODE 0
+#define SLAVE_MODE 1
 #define MENU_USE_CMSIS_OS2
 /* USER CODE END PTD */
 
@@ -63,6 +63,8 @@ typedef struct
 #define Router_NUM 4
 Route_Info route_info[Router_NUM];
 
+
+VehicleStatus status = STATUS_IDLE;  // 车辆状态，默认为空闲状态
 extern uint8_t temp[16];                                                          // 来自main.c的缓冲区
 u8g2_t u8g2;                                                                      // u8g2对象
 int index = 0;                                                                    // String_Option的字符串数组索引
@@ -435,29 +437,14 @@ void main_display_cb(u8g2_t* u8g2, menu_data_t* menu_data)
   snprintf(buf, sizeof(buf), "%02d", sTime.Seconds);
   u8g2_DrawStr(u8g2, time_width + 5, 30, buf);
   
-  // 3. 状�?�卡�?????
-  u8g2_DrawFrame(u8g2, 5, 43, 118, 20);  // 卡片外框
-  
-  // 卡片内部分隔�?????
-  u8g2_DrawVLine(u8g2, 42, 45, 17);
-  u8g2_DrawVLine(u8g2, 79, 45, 17);
-  
-  // 卡片内容
-  u8g2_SetFont(u8g2, u8g2_font_5x7_tf);
-  u8g2_DrawStr(u8g2, 10, 50, "INT");
-  u8g2_DrawStr(u8g2, 47, 50, "MODE");
-  u8g2_DrawStr(u8g2, 84, 50, "STAT");
-  
-  u8g2_SetFont(u8g2, u8g2_font_6x10_tf);
-  snprintf(buf, sizeof(buf), "%d", test_var);
-  u8g2_DrawStr(u8g2, 15, 60, buf);
-  
-  // 模式显示缩写
-  char mode_abbr[4] = {0};
-  strncpy(mode_abbr, String_Option[index], 3);
-  u8g2_DrawStr(u8g2, 50, 60, mode_abbr);
-  
-  u8g2_DrawStr(u8g2, 88, 60, toggle ? "ON" : "OFF");
+  // 显示状态
+  const char* status_str = (status == STATUS_IDLE) ? "IDLE" :
+                           (status == STATUS_ARRIVING) ? "ARRIVING" :
+                           (status == STATUS_WAITING) ? "WAITING" :"IDLE";
+  snprintf(buf, sizeof(buf), "Status:%s", status_str);
+  u8g2_DrawStr(u8g2, 0, 55, buf);
+
+
 }
 
 /**
@@ -676,7 +663,7 @@ void Clear_Event(uint8_t* data)
 
 void VehicleStatus_Callback(uint8_t* data)
 {
-  VehicleStatus status = (VehicleStatus)data[0];
+  status = (VehicleStatus)data[0];
   LOG_INFO("Vehicle status changed:%d",status);
   UART_Protocol_Transmit(&Ack_packet);
 }

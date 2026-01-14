@@ -6,20 +6,20 @@
 #include <ArduinoJson.h>
 #include "Vehicle/Vehicle.hpp"
 
-typedef struct
-{
-  CmdType type;
-  union
-  {
-    int32_t int_value;
-    float   float_value;
-     struct
-    {
-      Rounter router;
-      uint8_t passenger_num;
-    }passenger; 
-  }value;
-}ACK_Queue_t;
+// typedef struct
+// {
+//   CmdType type;
+//   union
+//   {
+//     int32_t int_value;
+//     float   float_value;
+//      struct
+//     {
+//       Rounter router;
+//       uint8_t passenger_num;
+//     }passenger; 
+//   }value;
+// }ACK_Queue_t;
 
 uint8_t passenger[static_cast<uint8_t>(Rounter::Ring_road) + 1] = {0};
 
@@ -155,34 +155,35 @@ void Serial_Task(void* p)
 
 void ACK_Task(void* pvParameters)
 {
-  ACK_Queue_t ack_queue_t;
+  DataPacket_t ack_queue_t;
   uint32_t flags = 0;
   for(;;)
   {
     if (xQueueReceive(xCommandQueue,&ack_queue_t,portMAX_DELAY))
     {
-      bool ACK_required = true;
+      bool ACK_required = (ack_queue_t.type != CmdType::ACK);
       const TickType_t ack_timeout = pdMS_TO_TICKS(200); // 200 ms
       for (uint8_t i = 0; i < 3 && ACK_required; i++)
       {
-        switch (ack_queue_t.type)
-        {
-        case CmdType::INT:
-          uart_protocol.Send_Uart_Frame(ack_queue_t.value.int_value);
-          break;
-        case CmdType::FLOAT:
-          uart_protocol.Send_Uart_Frame(ack_queue_t.value.float_value);
-          break;
-        case CmdType::PASSENGER_NUM:
-          uart_protocol.Send_Uart_Frame(ack_queue_t.value.passenger.router,ack_queue_t.value.passenger.passenger_num);
-          break;
-        case CmdType::CLEAR:
-          uart_protocol.Send_Uart_Frame(ack_queue_t.value.passenger.router);
-          break;
-        default:
-          Serial.printf("unknown type!!!");
-          break;
-        }
+        uart_protocol.Send_Uart_Frame(ack_queue_t);
+        // switch (ack_queue_t.type)
+        // {
+        // case CmdType::INT:
+        //   uart_protocol.Send_Uart_Frame(ack_queue_t.value.int_value);
+        //   break;
+        // case CmdType::FLOAT:
+        //   uart_protocol.Send_Uart_Frame(ack_queue_t.value.float_value);
+        //   break;
+        // case CmdType::PASSENGER_NUM:
+        //   uart_protocol.Send_Uart_Frame(ack_queue_t.value.passenger.router,ack_queue_t.value.passenger.passenger_num);
+        //   break;
+        // case CmdType::CLEAR:
+        //   uart_protocol.Send_Uart_Frame(ack_queue_t.value.passenger.router);
+        //   break;
+        // default:
+        //   Serial.printf("unknown type!!!");
+        //   break;
+        // }
         flags = xEventGroupWaitBits(evt,UART_ACK_REQUIRED,pdTRUE,pdFALSE,ack_timeout);
         if(flags & UART_ACK_REQUIRED)
         {
@@ -1408,7 +1409,7 @@ void setup()
       request->send(400,"text/plain","invalid input");
       return;
     }
-    ACK_Queue_t ack_queue_t;
+    DataPacket_t ack_queue_t;
     String s = request->getParam("rounter")->value();
     const char* str = s.c_str();
     char* endptr = nullptr;
@@ -1426,14 +1427,14 @@ void setup()
     rounter = static_cast<Rounter>(v);
     passenger[v] = 0;
     ack_queue_t.type = CmdType::CLEAR;
-    ack_queue_t.value.passenger.router = rounter;
-    ack_queue_t.value.passenger.passenger_num = 0;
+    ack_queue_t.length = 1;
+    ack_queue_t.data[0] = static_cast<uint8_t>(rounter);
     xQueueSend(xCommandQueue,&ack_queue_t,0);
     request->send(200,"text/plain","success");
   });
   server.on("/api/vehicle_report", HTTP_POST, [](AsyncWebServerRequest *request){
       // 检查参数
-      ACK_Queue_t ack_queue_t;
+      DataPacket_t ack_queue_t;
       if (!request->hasParam("route", true) || 
           !request->hasParam("plate", true) || 
           !request->hasParam("status", true)) {
@@ -1483,8 +1484,8 @@ void setup()
                   // 仅当先前为 WAITING 时，才清除对应路线的人数并发送 CLEAR 命令
                   if (prev == VehicleStatus::STATUS_WAITING) {
                       ack_queue_t.type = CmdType::CLEAR;
-                      ack_queue_t.value.passenger.router = vehicles[i].info.currentRoute;
-                      ack_queue_t.value.passenger.passenger_num = 0;
+                      ack_queue_t.data[0] = static_cast<uint8_t>(vehicles[i].info.currentRoute);
+                      ack_queue_t.length = 1;
                       xQueueSend(xCommandQueue, &ack_queue_t, 0);
                       passenger[static_cast<uint8_t>(vehicles[i].info.currentRoute)] = 0;
                       Serial.println("先前状态非 WAITING，保留乘客数，不发送 CLEAR");
@@ -1573,7 +1574,7 @@ void setup()
   xTaskCreate(STA_Task,"sta_task",3072,NULL,1,NULL);
   #endif
   xUartRxQueue = xQueueCreate(32,sizeof(uint8_t)); 
-  xCommandQueue = xQueueCreate(32,sizeof(ACK_Queue_t));
+  xCommandQueue = xQueueCreate(32,sizeof(DataPacket_t));
   evt = xEventGroupCreate();
   xTaskCreate(AP_Task,"ap_task",1024,NULL,1,NULL);
   xTaskCreate(Rx_Task,"rx_task",2048,NULL,3,NULL);
