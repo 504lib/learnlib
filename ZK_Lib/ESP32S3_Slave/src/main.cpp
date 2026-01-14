@@ -201,7 +201,17 @@ void setup()
         LOG_INFO("Received VEHICLE_STATUS: Status=%d\n", static_cast<uint8_t>(status));
         if (status != VehicleStatus::STATUS_ARRIVING && status != VehicleStatus::STATUS_LEAVING && status != VehicleStatus::STATUS_WAITING)           // 仅入站和离站可以更改状态
         {
-            LOG_INFO("No permission to change status !!!\n");
+            LOG_WARN("No permission to change status !!!\n");
+            return;
+        }
+        if (vehicle.Get_Vehicle_Status() == VehicleStatus::STATUS_WAITING && status != VehicleStatus::STATUS_LEAVING)
+        {
+            LOG_WARN("Vehicle is in WAITING status, can only change to LEAVING !!!\n");
+            return;
+        }
+        if (vehicle.Get_Vehicle_Status() != VehicleStatus::STATUS_ARRIVING && vehicle.Get_Vehicle_Status() != VehicleStatus::STATUS_WAITING)           // 仅入站和离站可以更改状态
+        {
+            LOG_WARN("Vehicle is not in ARRIVING or WAITING status, cannot change status !!!\n");
             return;
         }
         vehicle.Update_Vehicle_Status(status);                // 更新车辆状态

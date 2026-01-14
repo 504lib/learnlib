@@ -36,7 +36,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-#define SLAVE_MODE 1
+#define SLAVE_MODE 0
 #define MENU_USE_CMSIS_OS2
 /* USER CODE END PTD */
 

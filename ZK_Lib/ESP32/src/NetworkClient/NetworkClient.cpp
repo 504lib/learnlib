@@ -6,23 +6,23 @@
  */
 void NetworkClient::startWiFiScan()
 {
-    if(WiFi.status() == WL_CONNECTION_LOST)
-    {
-        WiFi.disconnect();
-        delay(100);
+
+    if (isScanning) {
+        LOG_INFO("NetworkClient: 已在扫描，忽略本次触发");
+        return;
     }
-    if (WiFi.status() != WL_DISCONNECTED && WiFi.status() != WL_IDLE_STATUS && WiFi.status() != WL_CONNECTION_LOST)
+    if (WiFi.status() != WL_DISCONNECTED && WiFi.status() != WL_IDLE_STATUS)
     {
         LOG_FATAL("NetworkClient: WiFi 模块未处于空闲状态，无法开始扫描,状态为:%d", WiFi.status());
         return;
     }
-
     delay(50);
-
     LOG_DEBUG("NetworkClient: 可用内存: %d bytes", ESP.getFreeHeap());
+
+
     uint8_t chan = WiFi.channel();
     int result = WiFi.scanNetworks(true,false,false,180,chan); // 异步扫描
-    // int result = WiFi.scanNetworks(true); // 异步扫描
+    // LOG_INFO("result=%d",result);
     if (result == WIFI_SCAN_FAILED) 
     {
         LOG_WARN("NetworkClient: WiFi 扫描启动失败");
@@ -78,7 +78,7 @@ bool NetworkClient::sendPostRequest(const String& url, const String& payload)
     http.begin(url);
     http.addHeader("Content-Type", "application/x-www-form-urlencoded");
     int httpCode = http.POST(payload);
-    LOG_INFO("NetworkClient: HTTP POST 响应代码: %d", httpCode);
+    LOG_DEBUG("NetworkClient: HTTP POST 响应代码: %d", httpCode);
     http.end();
     return (httpCode == 200);
 }
@@ -234,6 +234,8 @@ bool NetworkClient::checkWiFiScan()
     }
 
     int scanResults = WiFi.scanComplete();
+    // LOG_INFO("NetworkClient: WiFi 扫描状态代码: %d", scanResults);
+    delay(50);
     if (scanResults == WIFI_SCAN_RUNNING) 
     {
         return false; // 扫描仍在进行中

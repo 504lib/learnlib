@@ -4,7 +4,7 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
-
+#include "Vehicle/Vehicle.hpp"
 
 typedef struct
 {
@@ -51,20 +51,18 @@ QueueHandle_t xPassengerUpdateQueue;
 QueueHandle_t xCommandQueue;
 
 // 车辆状态枚举
-enum class VehicleStatus 
-{
-  WAITING,     // 候车中
-  ARRIVING,     // 即将进站
-  LEAVING      // 离站
-};
+// enum class VehicleStatus 
+// {
+//   WAITING,     // 候车中
+//   ARRIVING,     // 即将进站
+//   LEAVING      // 离站
+// };
 
 // 车辆信息结构
 struct VehicleInfo 
 {
-  Rounter route;
-  String plate;
-  VehicleStatus status;
-  uint32_t timestamp;  // 添加时间戳，用于清理过期数据
+    Vehicle_t info;
+    uint32_t timestamp;  // 添加时间戳，用于清理过期数据
 };
 
 // 车辆信息数组，限制为10个
@@ -176,10 +174,10 @@ void ACK_Task(void* pvParameters)
           uart_protocol.Send_Uart_Frame(ack_queue_t.value.float_value);
           break;
         case CmdType::PASSENGER_NUM:
-          uart_protocol.Send_Uart_Frame_PASSENGER_NUM(ack_queue_t.value.passenger.router,ack_queue_t.value.passenger.passenger_num);
+          uart_protocol.Send_Uart_Frame(ack_queue_t.value.passenger.router,ack_queue_t.value.passenger.passenger_num);
           break;
         case CmdType::CLEAR:
-          uart_protocol.Send_Uart_Frame_CLEAR(ack_queue_t.value.passenger.router);
+          uart_protocol.Send_Uart_Frame(ack_queue_t.value.passenger.router);
           break;
         default:
           Serial.printf("unknown type!!!");
@@ -316,31 +314,109 @@ void STA_Task(void* pvParameters)
 void setup() 
 {
   
-  pinMode(LED_Pin,OUTPUT);
-  uart_protocol.setAckCallback(set_ACK);
-  uart_protocol.setPassengerNumCallback(set_passenger);
-  uart_protocol.setClearCallback(clear_passenger);
-  Serial.println("正在启动 AP 模式...");
+    pinMode(LED_Pin,OUTPUT);
+    // uart_protocol.setAckCallback(set_ACK);
+    // uart_protocol.setPassengerNumCallback(set_passenger);
+    // uart_protocol.setClearCallback(clear_passenger);
+    uart_protocol.Register_Hander(CmdType::INT, [](CmdType cmd, const uint8_t* payload, uint8_t len){
+        if (len != 4) {
+        Serial.println("Invalid INT payload length");
+        return;
+        }
+        int32_t value = (int32_t)rd_u32_be(payload);
+        Serial.printf("Received INT: %d\n", value);
+        uart_protocol.Send_Uart_Frame_ACK();
+    });
+    uart_protocol.Register_Hander(CmdType::FLOAT, [](CmdType cmd, const uint8_t* payload, uint8_t len){
+        if (len != 4) {
+        Serial.println("Invalid FLOAT payload length");
+        return;
+        }
+        float value = rd_f32_be(payload);
+        Serial.printf("Received FLOAT: %f\n", value);
+        uart_protocol.Send_Uart_Frame_ACK();
+    });
+    uart_protocol.Register_Hander(CmdType::PASSENGER_NUM, [](CmdType cmd, const uint8_t* payload, uint8_t len){
+        if (len != 2) {
+        Serial.println("Invalid PASSENGER_NUM payload length");
+        return;
+        }
+        Rounter router = static_cast<Rounter>(payload[0]);
+        uint8_t passenger_num = payload[1];
+        Serial.printf("Received PASSENGER_NUM - Route: %d, Num: %d\n", static_cast<uint8_t>(router), passenger_num);
+        uart_protocol.Send_Uart_Frame_ACK();
+    });
+    uart_protocol.Register_Hander(CmdType::CLEAR, [](CmdType cmd, const uint8_t* payload, uint8_t len){
+            if (len != 1) {
+            Serial.println("Invalid CLEAR payload length");
+            return;
+            }
+            Rounter router = static_cast<Rounter>(payload[0]);
+            Serial.printf("Received CLEAR - Route: %d\n", static_cast<uint8_t>(router));
+            uart_protocol.Send_Uart_Frame_ACK();
+        });
+    uart_protocol.Register_Hander(CmdType::ACK, [](CmdType cmd, const uint8_t* payload, uint8_t len){
+        if (evt != NULL)
+        {
+            xEventGroupSetBits(evt,UART_ACK_REQUIRED);
+        }
+    });
+    uart_protocol.Register_Hander(CmdType::PASSENGER_NUM, [](CmdType cmd, const uint8_t* payload, uint8_t len){
+        if (len != 2)
+        {
+            Serial.println("Invalid PASSENGER_NUM payload length");
+            return;
+        }
+        Rounter rounter = static_cast<Rounter>(payload[0]);
+        uint8_t value = payload[1];
+        Serial.printf("Receive Rounter:%d,value:%d\n",static_cast<uint8_t>(rounter),value);
+        passenger[static_cast<uint8_t>(rounter)] = value;
+        uint8_t sum = 0;
+        for (size_t i = 0; i < sizeof(passenger)/sizeof(passenger[0]) ;i++)
+        {
+            sum += passenger[i];
+        }
+        passenger_num = sum;
+        uart_protocol.Send_Uart_Frame_ACK();
+    });
+    uart_protocol.Register_Hander(CmdType::CLEAR, [](CmdType cmd, const uint8_t* payload, uint8_t len){
+        if (len != 1)
+        {
+            Serial.println("Invalid CLEAR payload length");
+            return;
+        }
+        Rounter rounter = static_cast<Rounter>(payload[0]);
+        Serial.printf("Receive Rounter:%d\n",static_cast<uint8_t>(rounter));
+        passenger[static_cast<uint8_t>(rounter)] = 0;
+        uint8_t sum = 0;
+        for (size_t i = 0; i < sizeof(passenger)/sizeof(passenger[0]) ;i++)
+        {
+            sum += passenger[i];
+        }
+        passenger_num = sum;
+        uart_protocol.Send_Uart_Frame_ACK();
+    });
+    Serial.println("正在启动 AP 模式...");
   
   // 启动 AP
-  #if AP_MODE == 1
-  if (WiFi.softAP(ssid, password,1,0,10,false)) {
-    Serial.println("AP 模式启动成功!");
-    
-    // 获取 AP 的 IP 地址
-    IPAddress myIP = WiFi.softAPIP();
-    Serial.print("AP IP 地址: ");
-    Serial.println(myIP);
-    
-    // 显示连接信息
-    Serial.print("SSID: ");
-    Serial.println(ssid);
-    Serial.print("密码: ");
-    Serial.println(password);
-  } else {
-    Serial.println("AP 模式启动失败!");
-    return;
-  }
+    #if AP_MODE == 1
+    if (WiFi.softAP(ssid, password,1,0,10,false)) {
+        Serial.println("AP 模式启动成功!");
+        
+        // 获取 AP 的 IP 地址
+        IPAddress myIP = WiFi.softAPIP();
+        Serial.print("AP IP 地址: ");
+        Serial.println(myIP);
+        
+        // 显示连接信息
+        Serial.print("SSID: ");
+        Serial.println(ssid);
+        Serial.print("密码: ");
+        Serial.println(password);
+    } else {
+        Serial.println("AP 模式启动失败!");
+        return;
+    }
 
   // 设置 Web 服务器路由
  // 在 setup() 函数中找到 HTML 部分，替换为以下代码：
@@ -1297,21 +1373,21 @@ void setup()
       JsonArray vehicles_arr = doc["vehicles"].to<JsonArray>();
       for (int i = 0; i < vehicleCount; i++) {
           // 只添加候车中和即将进站的车辆
-          if (vehicles[i].status != VehicleStatus::LEAVING) {
+          if (vehicles[i].info.status != VehicleStatus::STATUS_LEAVING) {
               JsonObject vehicle_obj = vehicles_arr.add<JsonObject>();
-              vehicle_obj["route"] = static_cast<int>(vehicles[i].route);
-              vehicle_obj["plate"] = vehicles[i].plate;
+              vehicle_obj["route"] = static_cast<int>(vehicles[i].info.currentRoute);
+              vehicle_obj["plate"] = vehicles[i].info.Plate;
               
               // 状态映射
               String statusStr;
-              switch (vehicles[i].status) {
-                  case VehicleStatus::WAITING:
+              switch (vehicles[i].info.status) {
+                  case VehicleStatus::STATUS_WAITING:
                       statusStr = "waiting";
                       break;
-                  case VehicleStatus::ARRIVING:
+                  case VehicleStatus::STATUS_ARRIVING:
                       statusStr = "arriving";
                       break;
-                  case VehicleStatus::LEAVING:
+                  case VehicleStatus::STATUS_LEAVING:
                       statusStr = "leaving"; // 理论上不会执行到这里
                       break;
               }
@@ -1385,33 +1461,33 @@ void setup()
       String statusStr = request->getParam("status", true)->value();
       VehicleStatus status;
       if (statusStr == "waiting") {
-          status = VehicleStatus::WAITING;
+          status = VehicleStatus::STATUS_WAITING;
       } else if (statusStr == "arriving") {
-          status = VehicleStatus::ARRIVING;
+          status = VehicleStatus::STATUS_ARRIVING;
       } else if (statusStr == "leaving") {
-          status = VehicleStatus::LEAVING;
+          status = VehicleStatus::STATUS_LEAVING;
       } else {
           request->send(400, "text/plain", "Invalid status");
           return;
       }
 
       // 处理离站状态
-    if (status == VehicleStatus::LEAVING) {
+    if (status == VehicleStatus::STATUS_LEAVING) {
           // 从车辆数组中移除该车辆
           bool found = false;
           for (int i = 0; i < vehicleCount; i++) {
-              if (vehicles[i].plate == plate) {
+              if (vehicles[i].info.Plate == plate) {
                   // 找到车辆，检查先前状态
-                  VehicleStatus prev = vehicles[i].status;
-                  Serial.println("车辆离站: " + plate + ", 路线: " + String(static_cast<int>(vehicles[i].route)) + ", 先前状态: " + String(static_cast<int>(prev)));
+                  VehicleStatus prev = vehicles[i].info.status;
+                  Serial.println("车辆离站: " + plate + ", 路线: " + String(static_cast<int>(vehicles[i].info.currentRoute)) + ", 先前状态: " + String(static_cast<int>(prev)));
                   
                   // 仅当先前为 WAITING 时，才清除对应路线的人数并发送 CLEAR 命令
-                  if (prev == VehicleStatus::WAITING) {
+                  if (prev == VehicleStatus::STATUS_WAITING) {
                       ack_queue_t.type = CmdType::CLEAR;
-                      ack_queue_t.value.passenger.router = vehicles[i].route;
+                      ack_queue_t.value.passenger.router = vehicles[i].info.currentRoute;
                       ack_queue_t.value.passenger.passenger_num = 0;
                       xQueueSend(xCommandQueue, &ack_queue_t, 0);
-                      passenger[static_cast<uint8_t>(vehicles[i].route)] = 0;
+                      passenger[static_cast<uint8_t>(vehicles[i].info.currentRoute)] = 0;
                       Serial.println("已清除该路线乘客数");
                   } else {
                       Serial.println("先前状态非 WAITING，保留乘客数，不发送 CLEAR");
@@ -1438,10 +1514,10 @@ void setup()
       // 处理候车中和即将进站状态（原有逻辑）
       bool found = false;
       for (int i = 0; i < vehicleCount; i++) {
-          if (vehicles[i].plate == plate) {
+          if (vehicles[i].info.Plate == plate) {
               // 更新现有车辆信息
-              vehicles[i].route = route;
-              vehicles[i].status = status;
+              vehicles[i].info.currentRoute = route;
+              vehicles[i].info.status = status;
               vehicles[i].timestamp = millis();
               found = true;
               Serial.println("更新车辆: " + plate + ", 路线: " + String(routeInt) + ", 状态: " + statusStr);
@@ -1452,9 +1528,9 @@ void setup()
       // 如果没找到，添加新车辆
       if (!found) {
           if (vehicleCount < MAX_VEHICLES) {
-              vehicles[vehicleCount].route = route;
-              vehicles[vehicleCount].plate = plate;
-              vehicles[vehicleCount].status = status;
+              vehicles[vehicleCount].info.currentRoute = route;
+              vehicles[vehicleCount].info.Plate = plate;
+              vehicles[vehicleCount].info.status = status;
               vehicles[vehicleCount].timestamp = millis();
               vehicleCount++;
               Serial.println("新增车辆: " + plate + ", 路线: " + String(routeInt) + ", 状态: " + statusStr);
@@ -1468,9 +1544,9 @@ void setup()
                       oldestIndex = i;
                   }
               }
-              vehicles[oldestIndex].route = route;
-              vehicles[oldestIndex].plate = plate;
-              vehicles[oldestIndex].status = status;
+              vehicles[oldestIndex].info.currentRoute = route;
+              vehicles[oldestIndex].info.Plate = plate;
+              vehicles[oldestIndex].info.status = status;
               vehicles[oldestIndex].timestamp = millis();
               Serial.println("替换车辆: " + plate + ", 路线: " + String(routeInt) + ", 状态: " + statusStr);
           }
