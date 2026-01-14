@@ -44,6 +44,15 @@ struct Vehicle_t
     Rounter currentRoute;                               // 当前路线
     VehicleStatus status = VehicleStatus::STATUS_SCANNING;  // 当前状态
     VehicleStatus last_status = VehicleStatus::STATUS_SCANNING; // 上次状态
+    Vehicle_t()
+        : Plate("")
+        , SSID("")
+        , Password("12345678")
+        , StationServer("http://192.168.4.1")
+        , currentRoute(Rounter::Route_1)
+        , status(VehicleStatus::STATUS_SCANNING)
+        , last_status(VehicleStatus::STATUS_SCANNING)
+    {}
     Vehicle_t(String plate, String ssid, String password, String stationServer, Rounter route, VehicleStatus status)
         : Plate(plate), SSID(ssid), Password(password), StationServer(stationServer), currentRoute(route), status(status) {}
 };

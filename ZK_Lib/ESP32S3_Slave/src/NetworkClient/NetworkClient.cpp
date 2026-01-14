@@ -78,7 +78,7 @@ bool NetworkClient::sendPostRequest(const String& url, const String& payload)
     http.begin(url);
     http.addHeader("Content-Type", "application/x-www-form-urlencoded");
     int httpCode = http.POST(payload);
-    LOG_DEBUG("NetworkClient: HTTP POST 响应代码: %d", httpCode);
+    LOG_INFO("NetworkClient: HTTP POST 响应代码: %d", httpCode);
     http.end();
     return (httpCode == 200);
 }

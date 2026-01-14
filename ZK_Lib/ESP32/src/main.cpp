@@ -1474,7 +1474,6 @@ void setup()
       // 处理离站状态
     if (status == VehicleStatus::STATUS_LEAVING) {
           // 从车辆数组中移除该车辆
-          bool found = false;
           for (int i = 0; i < vehicleCount; i++) {
               if (vehicles[i].info.Plate == plate) {
                   // 找到车辆，检查先前状态
@@ -1488,8 +1487,6 @@ void setup()
                       ack_queue_t.value.passenger.passenger_num = 0;
                       xQueueSend(xCommandQueue, &ack_queue_t, 0);
                       passenger[static_cast<uint8_t>(vehicles[i].info.currentRoute)] = 0;
-                      Serial.println("已清除该路线乘客数");
-                  } else {
                       Serial.println("先前状态非 WAITING，保留乘客数，不发送 CLEAR");
                   }
 
@@ -1498,17 +1495,11 @@ void setup()
                       vehicles[j] = vehicles[j + 1];
                   }
                   vehicleCount--;
-                  found = true;
                   break;
               }
           }
           
-          if (found) {
-              request->send(200, "text/plain", "success");
-          } else {
-              request->send(404, "text/plain", "Vehicle not found");
-          }
-          return;
+            request->send(200, "text/plain", "success");
       }
 
       // 处理候车中和即将进站状态（原有逻辑）
