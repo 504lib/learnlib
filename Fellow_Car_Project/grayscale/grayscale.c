@@ -6,14 +6,14 @@
 float CalculateGrayError_Advanced(uint8_t gray_byte)
 {
     static const float symmetric_weights[GRAY_BITS] = {
-        -1.5f,  // λ0
+        -1.0f,  // λ0
         -1.0f,  // λ1
-        -0.5f,  // λ2
+        -0.4f,  // λ2
         -0.2f,  // λ3
          0.2f,  // λ4
-         0.5f,  // λ5
+         0.4f,  // λ5
          1.0f,  // λ6
-         1.5f   // λ7
+         1.0f   // λ7
     };
     
     // 1. ����ԳƼ�Ȩ��
