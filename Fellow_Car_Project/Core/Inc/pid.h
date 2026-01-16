@@ -21,6 +21,14 @@ typedef struct {
     float deadband;
 } tPid;
 
+// PID结构体实例声明
+extern tPid pidMotor1Speed;
+extern tPid pidMotor2Speed;
+extern tPid pidMpu6050;        // 可以保持原样
+extern tPid pid_yaw;           // 角度环
+extern tPid pid_grayscale;     // 灰度环
+extern tPid pidAngularVelocity; // 新增：角速度环
+
 //声明函数
 float P_realize(tPid * pid,float actual_val);
 void PID_init(void);

@@ -7,6 +7,7 @@ tPid pidMotor2Speed;
 tPid pidMpu6050;
 tPid pid_yaw;
 tPid pid_grayscale;
+tPid pidAngularVelocity;
 
 //锟斤拷锟结构锟斤拷锟斤拷锟酵憋拷锟斤拷锟斤拷锟斤拷值
 // pid.c
@@ -80,15 +81,32 @@ void PID_init() {
     pid_grayscale.err = 0.0;
     pid_grayscale.err_last = 0.0;
     pid_grayscale.err_sum = 0.0;
-    pid_grayscale.Kp = 1.2f;
-    pid_grayscale.Ki = 0.05f;
-    pid_grayscale.Kd = 2.0f;
+    pid_grayscale.Kp = 1.5f;
+    pid_grayscale.Ki = 0.08f;
+    pid_grayscale.Kd = 1.0f;
     pid_grayscale.max_integral = 2.0;
     pid_grayscale.max_output = 200.0f;
     pid_grayscale.min_output = -200.0f;
     pid_grayscale.last_output = 0.0;
     pid_grayscale.max_delta = 0.0;      // 每锟斤拷锟斤拷锟戒化锟斤拷
     pid_grayscale.deadband = 0.0;        // 锟斤拷锟斤拷锟斤拷锟斤拷选锟斤拷
+	
+    //新增：角速度环初始化
+    pidAngularVelocity.actual_val = 0.0;
+    pidAngularVelocity.target_val = 0.0;     // 目标角速度（度/秒）
+    pidAngularVelocity.err = 0.0;
+    pidAngularVelocity.err_last = 0.0;
+    pidAngularVelocity.err_sum = 0.0;
+    pidAngularVelocity.Kp = 3.0f;           // 角速度环比例系数
+    pidAngularVelocity.Ki = 0.03f;          // 角速度环积分系数
+    pidAngularVelocity.Kd = 2.0f;           // 角速度环微分系数
+    pidAngularVelocity.max_integral = 10.0f; // 积分限幅
+    pidAngularVelocity.max_derivative = 50.0f; // 微分限幅
+    pidAngularVelocity.max_output = 1.0f;    // 输出限幅（用于调整速度差）
+    pidAngularVelocity.min_output = -1.0f;
+    pidAngularVelocity.last_output = 0.0;
+    pidAngularVelocity.max_delta = 0.2f;     // 输出变化率限制
+    pidAngularVelocity.deadband = 0.01f;     // 死区	
 }
 
 //锟斤拷锟斤拷p锟斤拷锟节匡拷锟狡猴拷锟斤拷

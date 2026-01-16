@@ -60,6 +60,8 @@ const float GYRO_SCALE = 16.4f;    // ï¿½ï¿½2000dpsï¿½ï¿½ï¿½ï¿½È·ï¿½ï¿½ï¿½ï¿½ï¿½
 const float ACCEL_SCALE = 16384.0f; // ï¿½ï¿½2gï¿½Ä±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 const float GYRO_AMPLIFY = 0.47f;   // ï¿½ï¿½ï¿½ï¿½Å´ï¿½ï¿½ï¿½ï¿½ï¿?
 uint32_t last_update = 0;
+
+extern tPid pidAngularVelocity;  // ½ÇËÙ¶È»·
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -498,15 +500,31 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
             if (fabsf(gray_out) < 0.05f)  // ¼õÐ¡ËÀÇø
             {
                 gray_out = 0.0f;
-            } 
+            }
+			
+            // *** ÐÂÔö£º»Ò¶È»·Êä³ö×÷Îª½ÇËÙ¶È»·µÄÄ¿±êÖµ ***
+			
+            // ½«»Ò¶È»·Êä³ö×ª»»ÎªÆÚÍû½ÇËÙ¶È£¨¶È/Ãë£©
+            float target_angular_velocity = gray_out * 0.025f; // Ëõ·ÅÏµÊýÐèÒªµ÷Õû
             
+            // »ñÈ¡µ±Ç°½ÇËÙ¶È£¨´ÓMPU6050£©
+            float current_angular_velocity = gz; // ¼ÙÉègzµ¥Î»ÒÑ¾­ÊÇ¶È/Ãë
+            
+            // *** ½ÇËÙ¶È»·¿ØÖÆ ***
+            pidAngularVelocity.target_val = target_angular_velocity;
+            float angular_out = PID_realize(&pidAngularVelocity, current_angular_velocity);
+            
+            // ½ÇËÙ¶È»·Êä³öÏÞ·ù£¨È·±£²»»á¹ý´ó£©
+            if (angular_out > 0.5f) angular_out = 0.5f;
+            if (angular_out < -0.5f) angular_out = -0.5f;  
+			
             // ÏÞ·ù
             // const float GRAY_OUT_MAX = 0.25f;  // ¼õÐ¡×î´óµ÷ÕûÁ¿
             // if (gray_out > GRAY_OUT_MAX) gray_out = GRAY_OUT_MAX;
             // if (gray_out < -GRAY_OUT_MAX) gray_out = -GRAY_OUT_MAX;
             
             // // 1.5 ÉèÖÃÄ¿±êËÙ¶È
-            float base_speed = 0.1f;  // ½µµÍ»ù´¡ËÙ¶È
+            float base_speed = 0.2f;  // ½µµÍ»ù´¡ËÙ¶È
             float adjust_speedA = base_speed + 0.1 * gray_out;
             float adjust_speedB = base_speed - 0.1 * gray_out;
             
