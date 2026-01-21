@@ -109,7 +109,6 @@ public:
             }
         }
         userQueue = newQueue;
-        
         Serial.printf("用户 %s 离开队列，药品: %d\n", userId.c_str(), static_cast<int>(medicine));
         return true;
     }
@@ -193,6 +192,12 @@ void ProcessAutoQueue() {
                              nextUser.id.c_str(), g_status.target_weight);
             }
         }
+        if (g_status.system_state == 0 && medicineQueue.getQueueCount() == 0)
+        {
+            g_status.current_weight = 0;
+            g_status.target_weight = 0;
+        }
+        
     }
 }
 
@@ -617,6 +622,7 @@ void motor_ready_callback()
     if (g_status.system_state == 2) {
         g_status.system_state = 0;
         g_status.current_weight = 0;
+        g_status.target_weight = 0;
         medicineQueue.clearCurrentUser();
     }
     
