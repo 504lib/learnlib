@@ -22,7 +22,7 @@ class ShellPage extends StatelessWidget {
     final int selectedIndex = selectedIndexForUri(GoRouterState.of(context).uri.toString());
     return NavigationView(
       appBar: NavigationAppBar(
-        title: const Text("Fluent UI with GoRouter"),
+        title: const Text("药物管理系统"),
         automaticallyImplyLeading: false
       ),
       paneBodyBuilder: (item, body) => child,

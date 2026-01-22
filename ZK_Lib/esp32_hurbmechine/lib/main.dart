@@ -35,7 +35,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return FluentApp.router(
       routerConfig: _router,
-      title: 'Fluent UI with GoRouter',
+      title: '药物管理系统',
       theme: FluentThemeData(
         accentColor: Colors.blue,
         visualDensity: VisualDensity.standard,

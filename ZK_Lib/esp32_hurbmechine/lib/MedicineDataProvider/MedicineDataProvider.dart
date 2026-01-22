@@ -2,7 +2,7 @@ import '../httpService/httpService.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-
+import 'dart:math';
 ///
 ///json格式如下
 ///{
@@ -31,15 +31,26 @@ class Medicinedataprovider extends ChangeNotifier {
   bool isMotorRunning = false;              // 电机运行状态
   bool isQueuePaused = false;               // 队列暂停状态
 
+  // 服务端队列中的 code 列表（仅来自 queue_list）
+  List<String> localJoined = [];
+
+  // 本客户端本地生成并提交过的 code 以及其药品类型映射
+  final List<String> myCodes = [];
+  final Map<String, int> myCodeMedicine = {};
+
   List<String> medicineQueue = [];         // 药物队列
   String? currentUser;                       // 当前用户         
 
   bool connected = true;
 
+  Future<void> syncFromServer() async {
+    await fetchMedicineData();
+  }
+
   Future<bool> fetchMedicineData() async {
     bool isCanConnect = true;
     try{
-      final http.Response response = await HttpService().getRequest("/api/status").timeout(const Duration(seconds: 1));
+      final http.Response response = await HttpService().getRequest("/api/status").timeout(const Duration(seconds: 3));
       if(response.statusCode != 200){
         isCanConnect = false;  
         return false;
@@ -57,6 +68,8 @@ class Medicinedataprovider extends ChangeNotifier {
       currentUser = (queueData['current_user'] as String?);
       medicineQueue = (queueData['queue_list'] as List?)?.cast<String>() ?? [];
 
+      _refreshLocalJoinedFromQueue();
+
       return true;
     }catch(e){
       debugPrint("Error fetching medicine data: $e");
@@ -66,6 +79,25 @@ class Medicinedataprovider extends ChangeNotifier {
       connected = isCanConnect;
       notifyListeners();
     }
+  }
+
+  void _refreshLocalJoinedFromQueue() {
+    final List<String> next = [];
+    for (final entry in medicineQueue) {
+      final code = _extractCode(entry);
+      if (code.isNotEmpty && !next.contains(code)) {
+        next.add(code);
+      }
+    }
+    localJoined = next;
+  }
+
+  String _extractCode(String entry) {
+    final idx = entry.indexOf(' ');
+    if (idx > 0) return entry.substring(0, idx);
+    final bracket = entry.indexOf('(');
+    if (bracket > 0) return entry.substring(0, bracket).trim();
+    return entry.trim();
   }
   String _getSystemStatusText(int statusCode) {
     switch (statusCode) {
@@ -89,4 +121,25 @@ class Medicinedataprovider extends ChangeNotifier {
         return "未知药物";
     }
   }
+  String generateClientCode() {
+    final rand = Random();
+    final buf = StringBuffer();
+    for (var i = 0; i < 5; i++) {
+      buf.write(rand.nextInt(36).toRadixString(36));
+    }
+    final clientCode = "USER_${buf.toString().toUpperCase()}";
+    notifyListeners();
+    return clientCode;
+  }
+
+  void recordLocalJoin(String code, int medicineType) {
+    if (!myCodes.contains(code)) myCodes.add(code);
+    myCodeMedicine[code] = medicineType;
+    notifyListeners();
+  }
+
+  List<String> get availableLeaveCodes =>
+      myCodes.where((c) => localJoined.contains(c)).toList(growable: false);
+
+  int getMedicineForCode(String code) => myCodeMedicine[code] ?? 0;
 }
