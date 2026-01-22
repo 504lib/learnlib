@@ -34,10 +34,14 @@ class Medicinedataprovider extends ChangeNotifier {
   List<String> medicineQueue = [];         // 药物队列
   String? currentUser;                       // 当前用户         
 
+  bool connected = true;
+
   Future<bool> fetchMedicineData() async {
+    bool isCanConnect = true;
     try{
       final http.Response response = await HttpService().getRequest("/api/status").timeout(const Duration(seconds: 1));
       if(response.statusCode != 200){
+        isCanConnect = false;  
         return false;
       }
       final Map<String, dynamic> data = json.decode(response.body);
@@ -56,8 +60,10 @@ class Medicinedataprovider extends ChangeNotifier {
       return true;
     }catch(e){
       debugPrint("Error fetching medicine data: $e");
+      isCanConnect = false;
       return false;
     }finally{
+      connected = isCanConnect;
       notifyListeners();
     }
   }

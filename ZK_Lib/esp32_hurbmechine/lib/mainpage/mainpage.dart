@@ -16,7 +16,7 @@ class _MainpageState extends State<Mainpage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback(
-      (_){
+      (_) {
         final provider = context.read<Medicinedataprovider>();
         provider.fetchMedicineData();
         _timer = Timer.periodic(const Duration(seconds: 2), (timer) {
@@ -27,8 +27,8 @@ class _MainpageState extends State<Mainpage> {
   }
   @override
   void dispose() {
-    super.dispose();
     _timer?.cancel();
+    super.dispose();
   }
   @override
   Widget build(BuildContext context) {
@@ -50,6 +50,14 @@ class _MainpageState extends State<Mainpage> {
                     ),
                   ),
                   const SizedBox(height: 20),
+                  if(!m.connected)
+                    Text(
+                      "无法连接到药物管理系统，请检查网络连接。",
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontSize: 16,
+                      ),
+                    ),
                   Text("当前重量: ${m.currentWeight} g"),
                   Text("目标重量: ${m.targetWeight} g"),
                   Text("状态: ${m.systemStatus}"),
