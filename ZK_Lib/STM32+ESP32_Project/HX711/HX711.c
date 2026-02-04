@@ -27,12 +27,12 @@ static int32_t HX711_Read(void)
     int32_t value = 0;
     
     // 等待数据准备好，带超时保护
-    uint32_t timeout = 1000;  // 1秒超时
+    uint32_t timeout = 1000;  // 10ms超时
     static uint32_t last_tick = 0;
+    last_tick = Get_Tick();
     while (HAL_GPIO_ReadPin(HX711_DOUT_GPIO_Port, HX711_DOUT_Pin) == GPIO_PIN_SET)
     {
-        if(osKernelGetTickCount() - last_tick >= timeout) return 0;  // 超时返回
-        last_tick = osKernelGetTickCount();
+        if(Get_Tick() - last_tick >= timeout) return 0;  // 超时返回
     }
     
     // 禁用中断确保时序精确
@@ -43,8 +43,8 @@ static int32_t HX711_Read(void)
         HAL_GPIO_WritePin(HX711_SCK_GPIO_Port, HX711_SCK_Pin, GPIO_PIN_SET);
         
         // 精确延时
-        last_tick = osKernelGetTickCount();
-        while ((osKernelGetTickCount() - last_tick >= 10) )
+        last_tick = Get_Tick();
+        while ((Get_Tick() - last_tick >= 10) )
         {
             break;
         }
@@ -53,8 +53,8 @@ static int32_t HX711_Read(void)
         HAL_GPIO_WritePin(HX711_SCK_GPIO_Port, HX711_SCK_Pin, GPIO_PIN_RESET);
         
         // 在时钟下降沿后读取
-        last_tick = osKernelGetTickCount();
-        while ((osKernelGetTickCount() - last_tick >= 10) )
+        last_tick = Get_Tick();
+        while ((Get_Tick() - last_tick >= 10) )
         {
             break;
         }
@@ -68,8 +68,8 @@ static int32_t HX711_Read(void)
     
     // 第25个脉冲设置增益
     HAL_GPIO_WritePin(HX711_SCK_GPIO_Port, HX711_SCK_Pin, GPIO_PIN_SET);
-    last_tick = osKernelGetTickCount();
-    while ((osKernelGetTickCount() - last_tick >= 10) )
+    last_tick = Get_Tick();
+    while ((Get_Tick() - last_tick >= 10) )
     {
             break;
     }
@@ -91,12 +91,16 @@ static int32_t HX711_Read(void)
 void HX711_Tare(void)
 {
     int32_t sum = 0;
-    
+    uint32_t last_tick = 0;
     // 读取10次取平均值
     for (uint8_t i = 0; i < 10; i++)
     {
         sum += HX711_Read();
-        HAL_Delay(10);
+        last_tick = Get_Tick();
+        while ((Get_Tick() - last_tick >= 10))
+        {
+            break;
+        }
     }
     
     weight_data.offset = sum / 10;

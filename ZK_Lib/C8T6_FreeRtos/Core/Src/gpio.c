@@ -73,7 +73,7 @@ void MX_GPIO_Init(void)
   /*Configure GPIO pins : KEY_UP_Pin KEY_DOWN_Pin KEY_ENTER_Pin KEY_CANCEL_Pin */
   GPIO_InitStruct.Pin = KEY_UP_Pin|KEY_DOWN_Pin|KEY_ENTER_Pin|KEY_CANCEL_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 }

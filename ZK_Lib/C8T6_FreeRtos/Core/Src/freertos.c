@@ -690,10 +690,10 @@ void KEY_Task(void *argument)
   MulitKey_t Key_DOWN_S;                // DOWN按键对象
   MulitKey_t Key_ENTER_S;               // ENTER按键对象
   MulitKey_t Key_CANCEL_S;              // CANCEL按键对象
-  MulitKey_Init(&Key_UP_S,Key_UP_ReadPin,KEY_UP_Pressed,KEY_UP_Pressed,FALL_BORDER_TRIGGER);
-  MulitKey_Init(&Key_DOWN_S,Key_DOWN_ReadPin,KEY_DOWN_Pressed,KEY_DOWN_Pressed,FALL_BORDER_TRIGGER);
-  MulitKey_Init(&Key_ENTER_S,Key_ENTER_ReadPin,KEY_ENTER_Pressed,KEY_ENTER_Pressed,FALL_BORDER_TRIGGER);
-  MulitKey_Init(&Key_CANCEL_S,Key_CANCEL_ReadPin,KEY_CANCEL_Pressed,KEY_CANCEL_Pressed,FALL_BORDER_TRIGGER);
+  MulitKey_Init(&Key_UP_S,Key_UP_ReadPin,KEY_UP_Pressed,KEY_UP_Pressed,RISE_BORDER_TRIGGER);
+  MulitKey_Init(&Key_DOWN_S,Key_DOWN_ReadPin,KEY_DOWN_Pressed,KEY_DOWN_Pressed,RISE_BORDER_TRIGGER);
+  MulitKey_Init(&Key_ENTER_S,Key_ENTER_ReadPin,KEY_ENTER_Pressed,KEY_ENTER_Pressed,RISE_BORDER_TRIGGER);
+  MulitKey_Init(&Key_CANCEL_S,Key_CANCEL_ReadPin,KEY_CANCEL_Pressed,KEY_CANCEL_Pressed,RISE_BORDER_TRIGGER);
   UART_protocol UART_protocol_structure = {
     .Headerframe1 = 0xAA,
     .Headerframe2 = 0x55,
