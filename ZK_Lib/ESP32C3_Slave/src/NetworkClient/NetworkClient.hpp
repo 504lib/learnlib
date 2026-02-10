@@ -39,4 +39,11 @@ public:
     bool ensureWiFiConnected(const char* ssid, const char* password);
     void addWebRoute(const String& path, ArRequestHandlerFunction handler);
     void beginWebServer();
+
+    // C风格兼容写法 后续逐步替换 避免动态分配内存
+    bool startWiFiAP(const char* ssid, const char* password,const char* ip = "http://192.168.5.1");
+    int8_t RSSI_intesify(const char* ssid);
+    bool sendGetRequest(const char* url, JsonDocument& response); 
+    bool sendPostRequest(const char* url, const char* payload); 
+    void addWebRoute(const char* path, ArRequestHandlerFunction handler);
 };

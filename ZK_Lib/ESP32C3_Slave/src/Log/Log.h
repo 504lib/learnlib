@@ -11,6 +11,20 @@
     #define CURRENT_LOG_LEVEL 3
 #endif
 
+#if __cplusplus
+enum class StaticBufferError {
+    OK,
+    NOT_ENOUGH_MEMORY,
+    INVALID_POINTER,
+};
+#else
+typedef enum {
+    OK,
+    NOT_ENOUGH_MEMORY,
+    INVALID_POINTER,
+} StaticBufferError;
+#endif
+
 // 修正文件名提取宏
 #define __FILE_NAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : (strrchr(__FILE__, '\\') ? strrchr(__FILE__, '\\') + 1 : __FILE__))
 
@@ -39,9 +53,7 @@
     #define LOG_FATAL(fmt, ...) ((void)0)   // 修正这里
 #endif
 
-// int _write(int file, char* ptr, int len);
-
-int fputc(int ch,FILE* s);
-void DMA_UART_printf(const char* fmt, ...);
+#define LOG_ASSERT(x) do { if (!(x)) { LOG_FATAL("ASSERT ERROR!!!"); for (volatile int _log_assert_block = 1; _log_assert_block; ) { } } } while (0)
 
 
+StaticBufferError check_pool(const char* buffer, size_t buffer_size,size_t required_size);

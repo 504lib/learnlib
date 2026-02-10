@@ -14,6 +14,9 @@
 #include <ArduinoJson.h>
 #include "../Log/Log.h"
 
+#define MAX_STATUS_STRING_LENGTH 16
+#define MAX_VEHICLE_JSON_LENGTH 128
+
 enum class Rounter
 {
     Route_1 = 0,            // 路线1
@@ -37,10 +40,10 @@ enum class VehicleStatus
 
 struct Vehicle_t
 {
-    String Plate;                                       // 车牌号
-    String SSID;                                        // 车辆WiFi名称
-    String Password = "12345678";                       // 车辆WiFi密码
-    String StationServer = "http://192.168.4.1";       // 车辆站点服务器地址
+    const char* Plate;                                       // 车牌号
+    const char* SSID;                                        // 车辆WiFi名称
+    const char* Password = "12345678";                       // 车辆WiFi密码
+    const char* StationServer = "http://192.168.4.1";       // 车辆站点服务器地址
     Rounter currentRoute;                               // 当前路线
     VehicleStatus status = VehicleStatus::STATUS_SCANNING;  // 当前状态
     VehicleStatus last_status = VehicleStatus::STATUS_SCANNING; // 上次状态
@@ -53,7 +56,7 @@ struct Vehicle_t
         , status(VehicleStatus::STATUS_SCANNING)
         , last_status(VehicleStatus::STATUS_SCANNING)
     {}
-    Vehicle_t(String plate, String ssid, String password, String stationServer, Rounter route, VehicleStatus status)
+    Vehicle_t(const char* plate, const char* ssid, const char* password, const char* stationServer, Rounter route, VehicleStatus status)
         : Plate(plate), SSID(ssid), Password(password), StationServer(stationServer), currentRoute(route), status(status) {}
 };
 
@@ -64,7 +67,7 @@ class Vehicle_Info
     public:
         Vehicle_Info(Vehicle_t vehicle_info) : vehicle(vehicle_info) {
             LOG_INFO("Vehicle_Info: 车辆信息初始化完成，车牌号：%s，WiFi名称：%s，站点服务器：%s",
-                     vehicle.Plate.c_str(), vehicle.SSID.c_str(), vehicle.StationServer.c_str());
+                     vehicle.Plate, vehicle.SSID, vehicle.StationServer);
         }
         String Get_Vehicle_Plate();
         String Get_Vehicle_SSID();
@@ -76,4 +79,14 @@ class Vehicle_Info
         String Get_Status_Str(VehicleStatus status);
         bool Update_Vehicle_Status(VehicleStatus new_status);
         String Vehiicle_Json();
+
+
+        // C风格兼容写法 后续逐步替换 避免动态分配内存
+        size_t Get_Vehicle_Plate(char* buffer, size_t buffer_size);
+        size_t Get_Vehicle_SSID(char* buffer, size_t buffer_size);
+        size_t Get_Vehicle_Password(char* buffer, size_t buffer_size);
+        size_t Get_Vehicle_StationServer(char* buffer, size_t buffer_size);
+        size_t Get_Status_Str(char* buffer, size_t buffer_size, VehicleStatus status);
+        size_t Get_Status_Str(char* buffer, size_t buffer_size, Vehicle_t vehicle);
+        size_t Vehiicle_Json(char* buffer, size_t buffer_size);
 };

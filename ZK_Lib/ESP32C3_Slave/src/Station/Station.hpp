@@ -15,12 +15,12 @@
 
 struct Station_t
 {
-    String name;                // 站点名称
-    String name_ch;             // 站点中文名称
+    const char* name;                // 站点名称
+    const char* name_ch;             // 站点中文名称
     bool isProcessed;           // 站点是否已处理
-    String ssid;                // 站点WiFi名称
-    String password;            // 站点WiFi密码
-    String ip;                  // 站点IP地址
+    const char* ssid;                // 站点WiFi名称
+    const char* password;            // 站点WiFi密码
+    const char* ip;                  // 站点IP地址
     int8_t lastRSSI;            // 上次连接的RSSI值
     uint32_t lastVisitTime;     // 上次访问时间戳
     int visitCount;             // 访问次数
@@ -28,7 +28,7 @@ struct Station_t
     Station_t() = default;
 
     // 自定义构造函数
-    Station_t(String name, String name_ch, String ssid, String password, String ip)
+    Station_t(const char* name, const char* name_ch, const char* ssid, const char* password, const char* ip)
         : name(name), name_ch(name_ch), ssid(ssid), password(password), ip(ip) {}
 };
 

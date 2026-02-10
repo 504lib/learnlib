@@ -25,7 +25,7 @@ bool RouterScheduler::Connect_To_Station(uint8_t index)
         return false;
     }
     Station_t& station = station_repo.Get_Index_Station(index);
-    bool connected = network_client.ensureWiFiConnected(station.ssid.c_str(), station.password.c_str());
+    bool connected = network_client.ensureWiFiConnected(station.ssid, station.password);
     if (connected)
     {
         station_repo.Change_current_index(index);
@@ -33,12 +33,12 @@ bool RouterScheduler::Connect_To_Station(uint8_t index)
         station.lastRSSI = WiFi.RSSI();
         station.lastVisitTime = millis();
         station.visitCount++;
-        LOG_INFO("Connected to station %s successfully", station.name.c_str());
+        LOG_INFO("Connected to station %s successfully", station.name);
         return true;
     }
     else
     {
-        LOG_WARN("Failed to connect to station %s", station.name.c_str());
+        LOG_WARN("Failed to connect to station %s", station.name);
         return false;
     }
 }
@@ -60,7 +60,7 @@ float RouterScheduler::CalculateStationScore(uint8_t index)
     int8_t currentRSSI = network_client.RSSI_intesify(station.ssid);
     if (currentRSSI == -1)
     {
-        LOG_INFO("RouterScheduler: 站点 %s 不在扫描结果中，得分极低", station.name.c_str());
+        LOG_INFO("RouterScheduler: 站点 %s 不在扫描结果中，得分极低", station.name);
         return -1000.0f; // SSID 不在扫描结果中，得分极低
     }
     
@@ -242,8 +242,10 @@ bool RouterScheduler::sendSinglePost(uint8_t index)
     String postData = "route=" + String(static_cast<uint8_t>(rounter)) + 
                         "&plate=" +  plate + 
                         "&status=" + vehicle_info.Get_Status_Str(status);
-    
-    return network_client.sendPostRequest(station.ip + "/api/vehicle_report", postData);
+    // todo: 修改字符串为c风格,目前暂时使用String
+    char url_buffer[64];
+    snprintf(url_buffer, sizeof(url_buffer), "%s/api/vehicle_report", station.ip);
+    return network_client.sendPostRequest(url_buffer, postData);
 }
 
 /**

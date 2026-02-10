@@ -21,6 +21,14 @@
  */
 #define N 20
 
+#define MAX_STATION_STRING_LENGTH 16
+#define MAX_STATION_LIST_JSON_LENGTH 128
+#define MAX_SSID_LENGTH 16 
+#define MAX_PASSWORD_LENGTH 16
+#define MAX_IP_LENGTH 16
+#define MAX_STATION_JSON_LENGTH 256
+
+
 class StationRepo
 {
 private:
@@ -59,9 +67,22 @@ public:
     bool Is_Empty();
     bool Mark_Current_Processed();
     bool Is_Current_Processed();
-    bool Change_Station_Password(uint8_t index, String new_password);
+    bool Change_Station_Password(uint8_t index, const char* new_password);
     void Print_Station_List(HardwareSerial &Serial);
     void Clear_Station_List();
     void Reset_Processing_Status();
     String Get_StationList_JSON();
+
+
+    // C风格兼容写法 后续逐步替换 避免动态分配内存
+    size_t Get_Index_Station_Name(char* buffer, size_t buffer_size, uint8_t index, bool is_chinese = false);
+    size_t Get_Index_Station_SSID(char* buffer, size_t buffer_size, uint8_t index);
+    size_t Get_Index_Station_Password(char* buffer, size_t buffer_size, uint8_t index);
+    size_t Get_Index_Station_IP(char* buffer, size_t buffer_size, uint8_t index);
+    size_t Get_Current_Station(char* buffer, size_t buffer_size);
+    size_t Get_Current_Station_Chinese(char* buffer, size_t buffer_size);
+    size_t Get_StationList_JSON(char* buffer, size_t buffer_size);
+
+    // 部分使用C_Str()函数,后续修正
+    int8_t find_Station(const char* target_name);
 }; // end of class StationRepo

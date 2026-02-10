@@ -56,8 +56,8 @@ bool NetworkClient::sendGetRequest(const String& url, JsonDocument& response)
         return false;
     }
     String payload = http.getString();
-    http.end();
     DeserializationError error = deserializeJson(response, payload);
+    http.end();
     LOG_DEBUG("NetworkClient: JSON 解析错误代码: %s", error.c_str());
     return (!error);
 }
@@ -259,4 +259,95 @@ bool NetworkClient::checkWiFiScan()
 bool NetworkClient::isWiFiscanning()
 {
     return isScanning;
+}
+
+
+
+bool NetworkClient::startWiFiAP(const char* ssid, const char* password,const char* ip)
+{
+    IPAddress local_ip(192, 168, 5, 1); // 更改为其他子网
+    IPAddress gateway = local_ip;
+    IPAddress subnet(255, 255, 255, 0);
+
+    WiFi.mode(WIFI_AP_STA); // 设置为双模式
+    WiFi.softAPConfig(local_ip, gateway, subnet); // 配置 AP 的 IP 地址
+    bool result = WiFi.softAP(ssid, password);
+    if (result) 
+    {
+        LOG_DEBUG("NetworkClient: AP 模式启动成功");
+    } 
+    else 
+    {
+        LOG_DEBUG("NetworkClient: AP 模式启动失败");
+    }
+    return result;
+}
+
+
+int8_t NetworkClient::RSSI_intesify(const char* ssid)
+{
+    int scasnResults = WiFi.scanComplete();
+    if(Max_SSID_NUM <= 0) return -1;  // 修复：返回-1表示无效
+    
+    int8_t bestRSSI = -100;
+    bool found = false;
+    
+    for (uint8_t i = 0; i < scasnResults; i++)  // 添加边界检查
+    {
+        if (WiFi.SSID(i) == ssid)
+        {
+            int8_t rssi = WiFi.RSSI(i);
+            LOG_DEBUG("NetworkClient: 找到SSID: %s, RSSI: %d dBm", ssid, rssi);
+            if (rssi > bestRSSI) 
+            {
+                LOG_DEBUG("NetworkClient: 更新最佳RSSI为: %d dBm,ssid:%s", rssi,ssid);
+                bestRSSI = rssi;
+                found = true;
+            }
+        }
+    }
+    WiFi.scanDelete();
+    LOG_DEBUG("NetworkClient: 最终最佳RSSI为: %d dBm", bestRSSI);
+    return found ? bestRSSI : -1;
+}
+
+
+bool NetworkClient::sendGetRequest(const char* url, JsonDocument& response)
+{
+    HTTPClient http;
+    http.setTimeout(600);
+    http.setReuse(true);
+    http.begin(url);
+    int httpCode = http.GET();
+    if (httpCode != 200) 
+    {
+        http.end();
+        return false;
+    }
+
+    Stream& stream = http.getStream();
+    // String payload = http.getString();
+    DeserializationError error = deserializeJson(response,stream );
+    http.end();
+    LOG_DEBUG("NetworkClient: JSON 解析错误代码: %s", error.c_str());
+    return (!error);
+}
+
+
+bool NetworkClient::sendPostRequest(const char* url, const char* payload)
+{
+    HTTPClient http;
+    http.setTimeout(600);
+    http.setReuse(true);
+    http.begin(url);
+    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+    int httpCode = http.POST(payload);
+    LOG_INFO("NetworkClient: HTTP POST 响应代码: %d", httpCode);
+    http.end();
+    return (httpCode == 200);
+}
+
+void NetworkClient::addWebRoute(const char* path, ArRequestHandlerFunction handler)
+{
+    server.on(path, HTTP_GET, handler);
 }

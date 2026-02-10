@@ -35,6 +35,8 @@ class RouterScheduler
         void CheckArrivingAndMaybeLeave(VehicleStatus status);
         bool sendSinglePost(uint8_t index);
 
+        
+
     public:
         RouterScheduler(StationRepo& repo, NetworkClient& client, Vehicle_Info& vehicle)
             : station_repo(repo), network_client(client), vehicle_info(vehicle){}

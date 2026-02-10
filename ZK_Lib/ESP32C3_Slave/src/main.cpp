@@ -13,9 +13,9 @@ const char* ssid            = "黑A123456"; // AP 鍚嶇О
 const char* password        = "12345678"; // AP 瀵嗙爜
 const char* station_server  = "http://192.168.4.1";
 
-String target_ssid                  = "ESP32-Access-Point"; // AP 鍚嶇О
-String target_password              = "12345678"; // AP 瀵嗙爜
-String target_station_server        = "http://192.168.4.1";
+const char* target_ssid                  = "ESP32-Access-Point"; // AP 鍚嶇О
+const char* target_password              = "12345678"; // AP 瀵嗙爜
+const char* target_station_server        = "http://192.168.4.1";
 
 QueueHandle_t xUartRxQueue;
 QueueHandle_t xPassengerUpdateQueue;
@@ -25,7 +25,7 @@ EventGroupHandle_t evt;
 
 StationRepo station_repo;
 NetworkClient network_client;
-Vehicle_t vehicle_data("黑A123456", String(ssid), String(password), String(station_server), Rounter::Route_1, VehicleStatus::STATUS_SCANNING);
+Vehicle_t vehicle_data("黑A123456", ssid, password, station_server, Rounter::Route_1, VehicleStatus::STATUS_SCANNING);
 Vehicle_Info vehicle(vehicle_data);
 RouterScheduler router_scheduler(station_repo,network_client,vehicle);
 

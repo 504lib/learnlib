@@ -1,4 +1,5 @@
 #include "Vehicle.hpp"
+#include "../StaticAllocator/StaticAllocator.hpp"
 
 
 String Vehicle_Info::Get_Vehicle_Plate()
@@ -101,4 +102,86 @@ String Vehicle_Info::Vehiicle_Json()
     String json_str;
     serializeJson(doc, json_str);
     return json_str;
+}
+
+
+size_t Vehicle_Info::Get_Vehicle_Plate(char* buffer, size_t buffer_size)
+{
+    LOG_ASSERT(check_pool(buffer, buffer_size, strlen(this->vehicle.Plate) + 1) == StaticBufferError::OK);
+    buffer = strncpy(buffer, this->vehicle.Plate, buffer_size - 1);
+    buffer[buffer_size - 1] = '\0'; // 确保字符串以null结尾
+    return strlen(buffer);
+}
+
+size_t Vehicle_Info::Get_Vehicle_SSID(char* buffer, size_t buffer_size)
+{
+    LOG_ASSERT(check_pool(buffer, buffer_size, strlen(this->vehicle.SSID) + 1) == StaticBufferError::OK);
+    buffer = strncpy(buffer, this->vehicle.SSID, buffer_size - 1);
+    buffer[buffer_size - 1] = '\0'; // 确保字符串以null结尾
+    return strlen(buffer);
+}
+
+size_t Vehicle_Info::Get_Vehicle_Password(char* buffer, size_t buffer_size)
+{
+    LOG_ASSERT(check_pool(buffer, buffer_size, strlen(this->vehicle.Password) + 1) == StaticBufferError::OK);
+    buffer = strncpy(buffer, this->vehicle.Password, buffer_size - 1);
+    buffer[buffer_size - 1] = '\0'; // 确保字符串以null结尾
+    return strlen(buffer);
+}
+
+size_t Vehicle_Info::Get_Vehicle_StationServer(char* buffer, size_t buffer_size)
+{
+    LOG_ASSERT(check_pool(buffer, buffer_size, strlen(this->vehicle.StationServer) + 1) == StaticBufferError::OK);
+    buffer = strncpy(buffer, this->vehicle.StationServer, buffer_size - 1);
+    buffer[buffer_size - 1] = '\0'; // 确保字符串以null结尾
+    return strlen(buffer);
+}
+
+size_t Vehicle_Info::Get_Status_Str(char* buffer, size_t buffer_size, VehicleStatus status)
+{
+    LOG_ASSERT(check_pool(buffer, buffer_size, MAX_STATUS_STRING_LENGTH) == StaticBufferError::OK); // 预估状态字符串最大长度不超过16
+    switch (status)
+    {
+    case VehicleStatus::STATUS_SCANNING:
+        return snprintf(buffer, buffer_size, "SCANNING");
+    case VehicleStatus::STATUS_IDLE:
+        return snprintf(buffer, buffer_size, "IDLE");
+    case VehicleStatus::STATUS_GROPE:
+        return snprintf(buffer, buffer_size, "GROPE");
+    case VehicleStatus::STATUS_CONNECTING:
+        return snprintf(buffer, buffer_size, "CONNECTING");
+    case VehicleStatus::STATUS_CONNECTED:
+        return snprintf(buffer, buffer_size, "CONNECTED");
+    case VehicleStatus::STAUS_DISCONNECTED:
+        return snprintf(buffer, buffer_size, "DISCONNECTED");
+    case VehicleStatus::STATUS_WAITING:
+        return snprintf(buffer, buffer_size, "waiting");
+    case VehicleStatus::STATUS_ARRIVING:
+        return snprintf(buffer, buffer_size, "arriving");
+    case VehicleStatus::STATUS_LEAVING:
+        return snprintf(buffer, buffer_size, "leaving");
+    default:
+        return snprintf(buffer, buffer_size, "UNKNOWN");
+    }
+}
+
+size_t Vehicle_Info::Get_Status_Str(char* buffer, size_t buffer_size, Vehicle_t vehicle)
+{
+    return Get_Status_Str(buffer, buffer_size, vehicle.status);
+}
+
+size_t Vehicle_Info::Vehiicle_Json(char* buffer, size_t buffer_size)
+{
+    LOG_ASSERT(check_pool(buffer, buffer_size, MAX_VEHICLE_JSON_LENGTH) == StaticBufferError::OK); // 预估JSON字符串最大长度不超过128
+    static uint8_t json_buffer[256]; // 静态分配JSON缓冲区
+    StaticAllocator allocate(json_buffer, sizeof(json_buffer)); // 使用静态分配器
+
+    JsonDocument doc(&allocate);
+
+    char status_str[32];
+    Get_Status_Str(status_str, sizeof(status_str), this->vehicle.status);
+    doc["Plate"] = this->vehicle.Plate;
+    doc["Router"] = static_cast<int>(this->vehicle.currentRoute);
+    doc["Status"] = status_str;
+    return serializeJson(doc, buffer, buffer_size);
 }
