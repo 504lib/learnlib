@@ -14,8 +14,12 @@
 #include <ArduinoJson.h>
 #include "../Log/Log.h"
 
-#define MAX_STATUS_STRING_LENGTH 16
+#define MAX_VEHICLE_STATUS_STRING_LENGTH 16
 #define MAX_VEHICLE_JSON_LENGTH 128
+#define MAX_VEHICLE_PLATE_LENGTH 16
+#define MAX_VEHICLE_SSID_LENGTH 16
+#
+
 
 enum class Rounter
 {

@@ -33,6 +33,28 @@ bool containsChinese(const String& str)
     return false;
 }
 
+bool containsChinese(const char* str, size_t length)
+{
+    LOG_ASSERT(str != nullptr && length > 0); // 确保输入字符串不为空
+    for (size_t i = 0; i < length; ++i) 
+    {
+        uint16_t c = str[i]; 
+        if(c < 0x80) continue;
+        if (c >= 0x4E00 && c <= 0x9FA5) 
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool containsChinese(const char* str)
+{
+    LOG_ASSERT(str != nullptr); // 确保输入字符串不为空
+    size_t length = strlen(str);
+    return containsChinese(str, length);
+}
+
 /**
  * @brief    通过站点名称查找站点索引
  * 
@@ -82,7 +104,11 @@ uint8_t StationRepo::Get_Current_Index()
 
 bool StationRepo::Change_current_index(uint8_t index)
 {
-    if (index >= this->used_num) return false;
+    if (index >= this->used_num)
+    {
+        LOG_ASSERT(false);
+        return false;
+    }
     this->current_index = index;
     return true;
 }
@@ -101,8 +127,8 @@ bool StationRepo::Add_Station_to_Tail(const Station_t& station)
         LOG_WARN("Station list is full, cannot add more stations");
         return false;
     }
-    if (this->find_Station(station.name) != -1 
-         || this->find_Station(station.name_ch) != -1)  // 站点已存在
+    if (this->find_Station(station.name,strlen(station.name)) != -1 
+         || this->find_Station(station.name_ch,strlen(station.name_ch)) != -1)  // 站点已存在
     {
         LOG_WARN("Input Station Name is same as station of the list, Please check");
         return false;
@@ -131,6 +157,7 @@ bool StationRepo::Add_Station_ByIndex(const Station_t& station, uint8_t index)
     if (index >= N || this->used_num >= N)  // 修复：index是uint8_t，不会<0
     {
         LOG_WARN("Invalid index or station list is full, cannot add station");
+        LOG_ASSERT(false);
         return false;
     }
     
@@ -196,6 +223,7 @@ bool StationRepo::Remove_Station_ByIndex(uint8_t index)
     if(!this->used_num || index >= this->used_num) 
     {
         LOG_WARN("Invalid index or station list is empty, cannot remove station");
+        LOG_ASSERT(false);
         return false;
     }
     
@@ -222,6 +250,28 @@ bool StationRepo::Remove_Station_ByString(const String& name)
     if (temp == -1)
     {
         LOG_WARN("Station %s not found, cannot remove station", name.c_str());
+        return false;
+    }
+    else
+    {
+        return this->Remove_Station_ByIndex(temp);
+    }
+}
+
+
+bool StationRepo::Remove_Station_ByString(const char* name, size_t length)
+{
+    if (name == nullptr || length <= 0)
+    {
+        LOG_WARN("Invalid station name, cannot remove station");
+        LOG_ASSERT(false);
+        return false;
+    }
+    int8_t temp = this->find_Station(name,length);
+    
+    if (temp == -1)
+    {
+        LOG_WARN("Station %s not found, cannot remove station", name);
         return false;
     }
     else
@@ -383,9 +433,21 @@ bool StationRepo::Is_Current_Processed()
  */
 bool StationRepo::Change_Station_Password(uint8_t index, const char* new_password)
 {
+    if (new_password == nullptr)
+    {
+        LOG_WARN("Invalid new password, cannot change station password");
+        LOG_ASSERT(false); // 断言失败，提示开发者检查输入问题
+        return false;
+    }
+    if (strlen(new_password) == 0)
+    {
+        LOG_WARN("New password is empty, cannot change station password");
+        return false;
+    }
     if (index >= this->used_num) 
     {
         LOG_WARN("Invalid index %d, cannot change station password", index);
+        LOG_ASSERT(false);
         return false;
     }
     this->station_list[index].password = new_password;
@@ -488,6 +550,7 @@ Station_t& StationRepo::Get_Index_Station(uint8_t index)
     if (index >= used_num) 
     {
         Serial.println("Error: Index out of range.");
+        LOG_ASSERT(false);
         static Station_t invalidStation("","","","",""); // 返回一个静态的无效对象
         return invalidStation;
     }
@@ -507,6 +570,7 @@ String StationRepo::Get_Index_Station_Name(uint8_t index,bool is_chinese)
     if (index >= used_num)
     {
         LOG_WARN("Invalid index %d, cannot get station name", index);
+        LOG_ASSERT(false);
         return String("");
     }
     
@@ -531,6 +595,7 @@ String StationRepo::Get_Index_Station_SSID(uint8_t index)
     if (index >= used_num)
     {
         LOG_WARN("Invalid index %d, cannot get station SSID", index);
+        LOG_ASSERT(false);
         return String("");
     }
     return this->station_list[index].ssid;
@@ -547,6 +612,7 @@ String StationRepo::Get_Index_Station_Password(uint8_t index)
     if (index >= used_num)
     {
         LOG_WARN("Invalid index %d, cannot get station password", index);
+        LOG_ASSERT(false);
         return String("");
     }
     return this->station_list[index].password;
@@ -563,6 +629,7 @@ String StationRepo::Get_Index_Station_IP(uint8_t index)
     if (index >= used_num)
     {
         LOG_WARN("Invalid index %d, cannot get station IP", index);
+        LOG_ASSERT(false);
         return String("");
     }
     return this->station_list[index].ip;
@@ -579,6 +646,7 @@ int8_t StationRepo::Get_Index_Station_LastRSSI(uint8_t index)
     if (index >= used_num)
     {
         LOG_WARN("Invalid index %d, cannot get station last RSSI", index);
+        LOG_ASSERT(false);
         return -100;
     }
     return this->station_list[index].lastRSSI;
@@ -595,6 +663,7 @@ uint32_t StationRepo::Get_Index_Station_LastVisitTime(uint8_t index)
     if (index >= used_num)
     {
         LOG_WARN("Invalid index %d, cannot get station last visit time", index);
+        LOG_ASSERT(false);
         return 0;
     }
     return this->station_list[index].lastVisitTime;
@@ -611,6 +680,7 @@ int StationRepo::Get_Index_Station_VisitCount(uint8_t index)
     if (index >= used_num)
     {
         LOG_WARN("Invalid index %d, cannot get station visit count", index);
+        LOG_ASSERT(false);
         return 0;
     }
     return this->station_list[index].visitCount;
@@ -628,6 +698,7 @@ bool StationRepo::is_Processed(uint8_t index)
     if (index >= used_num)
     {
         LOG_WARN("Invalid index %d, cannot get station processed status", index);
+        LOG_ASSERT(false);
         return false;
     }
     return this->station_list[index].isProcessed;
@@ -645,14 +716,33 @@ bool StationRepo::is_Connected(uint8_t index)
     if (index >= used_num)
     {
         LOG_WARN("Invalid index %d, cannot get station connected status", index);
+        LOG_ASSERT(false);
         return false;
     }
     return this->station_list[index].isConnnectd;
 }
-
+    
 int8_t StationRepo::find_Station(const char* target_name)
 {
-    if(containsChinese(target_name))
+    if(target_name == nullptr) 
+    {
+        LOG_WARN("Invalid target name, cannot find station");
+        LOG_ASSERT(false); // 断言失败，提示开发者检查输入问题
+        return -1;
+    }
+    size_t length = strlen(target_name);
+    return find_Station(target_name, length);
+}
+
+int8_t StationRepo::find_Station(const char* target_name, size_t length)
+{
+    if (target_name == nullptr || length <= 0)
+    {
+        LOG_WARN("Invalid target name or length, cannot find station");
+        LOG_ASSERT(false); // 断言失败，提示开发者检查输入问题
+        return -1;
+    }
+    if(containsChinese(target_name,length))
     {
         for (uint8_t i = 0; i < this->used_num; i++)  
         {
@@ -682,10 +772,18 @@ int8_t StationRepo::find_Station(const char* target_name)
 
 size_t StationRepo::Get_Index_Station_Name(char* buffer, size_t buffer_size, uint8_t index, bool is_chinese)
 {
-    LOG_ASSERT(check_pool(buffer, buffer_size, MAX_STATION_STRING_LENGTH) == StaticBufferError::OK); // 预估站点名称最大长度不超过64
+    StaticBufferError error = check_pool(buffer, buffer_size, MAX_STATION_STRING_LENGTH);
+    if (error != StaticBufferError::OK)
+    {
+        LOG_WARN("Buffer check failed with error code %d, cannot get station name", static_cast<int>(error));
+        LOG_ASSERT(false); // 断言失败，提示开发者检查缓冲区问题
+        return 0;
+    }
+    
     if (index >= used_num)
     {
         LOG_WARN("Invalid index %d, cannot get station name", index);
+        LOG_ASSERT(false);
         return 0;
     }
     
@@ -702,10 +800,17 @@ size_t StationRepo::Get_Index_Station_Name(char* buffer, size_t buffer_size, uin
 
 size_t StationRepo::Get_Index_Station_SSID(char* buffer, size_t buffer_size, uint8_t index)
 {
-    LOG_ASSERT(check_pool(buffer, buffer_size, MAX_SSID_LENGTH) == StaticBufferError::OK); // 预估站点SSID最大长度不超过64
+    StaticBufferError error = check_pool(buffer, buffer_size, MAX_STATION_SSID_LENGTH);
+    if (error != StaticBufferError::OK)
+    {
+        LOG_WARN("Buffer check failed with error code %d, cannot get station name", static_cast<int>(error));
+        LOG_ASSERT(false); // 断言失败，提示开发者检查缓冲区问题
+        return 0;
+    }
     if (index >= used_num)
     {
         LOG_WARN("Invalid index %d, cannot get station SSID", index);
+        LOG_ASSERT(false);
         return 0;
     }
     return snprintf(buffer, buffer_size, "%s", this->station_list[index].ssid);
@@ -714,10 +819,17 @@ size_t StationRepo::Get_Index_Station_SSID(char* buffer, size_t buffer_size, uin
 
 size_t StationRepo::Get_Index_Station_Password(char* buffer, size_t buffer_size, uint8_t index)
 {
-    LOG_ASSERT(check_pool(buffer, buffer_size, MAX_PASSWORD_LENGTH) == StaticBufferError::OK); // 预估站点密码最大长度不超过64
+    StaticBufferError error = check_pool(buffer, buffer_size, MAX_STATION_PASSWORD_LENGTH);
+    if (error != StaticBufferError::OK)
+    {
+        LOG_WARN("Buffer check failed with error code %d, cannot get station name", static_cast<int>(error));
+        LOG_ASSERT(false); // 断言失败，提示开发者检查缓冲区问题
+        return 0;
+    }
     if (index >= used_num)
     {
         LOG_WARN("Invalid index %d, cannot get station password", index);
+        LOG_ASSERT(false);
         return 0;
     }
     return snprintf(buffer, buffer_size, "%s", this->station_list[index].password);
@@ -726,10 +838,17 @@ size_t StationRepo::Get_Index_Station_Password(char* buffer, size_t buffer_size,
 
 size_t StationRepo::Get_Index_Station_IP(char* buffer, size_t buffer_size, uint8_t index)
 {
-    LOG_ASSERT(check_pool(buffer, buffer_size, MAX_IP_LENGTH) == StaticBufferError::OK); // 预估站点IP地址最大长度不超过64
+    StaticBufferError error = check_pool(buffer, buffer_size, MAX_STATION_IP_LENGTH);
+    if (error != StaticBufferError::OK)
+    {
+        LOG_WARN("Buffer check failed with error code %d, cannot get station name", static_cast<int>(error));
+        LOG_ASSERT(false); // 断言失败，提示开发者检查缓冲区问题
+        return 0;
+    }
     if (index >= used_num)
     {
         LOG_WARN("Invalid index %d, cannot get station IP", index);
+        LOG_ASSERT(false);
         return 0;
     }
     return snprintf(buffer, buffer_size, "%s", this->station_list[index].ip);
@@ -738,26 +857,46 @@ size_t StationRepo::Get_Index_Station_IP(char* buffer, size_t buffer_size, uint8
 
 size_t StationRepo::Get_Current_Station(char* buffer, size_t buffer_size)
 {
-    LOG_ASSERT(check_pool(buffer, buffer_size, MAX_STATION_STRING_LENGTH) == StaticBufferError::OK); // 预估站点名称最大长度不超过64
+    StaticBufferError error = check_pool(buffer, buffer_size, MAX_STATION_STRING_LENGTH);
+    if (error != StaticBufferError::OK)
+    {
+        LOG_WARN("Buffer check failed with error code %d, cannot get station name", static_cast<int>(error));
+        LOG_ASSERT(false); // 断言失败，提示开发者检查缓冲区问题
+        return 0;
+    }
     if (this->used_num == 0) return 0;
     return snprintf(buffer, buffer_size, "%s", this->station_list[this->current_index].name);
 }
 
 size_t StationRepo::Get_Current_Station_Chinese(char* buffer, size_t buffer_size)
 {
-    LOG_ASSERT(check_pool(buffer, buffer_size, MAX_STATION_STRING_LENGTH) == StaticBufferError::OK); // 预估站点名称最大长度不超过64
+    StaticBufferError error = check_pool(buffer, buffer_size, MAX_STATION_STRING_LENGTH);
+    if (error != StaticBufferError::OK)
+    {
+        LOG_WARN("Buffer check failed with error code %d, cannot get station name", static_cast<int>(error));
+        LOG_ASSERT(false); // 断言失败，提示开发者检查缓冲区问题
+        return 0;
+    }
     if (this->used_num == 0) return 0;
     return snprintf(buffer, buffer_size, "%s", this->station_list[this->current_index].name_ch);
 }
 
 size_t StationRepo::Get_StationList_JSON(char* buffer, size_t buffer_size)
 {
-    LOG_ASSERT(check_pool(buffer, buffer_size, MAX_STATION_JSON_LENGTH) == StaticBufferError::OK); // 预估JSON字符串最大长度不超过128
-    static uint8_t json_buffer[256]; // 静态分配JSON缓冲区
+    StaticBufferError error = check_pool(buffer, buffer_size, MAX_STATION_LIST_JSON_LENGTH);
+    if (error != StaticBufferError::OK)
+    {
+        LOG_WARN("Buffer check failed with error code %d, cannot get station name", static_cast<int>(error));
+        LOG_ASSERT(false); // 断言失败，提示开发者检查缓冲区问题
+        return 0;
+    }
+    static uint8_t json_buffer[MAX_STATION_LIST_JSON_LENGTH]; // 静态分配JSON缓冲区
     StaticAllocator allocate(json_buffer, sizeof(json_buffer)); // 使用静态分配器
 
     JsonDocument doc(&allocate);
-    doc["target_station"] = Get_Current_Station_Chinese();
+    char temp_buffer[MAX_STATION_STRING_LENGTH];
+    (void)Get_Current_Station_Chinese(temp_buffer, sizeof(temp_buffer));
+    doc["target_station"] = temp_buffer;
     doc["current_sta_status"] = Is_Current_Processed() ? "true" : "false";
     JsonArray stationArray = doc["station_list"].to<JsonArray>();
     for (uint8_t i = 0; i < this->used_num; i++)
@@ -771,4 +910,29 @@ size_t StationRepo::Get_StationList_JSON(char* buffer, size_t buffer_size)
         stationObj["isConnected"] = this->station_list[i].isConnnectd ? "true" : "false";
     }
     return serializeJson(doc, buffer, buffer_size);
+}
+
+
+bool StationRepo::Add_StationToLater_ByString(const Station_t& station, const char* target_name, size_t length)
+{
+    if(target_name == nullptr || length == 0) 
+    {
+        LOG_WARN("Invalid target name, cannot add station");
+        LOG_ASSERT(false); // 断言失败，提示开发者检查输入问题
+        return false;
+    }
+    if (this->used_num >= N)  // 修复：移除index检查，因为index还没定义
+    {
+        LOG_WARN("Station list is full, cannot add more stations");
+        return false;
+    }
+    
+    int8_t index = this->find_Station(target_name,length);
+    
+    if (index != -1)
+    {
+        return this->Add_Station_ByIndex(station,index);  // 修复：添加右括号，插入到目标后面
+    }
+    LOG_WARN("Target station %s not found, cannot add station", target_name);
+    return false; 
 }

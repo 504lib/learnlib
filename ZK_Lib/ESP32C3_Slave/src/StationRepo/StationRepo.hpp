@@ -22,10 +22,10 @@
 #define N 20
 
 #define MAX_STATION_STRING_LENGTH 16
-#define MAX_STATION_LIST_JSON_LENGTH 128
-#define MAX_SSID_LENGTH 16 
-#define MAX_PASSWORD_LENGTH 16
-#define MAX_IP_LENGTH 16
+#define MAX_STATION_LIST_JSON_LENGTH 256
+#define MAX_STATION_SSID_LENGTH 16 
+#define MAX_STATION_PASSWORD_LENGTH 16
+#define MAX_STATION_IP_LENGTH 16
 #define MAX_STATION_JSON_LENGTH 256
 
 
@@ -36,6 +36,9 @@ private:
     uint8_t used_num = 0;                               // 已使用站点数量
     uint8_t current_index = 0;                          // 当前站点索引
     int8_t find_Station(const String& target_name);     // 查找站点索引
+    // 部分使用C_Str()函数,后续修正
+    int8_t find_Station(const char* target_name);
+    int8_t find_Station(const char* target_name,size_t length);     // 查找站点索引 C风格字符串版本
 public:
     StationRepo() = default;
     ~StationRepo() = default;
@@ -43,10 +46,16 @@ public:
     bool Change_current_index(uint8_t index);
     bool Add_Station_to_Tail(const Station_t& station);     
     bool Add_Station_ByIndex(const Station_t& station, uint8_t index);
-    bool Add_StationToLater_ByString(const Station_t& station, const String& target_name);
+
+    bool Add_StationToLater_ByString(const Station_t& station, const String& target_name);      // 暂时保留，后续替换为C风格字符串版本
+    bool Add_StationToLater_ByString(const Station_t& station, const char* target_name,size_t length);        // 新增：使用C风格字符串版本，避免动态分配内存
+
     bool Remove_Station_Head();
     bool Remove_Station_Tail();
-    bool Remove_Station_ByString(const String& target_name);
+
+    bool Remove_Station_ByString(const String& target_name);        // 暂时保留，后续替换为C风格字符串版本
+    bool Remove_Station_ByString(const char* name,size_t length);                 // 新增：使用C风格字符串版本，避免动态分配内存
+
     bool Remove_Station_ByIndex(uint8_t index);
     Station_t& Get_Index_Station(uint8_t index);
     String Get_Index_Station_Name(uint8_t index,bool is_chinese = false);
@@ -83,6 +92,4 @@ public:
     size_t Get_Current_Station_Chinese(char* buffer, size_t buffer_size);
     size_t Get_StationList_JSON(char* buffer, size_t buffer_size);
 
-    // 部分使用C_Str()函数,后续修正
-    int8_t find_Station(const char* target_name);
 }; // end of class StationRepo

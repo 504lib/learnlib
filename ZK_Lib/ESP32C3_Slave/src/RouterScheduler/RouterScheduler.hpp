@@ -19,6 +19,9 @@
 #include "../protocol/protocol.hpp"
 #include "../Log/Log.h"
 
+#define RESPONSE_JSON_BUFFER_SIZE 256
+#define MAX_ROUTER_INFO_JSON_LENGTH 1024
+
 typedef std::function<void(const DataPacket_t)> CommandQueueCallback;
 
 class RouterScheduler
@@ -33,8 +36,12 @@ class RouterScheduler
         float CalculateStationScore(uint8_t index);
         int FindBestStation();
         void CheckArrivingAndMaybeLeave(VehicleStatus status);
+
+        void CheckArrivingAndMaybeLeave_C_style(VehicleStatus status);
+
         bool sendSinglePost(uint8_t index);
 
+        bool sendSinglePost_C_style(uint8_t index);
         
 
     public:
@@ -43,4 +50,5 @@ class RouterScheduler
         void setCommandQueueCallback(CommandQueueCallback callback);
         void RouterScheduler_Executer();
         String Get_RouterInfo_JSON();
+        size_t Get_RouterInfo_JSON(char* buffer, size_t buffer_size);
 };

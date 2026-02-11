@@ -53,7 +53,10 @@ typedef enum {
     #define LOG_FATAL(fmt, ...) ((void)0)   // 修正这里
 #endif
 
-#define LOG_ASSERT(x) do { if (!(x)) { LOG_FATAL("ASSERT ERROR!!!"); for (volatile int _log_assert_block = 1; _log_assert_block; ) { } } } while (0)
-
+#if CURRENT_LOG_LEVEL >= 3
+    #define LOG_ASSERT(x) do { if (!(x)) { LOG_FATAL("ASSERT ERROR!!!"); for (volatile int _log_assert_block = 1; _log_assert_block; ) { } } } while (0)
+#else
+    #define LOG_ASSERT(x) ((void)0)    // 修正这里
+#endif
 
 StaticBufferError check_pool(const char* buffer, size_t buffer_size,size_t required_size);

@@ -1,4 +1,5 @@
 #include "NetworkClient.hpp"
+#include <esp_wifi.h>
 
 /**
  * @brief    异步开始WiFi扫描
@@ -163,6 +164,12 @@ bool NetworkClient::startWiFiAP(String ssid, String password,String ip)
  * @param    handler   路由处理函数
  */
 void NetworkClient::addWebRoute(const String& path, ArRequestHandlerFunction handler) {
+    if (!handler)
+    {
+        LOG_WARN("NetworkClient: 无效的路由处理函数");
+        LOG_ASSERT(false); // 断言失败，处理函数无效
+        return;
+    }
     server.on(path.c_str(), HTTP_GET, handler);
 }
 
@@ -265,6 +272,13 @@ bool NetworkClient::isWiFiscanning()
 
 bool NetworkClient::startWiFiAP(const char* ssid, const char* password,const char* ip)
 {
+    if (ssid == nullptr || password == nullptr || ip == nullptr
+        || ssid[0] == '\0' || password[0] == '\0' || ip[0] == '\0') 
+    {
+        LOG_WARN("NetworkClient: 无效的SSID、密码或IP地址");
+        LOG_ASSERT(false); // 断言失败，输入无效
+        return false;
+    }
     IPAddress local_ip(192, 168, 5, 1); // 更改为其他子网
     IPAddress gateway = local_ip;
     IPAddress subnet(255, 255, 255, 0);
@@ -286,26 +300,42 @@ bool NetworkClient::startWiFiAP(const char* ssid, const char* password,const cha
 
 int8_t NetworkClient::RSSI_intesify(const char* ssid)
 {
-    int scasnResults = WiFi.scanComplete();
-    if(Max_SSID_NUM <= 0) return -1;  // 修复：返回-1表示无效
+    if (!ssid || ssid[0] == '\0') return -1;
+    if (Max_SSID_NUM <= 0) return -1;  // 修复：返回-1表示无效
+    // 确保扫描已完成
+    if (WiFi.scanComplete() <= 0) return -1;
+
+    uint16_t apCount = 0;
+    if (esp_wifi_scan_get_ap_num(&apCount) != ESP_OK || apCount == 0) {
+        return -1;
+    }
+
+    // 分配静态/栈上数组，避免动态分配
+    if (apCount > WIFI_STATIC_TABLE_NUM) apCount = WIFI_STATIC_TABLE_NUM; // 视项目内存情况调整上限
+    wifi_ap_record_t records[WIFI_STATIC_TABLE_NUM];
+
     
+    uint16_t number = apCount;
+    if (esp_wifi_scan_get_ap_records(&number, records) != ESP_OK) {
+        return -1;
+    }
+
     int8_t bestRSSI = -100;
     bool found = false;
-    
-    for (uint8_t i = 0; i < scasnResults; i++)  // 添加边界检查
-    {
-        if (WiFi.SSID(i) == ssid)
-        {
-            int8_t rssi = WiFi.RSSI(i);
+
+    for (uint16_t i = 0; i < number; ++i) {
+        const char* recSsid = reinterpret_cast<const char*>(records[i].ssid);
+        if (recSsid && strcmp(recSsid, ssid) == 0) {
+            int8_t rssi = records[i].rssi;
             LOG_DEBUG("NetworkClient: 找到SSID: %s, RSSI: %d dBm", ssid, rssi);
-            if (rssi > bestRSSI) 
-            {
+            if (rssi > bestRSSI) {
                 LOG_DEBUG("NetworkClient: 更新最佳RSSI为: %d dBm,ssid:%s", rssi,ssid);
                 bestRSSI = rssi;
                 found = true;
             }
         }
     }
+
     WiFi.scanDelete();
     LOG_DEBUG("NetworkClient: 最终最佳RSSI为: %d dBm", bestRSSI);
     return found ? bestRSSI : -1;
@@ -314,6 +344,13 @@ int8_t NetworkClient::RSSI_intesify(const char* ssid)
 
 bool NetworkClient::sendGetRequest(const char* url, JsonDocument& response)
 {
+    if (!url || url[0] == '\0') 
+    {
+        LOG_WARN("NetworkClient: 无效的URL");
+        LOG_ASSERT(false); // 断言失败，输入无效
+        return false;
+    }
+
     HTTPClient http;
     http.setTimeout(600);
     http.setReuse(true);
@@ -336,6 +373,12 @@ bool NetworkClient::sendGetRequest(const char* url, JsonDocument& response)
 
 bool NetworkClient::sendPostRequest(const char* url, const char* payload)
 {
+    if (!url || url[0] == '\0' || !payload || payload[0] == '\0') 
+    {
+        LOG_WARN("NetworkClient: 无效的URL或负载");
+        LOG_ASSERT(false); // 断言失败，输入无效
+        return false;
+    }
     HTTPClient http;
     http.setTimeout(600);
     http.setReuse(true);
@@ -349,5 +392,17 @@ bool NetworkClient::sendPostRequest(const char* url, const char* payload)
 
 void NetworkClient::addWebRoute(const char* path, ArRequestHandlerFunction handler)
 {
+    if (!path || path[0] == '\0') 
+    {
+        LOG_WARN("NetworkClient: 无效的路径");
+        LOG_ASSERT(false); // 断言失败，输入无效
+        return;
+    }
+    if (!handler)
+    {
+        LOG_WARN("NetworkClient: 无效的路由处理函数");
+        LOG_ASSERT(false); // 断言失败，处理函数无效
+        return;
+    }
     server.on(path, HTTP_GET, handler);
 }

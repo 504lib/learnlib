@@ -9,6 +9,7 @@
  * 
  */
 #include "RouterScheduler.hpp"
+#include "../StaticAllocator/StaticAllocator.hpp"
 
 /**
  * @brief    连接到指定站点
@@ -211,6 +212,98 @@ void RouterScheduler::CheckArrivingAndMaybeLeave(VehicleStatus status)
 }
 
 
+void RouterScheduler::CheckArrivingAndMaybeLeave_C_style(VehicleStatus status)
+{
+    uint8_t used_num = station_repo.Get_Station_Count();
+    uint8_t current_index = station_repo.Get_Current_Index();
+    if (used_num == 0 || current_index >= used_num)
+    {
+        LOG_INFO("CheckArriving: 无可用站点，跳过检查");
+        vehicle_info.Update_Vehicle_Status(VehicleStatus::STAUS_DISCONNECTED);
+        return;
+    }
+    if (WiFi.status() != WL_CONNECTED)
+    {
+        LOG_INFO("CheckArriving: WiFi 未连接，跳过检查");
+        vehicle_info.Update_Vehicle_Status(VehicleStatus::STAUS_DISCONNECTED);
+        return;
+    }
+
+    const char* ip = station_repo.Get_Index_Station(current_index).ip;
+    LOG_ASSERT(ip != nullptr);
+
+    char url_buffer[64];
+    size_t ip_len = strlen(ip);
+    bool has_http = (strncmp(ip, "http://", 7) == 0) || (strncmp(ip, "https://", 8) == 0);
+    bool has_slash = (ip_len > 0 && ip[ip_len - 1] == '/');
+
+    int written = 0;
+    if (has_http)
+    {
+        written = snprintf(url_buffer, sizeof(url_buffer), "%s%sapi/info", ip, has_slash ? "" : "/");
+    }
+    else
+    {
+        written = snprintf(url_buffer, sizeof(url_buffer), "http://%s%sapi/info", ip, has_slash ? "" : "/");
+    }
+
+    if (written <= 0 || static_cast<size_t>(written) >= sizeof(url_buffer))
+    {
+        LOG_WARN("CheckArriving: URL 缓冲区不足");
+        vehicle_info.Update_Vehicle_Status(VehicleStatus::STAUS_DISCONNECTED);
+        return;
+    }
+
+    LOG_DEBUG("CheckArriving GET: %s", url_buffer);
+    static uint8_t json_buffer[256]; // 静态分配JSON缓冲区，避免动态分配
+    StaticAllocator jsonAllocator(json_buffer, sizeof(json_buffer));
+    JsonDocument doc(&jsonAllocator);
+    bool success = network_client.sendGetRequest(url_buffer, doc);
+    if (!success)
+    {
+        LOG_WARN("CheckArriving: GET 请求失败");
+        vehicle_info.Update_Vehicle_Status(VehicleStatus::STAUS_DISCONNECTED);
+        return;
+    }
+    if (!doc["passenger_list"].is<JsonArray>())
+    {
+        LOG_WARN("CheckArriving: JSON 中无 passenger_list 字段");
+        vehicle_info.Update_Vehicle_Status(VehicleStatus::STAUS_DISCONNECTED);
+        return;
+    }
+    JsonArray passenger_arr = doc["passenger_list"].as<JsonArray>();
+    int routeIndex = static_cast<int>(vehicle_info.Get_Vehicle_Rounter());
+    if (routeIndex < 0 || routeIndex >= (int)passenger_arr.size())
+    {
+        LOG_WARN("CheckArriving: routeIndex(%d) 超出 passenger_list 大小(%u)", routeIndex, (unsigned)passenger_arr.size());
+        vehicle_info.Update_Vehicle_Status(VehicleStatus::STAUS_DISCONNECTED);
+        return;
+    }
+
+    int pnum = passenger_arr[routeIndex];
+    LOG_INFO("CheckArriving: route %d passenger_num = %d", routeIndex, pnum);
+
+    if (pnum == 0)
+    {
+        LOG_INFO("CheckArriving: route %d 无乘客，切换到 LEAVING", routeIndex);
+        vehicle_info.Update_Vehicle_Status(VehicleStatus::STATUS_LEAVING);
+        return;
+    }
+    if (commandQueueCallback)       // 这个队列来自 main.cpp 的回调设置
+    {
+        DataPacket_t ack;
+        ack.type = CmdType::VEHICLE_STATUS;
+        ack.data[0] =static_cast<uint8_t>(status);
+        ack.length = 1;
+        commandQueueCallback(ack);
+        LOG_INFO("RouterScheduler: 状态报告发送成功 状态:%d",static_cast<uint8_t>(status));
+    }
+    
+    vehicle_info.Update_Vehicle_Status(status);
+    sendSinglePost(station_repo.Get_Current_Index());
+}
+
+
 /**
  * @brief    设置命令队列回调函数
  * 
@@ -246,6 +339,46 @@ bool RouterScheduler::sendSinglePost(uint8_t index)
     char url_buffer[64];
     snprintf(url_buffer, sizeof(url_buffer), "%s/api/vehicle_report", station.ip);
     return network_client.sendPostRequest(url_buffer, postData);
+}
+
+
+bool RouterScheduler::sendSinglePost_C_style(uint8_t index)
+{
+    char postData_buffer[MAX_VEHICLE_JSON_LENGTH];
+    char plate_buffer[MAX_VEHICLE_PLATE_LENGTH];
+    char status_buffer[MAX_VEHICLE_STATUS_STRING_LENGTH];
+    if(WiFi.status() != WL_CONNECTED)
+    {
+        LOG_WARN("WiFi 未连接，无法发送数据");
+        return false;
+    }
+    size_t plate_len = vehicle_info.Get_Vehicle_Plate(plate_buffer, sizeof(plate_buffer));
+    size_t status_len = vehicle_info.Get_Status_Str(status_buffer, sizeof(status_buffer), vehicle_info.Get_Vehicle_Status());
+    if (plate_len == 0 || status_len == 0)
+    {
+        LOG_WARN("sendSinglePost_C_style: plate/status 为空");
+        return false;
+    }
+
+    Station_t& station = station_repo.Get_Index_Station(index);
+    Rounter rounter = vehicle_info.Get_Vehicle_Rounter();
+    VehicleStatus status = vehicle_info.Get_Vehicle_Status(); 
+    int post_written = snprintf(postData_buffer, sizeof(postData_buffer), "route=%u&plate=%s&status=%s", 
+             static_cast<unsigned>(rounter), plate_buffer, status_buffer);
+    if (post_written <= 0 || static_cast<size_t>(post_written) >= sizeof(postData_buffer))
+    {
+        LOG_WARN("sendSinglePost_C_style: postData 缓冲区不足");
+        return false;
+    }
+    // todo: 修改字符串为c风格,目前暂时使用String
+    char url_buffer[64];
+    int url_written = snprintf(url_buffer, sizeof(url_buffer), "%s/api/vehicle_report", station.ip);
+    if (url_written <= 0 || static_cast<size_t>(url_written) >= sizeof(url_buffer))
+    {
+        LOG_WARN("sendSinglePost_C_style: url 缓冲区不足");
+        return false;
+    }
+    return network_client.sendPostRequest(url_buffer, postData_buffer);
 }
 
 /**
@@ -452,4 +585,57 @@ String RouterScheduler::Get_RouterInfo_JSON() {
     String jsonStr;
     serializeJson(doc, jsonStr);
     return jsonStr;
+}
+
+
+size_t RouterScheduler::Get_RouterInfo_JSON(char* buffer, size_t buffer_size)
+{
+    StaticBufferError error = check_pool(buffer, buffer_size, MAX_ROUTER_INFO_JSON_LENGTH);
+    if (error != StaticBufferError::OK)
+    {
+        LOG_FATAL("Buffer check failed with error code %d, cannot get router info JSON", static_cast<int>(error));
+        LOG_ASSERT(false); // 断言失败，提示开发者修正缓冲区大小
+        return 0;
+    }
+    static uint8_t json_buffer[MAX_ROUTER_INFO_JSON_LENGTH];
+    static uint8_t station_json_buffer[MAX_STATION_LIST_JSON_LENGTH];
+    static uint8_t vehicle_json_buffer[MAX_VEHICLE_JSON_LENGTH];
+    StaticAllocator json_allocator(json_buffer, sizeof(json_buffer));
+    StaticAllocator station_json_allocator(station_json_buffer, sizeof(station_json_buffer));
+    StaticAllocator vehicle_json_allocator(vehicle_json_buffer, sizeof(vehicle_json_buffer));
+    // 定义 JSON 文档
+    JsonDocument doc(&json_allocator);       // 创建容量为 2048 的 JsonDocument
+    JsonDocument stationdoc(&station_json_allocator); // 创建容量为 1024 的 JsonDocument
+    JsonDocument vehicledoc(&vehicle_json_allocator);  // 创建容量为 512 的 JsonDocument
+    char station_json[MAX_STATION_LIST_JSON_LENGTH];
+    size_t station_len = station_repo.Get_StationList_JSON(station_json, sizeof(station_json));
+    if (station_len == 0)
+    {
+        LOG_WARN("RouterScheduler::Get_RouterInfo_JSON 站点仓库 JSON 为空");
+        return snprintf(buffer, buffer_size, "{\"error\":\"Empty station_repo JSON\"}");
+    }
+    // 解析站点仓库的 JSON 数据
+    DeserializationError err = deserializeJson(stationdoc, station_json, sizeof(station_json));
+    if (err) {
+        LOG_WARN("RouterScheduler::Get_RouterInfo_JSON 解析站点仓库 JSON 失败: %s", err.c_str());
+        return snprintf(buffer, buffer_size, "{\"error\":\"Failed to parse station_repo JSON\"}");
+    }
+    doc["station_repo"] = stationdoc.as<JsonObject>();
+    char vehicle_json[MAX_VEHICLE_JSON_LENGTH];
+    size_t vehicle_len = vehicle_info.Vehiicle_Json(vehicle_json, sizeof(vehicle_json));
+    if (vehicle_len == 0)
+    {
+        LOG_WARN("RouterScheduler::Get_RouterInfo_JSON 车辆信息 JSON 为空");
+        return snprintf(buffer, buffer_size, "{\"error\":\"Empty vehicle_info JSON\"}");
+    }
+    // 解析车辆信息的 JSON 数据
+    err = deserializeJson(vehicledoc, vehicle_json, sizeof(vehicle_json));
+    if (err) {
+        LOG_WARN("RouterScheduler::Get_RouterInfo_JSON 解析车辆信息 JSON 失败: %s", err.c_str());
+        return snprintf(buffer, buffer_size, "{\"error\":\"Failed to parse vehicle_info JSON\"}");
+    }
+    doc["vehicle_info"] = vehicledoc.as<JsonObject>();
+
+    // 序列化为 JSON 字符串
+    return serializeJson(doc, buffer, buffer_size);
 }

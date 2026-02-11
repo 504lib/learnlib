@@ -18,6 +18,8 @@
 #include <ESPAsyncWebServer.h>
 #include "../Log/Log.h"
 
+#define WIFI_STATIC_TABLE_NUM  50 
+
 
 class NetworkClient 
 {
