@@ -353,6 +353,7 @@ int8_t NetworkClient::RSSI_intesify(const char* ssid)
 
 bool NetworkClient::sendGetRequest(const char* url, JsonDocument& response)
 {
+    char buf[MAX_NETWORK_JSON_BUFFER_SIZE];
     if (!url || url[0] == '\0') 
     {
         LOG_WARN("NetworkClient: 无效的URL");
@@ -372,10 +373,17 @@ bool NetworkClient::sendGetRequest(const char* url, JsonDocument& response)
     }
 
     Stream& stream = http.getStream();
-    // String payload = http.getString();
-    DeserializationError error = deserializeJson(response,stream );
+    size_t n = stream.readBytes(buf, sizeof(buf) - 1);
+    if (n == 0) 
+    {
+        http.end();
+        LOG_WARN("NetworkClient: HTTP 响应体为空");
+        return false;
+    }
+    buf[n] = '\0'; // 确保字符串以 null 结尾
+    DeserializationError error = deserializeJson(response, buf);
     http.end();
-    LOG_DEBUG("NetworkClient: JSON 解析错误代码: %s", error.c_str());
+    LOG_WARN("NetworkClient: JSON 解析错误代码: %s", error.c_str());
     return (!error);
 }
 

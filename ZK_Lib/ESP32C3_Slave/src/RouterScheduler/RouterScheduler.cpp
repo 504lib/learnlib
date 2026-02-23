@@ -9,7 +9,6 @@
  * 
  */
 #include "RouterScheduler.hpp"
-#include "../StaticAllocator/StaticAllocator.hpp"
 
 /**
  * @brief    连接到指定站点
@@ -166,7 +165,7 @@ void RouterScheduler::CheckArrivingAndMaybeLeave(VehicleStatus status)
     url += "api/info";
 
     LOG_DEBUG("CheckArriving GET: %s", url.c_str());
-    JsonDocument doc;
+    StaticJsonDocument<MAX_NETWORK_JSON_BUFFER_SIZE> doc;
     bool success = network_client.sendGetRequest(url,doc);
     if (!success)
     {
@@ -256,9 +255,7 @@ void RouterScheduler::CheckArrivingAndMaybeLeave_C_style(VehicleStatus status)
     }
 
     LOG_DEBUG("CheckArriving GET: %s", url_buffer);
-    static uint8_t json_buffer[256]; // 静态分配JSON缓冲区，避免动态分配
-    StaticAllocator jsonAllocator(json_buffer, sizeof(json_buffer));
-    JsonDocument doc(&jsonAllocator);
+    StaticJsonDocument<MAX_NETWORK_JSON_BUFFER_SIZE> doc;
     bool success = network_client.sendGetRequest(url_buffer, doc);
     if (!success)
     {
@@ -563,9 +560,9 @@ void RouterScheduler::RouterScheduler_Executer()
  */
 String RouterScheduler::Get_RouterInfo_JSON() {
     // 定义 JSON 文档
-    JsonDocument doc;       // 创建容量为 2048 的 JsonDocument
-    JsonDocument stationdoc; // 创建容量为 1024 的 JsonDocument
-    JsonDocument vehicledoc;  // 创建容量为 512 的 JsonDocument
+    StaticJsonDocument<2048> doc;       // 创建容量为 2048 的 JsonDocument
+    StaticJsonDocument<1024> stationdoc; // 创建容量为 1024 的 JsonDocument
+    StaticJsonDocument<512> vehicledoc;  // 创建容量为 512 的 JsonDocument
     // 解析站点仓库的 JSON 数据
     DeserializationError err = deserializeJson(stationdoc, station_repo.Get_StationList_JSON());
     if (err) {
@@ -598,16 +595,11 @@ size_t RouterScheduler::Get_RouterInfo_JSON(char* buffer, size_t buffer_size)
         LOG_ASSERT(false); // 断言失败，提示开发者修正缓冲区大小
         return 0;
     }
-    static uint8_t json_buffer[MAX_ROUTER_INFO_JSON_LENGTH];
-    static uint8_t station_json_buffer[MAX_STATION_LIST_JSON_LENGTH];
-    static uint8_t vehicle_json_buffer[MAX_VEHICLE_JSON_LENGTH];
-    StaticAllocator json_allocator(json_buffer, sizeof(json_buffer));
-    StaticAllocator station_json_allocator(station_json_buffer, sizeof(station_json_buffer));
-    StaticAllocator vehicle_json_allocator(vehicle_json_buffer, sizeof(vehicle_json_buffer));
     // 定义 JSON 文档
-    JsonDocument doc(&json_allocator);       // 创建容量为 2048 的 JsonDocument
-    JsonDocument stationdoc(&station_json_allocator); // 创建容量为 1024 的 JsonDocument
-    JsonDocument vehicledoc(&vehicle_json_allocator);  // 创建容量为 512 的 JsonDocument
+    StaticJsonDocument<2048> doc;       // 创建容量为 2048 的 JsonDocument
+    StaticJsonDocument<1024> stationdoc; // 创建容量为 1024 的 JsonDocument
+    StaticJsonDocument<512> vehicledoc;  // 创建容量为 512 的 JsonDocument
+
     char station_json[MAX_STATION_LIST_JSON_LENGTH];
     size_t station_len = station_repo.Get_StationList_JSON(station_json, sizeof(station_json));
     if (station_len == 0)

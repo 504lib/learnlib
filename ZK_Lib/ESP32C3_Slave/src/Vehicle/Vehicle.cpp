@@ -1,5 +1,4 @@
 #include "Vehicle.hpp"
-#include "../StaticAllocator/StaticAllocator.hpp"
 
 
 String Vehicle_Info::Get_Vehicle_Plate()
@@ -95,7 +94,7 @@ bool Vehicle_Info::Update_Vehicle_Status(VehicleStatus new_status)
 
 String Vehicle_Info::Vehiicle_Json()
 {
-    JsonDocument doc;
+    StaticJsonDocument<MAX_VEHICLE_JSON_LENGTH> doc;
     doc["Plate"] = this->vehicle.Plate;
     doc["Router"] = static_cast<int>(this->vehicle.currentRoute);
     doc["Status"] = Get_Status_Str(this->vehicle.status);
@@ -213,11 +212,7 @@ size_t Vehicle_Info::Vehiicle_Json(char* buffer, size_t buffer_size)
         LOG_ASSERT(false); // 断言失败，提示开发者修正缓冲区大小
         return 0;
     }
-    static uint8_t json_buffer[MAX_VEHICLE_JSON_LENGTH]; // 静态分配JSON缓冲区
-    StaticAllocator allocate(json_buffer, sizeof(json_buffer)); // 使用静态分配器
-
-    JsonDocument doc(&allocate);
-
+    StaticJsonDocument<MAX_VEHICLE_JSON_LENGTH> doc;
     char status_str[32];
     Get_Status_Str(status_str, sizeof(status_str), this->vehicle.status);
     doc["Plate"] = this->vehicle.Plate;

@@ -10,7 +10,6 @@
  */
 
 #include "StationRepo.hpp"
-#include "../StaticAllocator/StaticAllocator.hpp"
 
 /**
  * @brief    查找字符串中是否包含中文字符
@@ -519,13 +518,13 @@ void StationRepo::Reset_Processing_Status()
  */
 String StationRepo::Get_StationList_JSON()
 {
-    JsonDocument doc;
+    StaticJsonDocument<MAX_STATION_LIST_JSON_LENGTH> doc; // 创建容量为 MAX_STATION_LIST_JSON_LENGTH 的 JsonDocument
     doc["target_station"] = Get_Current_Station_Chinese();
     doc["current_sta_status"] = Is_Current_Processed() ? "true" : "false";
     JsonArray stationArray = doc["station_list"].to<JsonArray>();
     for (uint8_t i = 0; i < this->used_num; i++)
     {
-        JsonObject stationObj = stationArray.add<JsonObject>();
+        JsonObject stationObj = stationArray.createNestedObject();
         stationObj["name"] = this->station_list[i].name;
         stationObj["name_ch"] = this->station_list[i].name_ch;
         stationObj["ssid"] = this->station_list[i].ssid;
@@ -890,10 +889,7 @@ size_t StationRepo::Get_StationList_JSON(char* buffer, size_t buffer_size)
         LOG_ASSERT(false); // 断言失败，提示开发者检查缓冲区问题
         return 0;
     }
-    static uint8_t json_buffer[MAX_STATION_LIST_JSON_LENGTH]; // 静态分配JSON缓冲区
-    StaticAllocator allocate(json_buffer, sizeof(json_buffer)); // 使用静态分配器
-
-    JsonDocument doc(&allocate);
+    StaticJsonDocument<MAX_STATION_JSON_LENGTH> doc;
     char temp_buffer[MAX_STATION_STRING_LENGTH];
     (void)Get_Current_Station_Chinese(temp_buffer, sizeof(temp_buffer));
     doc["target_station"] = temp_buffer;
@@ -901,7 +897,7 @@ size_t StationRepo::Get_StationList_JSON(char* buffer, size_t buffer_size)
     JsonArray stationArray = doc["station_list"].to<JsonArray>();
     for (uint8_t i = 0; i < this->used_num; i++)
     {
-        JsonObject stationObj = stationArray.add<JsonObject>();
+        JsonObject stationObj = stationArray.createNestedObject();
         stationObj["name"] = this->station_list[i].name;
         stationObj["name_ch"] = this->station_list[i].name_ch;
         stationObj["ssid"] = this->station_list[i].ssid;
