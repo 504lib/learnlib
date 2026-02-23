@@ -36,7 +36,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-#define SLAVE_MODE 1
+#define SLAVE_MODE 0
 #define MENU_USE_CMSIS_OS2
 /* USER CODE END PTD */
 
@@ -437,12 +437,24 @@ void main_display_cb(u8g2_t* u8g2, menu_data_t* menu_data)
   snprintf(buf, sizeof(buf), "%02d", sTime.Seconds);
   u8g2_DrawStr(u8g2, time_width + 5, 30, buf);
   
+  #if SLAVE_MODE
   // 显示状态
   const char* status_str = (status == STATUS_IDLE) ? "IDLE" :
                            (status == STATUS_ARRIVING) ? "ARRIVING" :
                            (status == STATUS_WAITING) ? "WAITING" :"IDLE";
   snprintf(buf, sizeof(buf), "Status:%s", status_str);
   u8g2_DrawStr(u8g2, 0, 55, buf);
+  #else 
+  // 显示乘客数量
+  uint8_t num = 0;
+  for (uint8_t i = 0; i < Router_NUM; i++)
+  {
+    num += passenger_num[i];
+  }
+  snprintf(buf, sizeof(buf), "Passenger:%d", num);
+  u8g2_DrawStr(u8g2, 0, 55, buf);
+  #endif
+
 
 
 }
