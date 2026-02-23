@@ -82,11 +82,28 @@ String Vehicle_Info::Get_Status_Str(VehicleStatus status)
 
 bool Vehicle_Info::Update_Vehicle_Status(VehicleStatus new_status)
 {
+    char last_status_str[MAX_VEHICLE_STATUS_STRING_LENGTH];
+    char new_status_str[MAX_VEHICLE_STATUS_STRING_LENGTH];
+    size_t n = 0;
     if (this->vehicle.status != new_status)
     {
+        n = Get_Status_Str(last_status_str,sizeof(last_status_str),this->vehicle.status);
+        if (n <= 0 || n > MAX_VEHICLE_STATUS_STRING_LENGTH)
+        {
+            LOG_WARN("Vehicle_Info: 获取上次状态字符串失败，缓冲区大小不足。所需大小: %d, 提供大小: %d", MAX_VEHICLE_STATUS_STRING_LENGTH, sizeof(last_status_str));
+            LOG_ASSERT(false); // 断言失败，提示开发者修正缓冲区大小
+            return false;
+        }
+        n = Get_Status_Str(new_status_str,sizeof(new_status_str),new_status);
+        if (n <= 0 || n > MAX_VEHICLE_STATUS_STRING_LENGTH)
+        {
+            LOG_WARN("Vehicle_Info: 获取本次状态字符串失败，缓冲区大小不足。所需大小: %d, 提供大小: %d", MAX_VEHICLE_STATUS_STRING_LENGTH, sizeof(last_status_str));
+            LOG_ASSERT(false); // 断言失败，提示开发者修正缓冲区大小
+            return false;
+        }
         this->vehicle.last_status = this->vehicle.status;
         this->vehicle.status = new_status;
-        LOG_INFO("Vehicle_Info: 车辆状态变更: %s -> %s\n", Get_Status_Str(this->vehicle.last_status).c_str(), Get_Status_Str(this->vehicle.status).c_str());
+        LOG_INFO("Vehicle_Info: 车辆状态变更: %s -> %s\n", last_status_str, new_status_str);
         return true;
     }
     return false;

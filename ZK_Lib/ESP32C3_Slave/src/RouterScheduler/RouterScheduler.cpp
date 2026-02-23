@@ -129,8 +129,9 @@ int RouterScheduler::FindBestStation()
     }
     if (bestIndex != -1) 
     {
-        LOG_INFO("🏆 最佳站点: %s (得分: %.2f)", 
-                station_repo.Get_Index_Station_Name(bestIndex, true).c_str(), bestScore);
+        char ssid_buffer[MAX_STATION_SSID_LENGTH];
+        station_repo.Get_Index_Station_SSID(ssid_buffer, sizeof(ssid_buffer), bestIndex);
+        LOG_INFO("🏆 最佳站点: %s (得分: %.2f)", ssid_buffer);
     }
     
     return bestIndex;
@@ -454,7 +455,7 @@ void RouterScheduler::RouterScheduler_Executer()
                 return;
             }
             lastPostTime = millis();
-            bool postSuccess = sendSinglePost(station_repo.Get_Current_Index());
+            bool postSuccess = sendSinglePost_C_style(station_repo.Get_Current_Index());
             if (postSuccess)
             {
                 CheckArrivingAndMaybeLeave_C_style(VehicleStatus::STATUS_WAITING);
@@ -505,7 +506,7 @@ void RouterScheduler::RouterScheduler_Executer()
         case VehicleStatus::STATUS_LEAVING:
         {
             station_repo.Move_To_Next_Station();    
-            bool isPosted = sendSinglePost(station_repo.Get_Current_Index());
+            bool isPosted = sendSinglePost_C_style(station_repo.Get_Current_Index());
             for (size_t i = 0; i < 5 && !isPosted; i++)
             {
                 if (WiFi.status() != WL_CONNECTED)
@@ -515,7 +516,7 @@ void RouterScheduler::RouterScheduler_Executer()
                 }
                 
                 LOG_INFO("RouterScheduler: 正在发送离开状态报告，尝试次数 %d", i + 1);
-                isPosted = sendSinglePost(station_repo.Get_Current_Index());
+                isPosted = sendSinglePost_C_style(station_repo.Get_Current_Index());
                 if (isPosted)
                 {
                     LOG_INFO("RouterScheduler: 离开状态报告发送成功");
