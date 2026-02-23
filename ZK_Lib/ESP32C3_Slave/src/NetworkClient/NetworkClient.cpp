@@ -383,7 +383,10 @@ bool NetworkClient::sendGetRequest(const char* url, JsonDocument& response)
     buf[n] = '\0'; // 确保字符串以 null 结尾
     DeserializationError error = deserializeJson(response, buf);
     http.end();
-    LOG_WARN("NetworkClient: JSON 解析错误代码: %s", error.c_str());
+    if (error)
+    {
+        LOG_WARN("NetworkClient: JSON 解析错误代码: %s", error.c_str());
+    }
     return (!error);
 }
 

@@ -236,7 +236,7 @@ void setup()
     xTaskCreate(ACK_Task,"ack_task",2048,NULL,2,NULL); 
     xTaskCreate(Bus_scheduler_Task,"bus_schedulet_task",8192,NULL,2,NULL); 
 
-    network_client.startWiFiAP(String(ssid),String(password));
+    network_client.startWiFiAP(ssid,password);
     network_client.addWebRoute("/",[](AsyncWebServerRequest *request){
       String html = R"rawliteral(
         <!DOCTYPE html>
@@ -700,7 +700,14 @@ void setup()
         request->send(200, "text/html", html);
     });
     network_client.addWebRoute("/api/info",[&](AsyncWebServerRequest *request){
-        request->send(200, "application/json", router_scheduler.Get_RouterInfo_JSON());
+        char json_buffer[2048]; // 静态分配JSON缓冲区
+        size_t n = router_scheduler.Get_RouterInfo_JSON(json_buffer, sizeof(json_buffer)); // 获取JSON字符串
+        if (n <= 0)
+        {
+            request->send(500, "application/json", "{\"error\":\"Failed to generate JSON\"}");
+            return;
+        }
+        request->send(200, "application/json", json_buffer);
     });
     network_client.beginWebServer();                // 启动Web服务器
 }

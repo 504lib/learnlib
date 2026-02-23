@@ -19,7 +19,7 @@
 #include "../Log/Log.h"
 
 #define WIFI_STATIC_TABLE_NUM  20 
-#define MAX_NETWORK_JSON_BUFFER_SIZE 1024
+#define MAX_NETWORK_JSON_BUFFER_SIZE 2048
 
 
 class NetworkClient 

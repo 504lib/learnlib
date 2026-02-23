@@ -298,7 +298,7 @@ void RouterScheduler::CheckArrivingAndMaybeLeave_C_style(VehicleStatus status)
     }
     
     vehicle_info.Update_Vehicle_Status(status);
-    sendSinglePost(station_repo.Get_Current_Index());
+    sendSinglePost_C_style(station_repo.Get_Current_Index());
 }
 
 
@@ -434,7 +434,7 @@ void RouterScheduler::RouterScheduler_Executer()
         }
         case VehicleStatus::STATUS_CONNECTED:
         {
-            CheckArrivingAndMaybeLeave(VehicleStatus::STATUS_ARRIVING);
+            CheckArrivingAndMaybeLeave_C_style(VehicleStatus::STATUS_ARRIVING);
             break;
         }
         case VehicleStatus::STAUS_DISCONNECTED:
@@ -457,7 +457,7 @@ void RouterScheduler::RouterScheduler_Executer()
             bool postSuccess = sendSinglePost(station_repo.Get_Current_Index());
             if (postSuccess)
             {
-                CheckArrivingAndMaybeLeave(VehicleStatus::STATUS_WAITING);
+                CheckArrivingAndMaybeLeave_C_style(VehicleStatus::STATUS_WAITING);
                 // if(commandQueueCallback)
                 // {
                 //     DataPacket_t ack;
@@ -499,7 +499,7 @@ void RouterScheduler::RouterScheduler_Executer()
             //     LOG_INFO("RouterScheduler: 状态报告发送成功 状态:%d",static_cast<uint8_t>(VehicleStatus::STATUS_ARRIVING));
             // }
             // LOG_INFO("RouterScheduler: 车辆处于 ARRIVING 状态，保持连接");    
-            CheckArrivingAndMaybeLeave(VehicleStatus::STATUS_ARRIVING);
+            CheckArrivingAndMaybeLeave_C_style(VehicleStatus::STATUS_ARRIVING);
             break;
         }
         case VehicleStatus::STATUS_LEAVING:
@@ -598,7 +598,7 @@ size_t RouterScheduler::Get_RouterInfo_JSON(char* buffer, size_t buffer_size)
     // 定义 JSON 文档
     StaticJsonDocument<2048> doc;       // 创建容量为 2048 的 JsonDocument
     StaticJsonDocument<1024> stationdoc; // 创建容量为 1024 的 JsonDocument
-    StaticJsonDocument<512> vehicledoc;  // 创建容量为 512 的 JsonDocument
+    StaticJsonDocument<1024> vehicledoc;  // 创建容量为 512 的 JsonDocument
 
     char station_json[MAX_STATION_LIST_JSON_LENGTH];
     size_t station_len = station_repo.Get_StationList_JSON(station_json, sizeof(station_json));
