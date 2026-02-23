@@ -1400,10 +1400,14 @@ server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
               if (vehicles[i].plate == plate) {
                   // 找到车辆，移除它
                   Serial.println("车辆离站: " + plate + ", 路线: " + String(static_cast<int>(vehicles[i].route)));
-                  ack_queue_t.type = CmdType::CLEAR;
-                  ack_queue_t.value.passenger.router = vehicles[i].route;
-                  xQueueSend(xCommandQueue,&ack_queue_t,0);
-                  passenger[static_cast<int>(vehicles[i].route)] = 0;
+                  if (vehicles[i].status == VehicleStatus::WAITING)
+                  {
+                    ack_queue_t.type = CmdType::CLEAR;
+                    ack_queue_t.value.passenger.router = vehicles[i].route;
+                    xQueueSend(xCommandQueue,&ack_queue_t,0);
+                    Serial.println("离站车辆在候车中，清除乘客数量: " + String(static_cast<int>(vehicles[i].route)));
+                    passenger[static_cast<int>(vehicles[i].route)] = 0;
+                  }
                   // 将后面的元素前移
                   for (int j = i; j < vehicleCount - 1; j++) {
                       vehicles[j] = vehicles[j + 1];

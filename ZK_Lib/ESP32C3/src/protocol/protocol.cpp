@@ -257,6 +257,7 @@ void protocol::Receive_Uart_Frame(uint8_t data)
                     }
                     else if(frame_type == static_cast<uint8_t>(CmdType::PASSENGER_NUM) && frame_len == 2)
                     {
+                        Serial.printf("收到乘客数量帧: Rounter=%d, Value=%d\n", data_buf[0], data_buf[1]);
                         uint8_t value = data_buf[1];
                         Rounter rounter = static_cast<Rounter>(data_buf[0]);
                         if(passengerNumCallback)

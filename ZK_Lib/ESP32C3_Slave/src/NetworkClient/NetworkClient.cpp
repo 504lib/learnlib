@@ -1,6 +1,8 @@
 #include "NetworkClient.hpp"
 #include <esp_wifi.h>
 
+wifi_ap_record_t records[WIFI_STATIC_TABLE_NUM];
+
 /**
  * @brief    异步开始WiFi扫描
  * 
@@ -21,15 +23,20 @@ void NetworkClient::startWiFiScan()
     delay(50);
 
     LOG_DEBUG("NetworkClient: 可用内存: %d bytes", ESP.getFreeHeap());
-    uint8_t chan = WiFi.channel();
-    int result = WiFi.scanNetworks(true,false,false,180,chan); // 异步扫描
-    // int result = WiFi.scanNetworks(true); // 异步扫描
-    if (result == WIFI_SCAN_FAILED) 
+
+    wifi_scan_config_t cfg = {};
+    cfg.ssid = nullptr;
+    cfg.bssid = nullptr;
+    cfg.channel = 0;          // 0=全信道
+    cfg.show_hidden = true;
+
+    esp_err_t err = esp_wifi_scan_start(&cfg, false); // 异步
+    if (err != ESP_OK)
     {
-        LOG_WARN("NetworkClient: WiFi 扫描启动失败");
+        LOG_WARN("NetworkClient: WiFi 扫描启动失败 err=%d", (int)err);
         isScanning = false;
-    } 
-    else 
+    }
+    else
     {
         isScanning = true;
         LOG_INFO("NetworkClient: WiFi 扫描已启动");
@@ -191,29 +198,30 @@ void NetworkClient::beginWebServer() {
  */
 int8_t NetworkClient::RSSI_intesify(String ssid)
 {
-    int scasnResults = WiFi.scanComplete();
-    if(Max_SSID_NUM <= 0) return -1;  // 修复：返回-1表示无效
+    return RSSI_intesify(ssid.c_str());
+    // int scasnResults = WiFi.scanComplete();
+    // if(Max_SSID_NUM <= 0) return -1;  // 修复：返回-1表示无效
     
-    int8_t bestRSSI = -100;
-    bool found = false;
+    // int8_t bestRSSI = -100;
+    // bool found = false;
     
-    for (uint8_t i = 0; i < scasnResults; i++)  // 添加边界检查
-    {
-        if (WiFi.SSID(i) == ssid)
-        {
-            int8_t rssi = WiFi.RSSI(i);
-            LOG_DEBUG("NetworkClient: 找到SSID: %s, RSSI: %d dBm", ssid.c_str(), rssi);
-            if (rssi > bestRSSI) 
-            {
-                LOG_DEBUG("NetworkClient: 更新最佳RSSI为: %d dBm,ssid:%s", rssi,ssid.c_str());
-                bestRSSI = rssi;
-                found = true;
-            }
-        }
-    }
-    WiFi.scanDelete();
-    LOG_DEBUG("NetworkClient: 最终最佳RSSI为: %d dBm", bestRSSI);
-    return found ? bestRSSI : -1;
+    // for (uint8_t i = 0; i < scasnResults; i++)  // 添加边界检查
+    // {
+    //     if (WiFi.SSID(i) == ssid)
+    //     {
+    //         int8_t rssi = WiFi.RSSI(i);
+    //         LOG_DEBUG("NetworkClient: 找到SSID: %s, RSSI: %d dBm", ssid.c_str(), rssi);
+    //         if (rssi > bestRSSI) 
+    //         {
+    //             LOG_DEBUG("NetworkClient: 更新最佳RSSI为: %d dBm,ssid:%s", rssi,ssid.c_str());
+    //             bestRSSI = rssi;
+    //             found = true;
+    //         }
+    //     }
+    // }
+    // WiFi.scanDelete();
+    // LOG_DEBUG("NetworkClient: 最终最佳RSSI为: %d dBm", bestRSSI);
+    // return found ? bestRSSI : -1;
 }
 
 /**
@@ -235,26 +243,47 @@ uint8_t NetworkClient::getMaxSSIDNum()
  */
 bool NetworkClient::checkWiFiScan() 
 {
-    if (!isScanning) 
+    if (!isScanning)
     {
-        return false; // 未触发扫描
+        return false;
     }
 
-    int scanResults = WiFi.scanComplete();
-    if (scanResults == WIFI_SCAN_RUNNING) 
+    uint16_t ap_num = 0;
+    esp_err_t err = esp_wifi_scan_get_ap_num(&ap_num);
+    if (err == ESP_ERR_WIFI_STATE)
     {
-        return false; // 扫描仍在进行中
-    } 
-    else if (scanResults == WIFI_SCAN_FAILED) 
-    {
-        isScanning = false; // 扫描失败后更新状态
-        LOG_WARN("NetworkClient: WiFi 扫描失败");
-        return false; // 扫描失败
+        return false; // 仍在扫描
     }
-    Max_SSID_NUM = scanResults;
-    isScanning = false; // 扫描完成后更新状态
+    if (err != ESP_OK)
+    {
+        isScanning = false;
+        Max_SSID_NUM = 0;
+        LOG_WARN("NetworkClient: 获取AP数量失败 err=%d", (int)err);
+        return false;
+    }
+
+    if (ap_num > WIFI_STATIC_TABLE_NUM) ap_num = WIFI_STATIC_TABLE_NUM;
+
+    uint16_t number = ap_num;
+    err = esp_wifi_scan_get_ap_records(&number, records);
+    if (err != ESP_OK)
+    {
+        isScanning = false;
+        Max_SSID_NUM = 0;
+        LOG_WARN("NetworkClient: 获取AP记录失败 err=%d", (int)err);
+        return false;
+    }
+
+    Max_SSID_NUM = (uint8_t)number;
+    isScanning = false;
+
     LOG_INFO("NetworkClient: WiFi 扫描完成，共找到 %d 个网络", Max_SSID_NUM);
-    return true; // 返回扫描到的 WiFi 网络数量
+    for (uint8_t i = 0; i < Max_SSID_NUM; ++i)
+    {
+        const char* s = reinterpret_cast<const char*>(records[i].ssid);
+        LOG_INFO("NetworkClient: SSID[%d]: %s, RSSI: %d dBm", i, s, records[i].rssi);
+    }
+    return true;
 }
 
 /**
@@ -300,43 +329,23 @@ bool NetworkClient::startWiFiAP(const char* ssid, const char* password,const cha
 
 int8_t NetworkClient::RSSI_intesify(const char* ssid)
 {
+    LOG_DEBUG("NetworkClient: 获取SSID '%s' 的RSSI", ssid ? ssid : "(null)");
     if (!ssid || ssid[0] == '\0') return -1;
-    if (Max_SSID_NUM <= 0) return -1;  // 修复：返回-1表示无效
-    // 确保扫描已完成
-    if (WiFi.scanComplete() <= 0) return -1;
-
-    uint16_t apCount = 0;
-    if (esp_wifi_scan_get_ap_num(&apCount) != ESP_OK || apCount == 0) {
-        return -1;
-    }
-
-    // 分配静态/栈上数组，避免动态分配
-    if (apCount > WIFI_STATIC_TABLE_NUM) apCount = WIFI_STATIC_TABLE_NUM; // 视项目内存情况调整上限
-    wifi_ap_record_t records[WIFI_STATIC_TABLE_NUM];
-
-    
-    uint16_t number = apCount;
-    if (esp_wifi_scan_get_ap_records(&number, records) != ESP_OK) {
-        return -1;
-    }
+    if (Max_SSID_NUM == 0) return -1;
 
     int8_t bestRSSI = -100;
     bool found = false;
 
-    for (uint16_t i = 0; i < number; ++i) {
+    for (uint8_t i = 0; i < Max_SSID_NUM; ++i)
+    {
         const char* recSsid = reinterpret_cast<const char*>(records[i].ssid);
-        if (recSsid && strcmp(recSsid, ssid) == 0) {
-            int8_t rssi = records[i].rssi;
-            LOG_DEBUG("NetworkClient: 找到SSID: %s, RSSI: %d dBm", ssid, rssi);
-            if (rssi > bestRSSI) {
-                LOG_DEBUG("NetworkClient: 更新最佳RSSI为: %d dBm,ssid:%s", rssi,ssid);
-                bestRSSI = rssi;
-                found = true;
-            }
+        if (recSsid && strcmp(recSsid, ssid) == 0)
+        {
+            if (!found || records[i].rssi > bestRSSI) bestRSSI = records[i].rssi;
+            found = true;
         }
     }
 
-    WiFi.scanDelete();
     LOG_DEBUG("NetworkClient: 最终最佳RSSI为: %d dBm", bestRSSI);
     return found ? bestRSSI : -1;
 }

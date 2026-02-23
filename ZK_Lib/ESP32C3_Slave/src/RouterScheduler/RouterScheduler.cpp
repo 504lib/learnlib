@@ -57,8 +57,9 @@ float RouterScheduler::CalculateStationScore(uint8_t index)
     uint8_t current_index = station_repo.Get_Current_Index();
     Station_t& station = station_repo.Get_Index_Station(index);
     float score = 0.0f;
-    
+    LOG_INFO("Calculating score for station %s (SSID: %s)", station.name, station.ssid);
     int8_t currentRSSI = network_client.RSSI_intesify(station.ssid);
+    // int8_t currentRSSI = network_client.RSSI_intesify(String(station.ssid));
     if (currentRSSI == -1)
     {
         LOG_INFO("RouterScheduler: 站点 %s 不在扫描结果中，得分极低", station.name);
