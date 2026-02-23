@@ -369,7 +369,6 @@ bool RouterScheduler::sendSinglePost_C_style(uint8_t index)
         LOG_WARN("sendSinglePost_C_style: postData 缓冲区不足");
         return false;
     }
-    // todo: 修改字符串为c风格,目前暂时使用String
     char url_buffer[64];
     int url_written = snprintf(url_buffer, sizeof(url_buffer), "%s/api/vehicle_report", station.ip);
     if (url_written <= 0 || static_cast<size_t>(url_written) >= sizeof(url_buffer))
