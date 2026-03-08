@@ -345,5 +345,68 @@ $$
 
 ## 七 无穷小的比较
 
++ 定义:
+  1. $若\lim\frac{\alpha(x)}{\beta(x)} = 0,则称为\alpha(x)是\beta(x)的高阶无穷小,记作\alpha(x) = o(\beta(x))$
+  2. $若\lim\frac{\alpha(x)}{\beta(x)} = \infty,则称为\alpha(x)是\beta(x)的低阶无穷小$
+  3. $若\lim\frac{\alpha(x)}{\beta(x)} = a \neq 0,则称为\alpha(x)是\beta(x)的同阶无穷小$
+  4. $若\lim\frac{\alpha(x)}{\beta(x)} = 1,则称为\alpha(x)是\beta(x)的等阶无穷小,记作\alpha(x)\sim\beta(x)$
+  4. $若\lim\frac{\alpha(x)}{[\beta(x)]^k} = a \neq 0,k>0,则称为\alpha(x)是\beta(x)的k阶无穷小$
+  
++ 定理1:
+  $$
+    \alpha(x)\sim \beta(x)的充要条件是\alpha(x) = \beta(x) + o(\beta(x))
+  $$ 
 
++ 定理2:
+  $$
+    设\alpha(x)\sim \alpha_1(x),\beta(x)\sim \beta_1(x),且\lim\frac{\alpha_1(x)}{\beta_1(x)},则\\
+    \lim\frac{\alpha(x)}{\beta(x)} = \lim\frac{\alpha_1(x)}{\beta_1(x)}
+  $$ 
 
+> [!important]
+> 常见的等价无穷小
+> 1. $x \sim \sin x\sim \tan x\sim \arcsin x\sim \arctan x$
+> 2. $1 - \cos x \sim \frac{1}{2}x^2$
+> 3. $\sqrt[n]{1 + x} -  1\sim \frac{1}{n}x$
+
+## 八 函数连续性与间断点
+
+### 函数的连续性
+
++ 定义(连续)
+$$
+  若\lim_{\Delta x \to 0}\Delta y = 0,或\lim_{x\to x_0}f(x) = f(x_0),则称为f(x)在x_0处连续
+$$
++ 左连续
+$$
+  \lim_{x\to x_0^-}f(x) =f(x_0)
+$$
++ 右连续
+$$
+  \lim_{x\to x_0^+}f(x) =f(x_0)
+$$
+
++ 推论:
+  $$
+    连续\hArr 左连续且右连续
+  $$
+
+### 函数的间断点
+
++ 连续
+$f(x)在x-0连续$ 
+1. $f(x)在x_0有定义$
+2. $\lim_{x\to x_0}f(x)存在$
+3. $\lim_{x\to x_0}f(x) = f(x_0)$
+
++ 间断点
+$f(x)在x_0某去心领域有定义$
+1. $f(x)在x_0无定义$
+2. $\lim_{x\to x_0}f(x)不存在$
+3. $\lim_{x\to x_0}f(x) \neq f(x_0)$
+
++ 间断点分类:
+  1. 第一类间断点:(左右极限都存在)
+     1. 可去间断点($f(x - x_0) = f(x + x_0)$)
+     2. 跳跃间断点($f(x - x_0) \neq f(x + x_0)$)
+  2. 第二类间断点:(左右极限q其中之一不存在)

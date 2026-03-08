@@ -1,0 +1,14 @@
+[
+{
+  "directory": "C:/Users/whyP762/Desktop/static_queue/build",
+  "command": "C:\\dev\\llvm-mingw\\bin\\clang.exe  @CMakeFiles/static_queue.dir/includes_C.rsp -g -std=gnu11 -o CMakeFiles\\static_queue.dir\\static_queue_demo.c.obj -c C:\\Users\\whyP762\\Desktop\\static_queue\\static_queue_demo.c",
+  "file": "C:/Users/whyP762/Desktop/static_queue/static_queue_demo.c",
+  "output": "CMakeFiles/static_queue.dir/static_queue_demo.c.obj"
+},
+{
+  "directory": "C:/Users/whyP762/Desktop/static_queue/build",
+  "command": "C:\\dev\\llvm-mingw\\bin\\clang.exe  @CMakeFiles/static_queue_demo.dir/includes_C.rsp -g -std=gnu11 -o CMakeFiles\\static_queue_demo.dir\\static_queue_demo.c.obj -c C:\\Users\\whyP762\\Desktop\\static_queue\\static_queue_demo.c",
+  "file": "C:/Users/whyP762/Desktop/static_queue/static_queue_demo.c",
+  "output": "CMakeFiles/static_queue_demo.dir/static_queue_demo.c.obj"
+}
+]

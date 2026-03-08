@@ -1,0 +1,3 @@
+C:\Users\whyP762\AppData\Local\stm32cube\bundles\cmake\4.0.1+st.3\bin\cmake.exe -E rm -f CMakeFiles\static_queue_demo.dir/objects.a
+C:\dev\llvm-mingw\bin\llvm-ar.exe qc CMakeFiles\static_queue_demo.dir/objects.a @CMakeFiles\static_queue_demo.dir\objects1.rsp
+C:\dev\llvm-mingw\bin\clang.exe -g -Wl,--whole-archive CMakeFiles\static_queue_demo.dir/objects.a -Wl,--no-whole-archive -o static_queue_demo.exe -Wl,--out-implib,libstatic_queue_demo.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles\static_queue_demo.dir\linkLibs.rsp
