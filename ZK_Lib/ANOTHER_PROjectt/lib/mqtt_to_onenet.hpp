@@ -24,7 +24,18 @@
 #define ONENET_TOPIC_PROP_FORMAT "{\"id\":\"%u\",\"version\":\"1.0\",\"params\":%s}"
 
 
+struct DataProvider
+{
+    float temperature;
+    float humidity;
+    float mq4_ppm;
+    bool bulb_status;
+    bool motor_status;
+};
+
+
 bool OneNET_Connect(PubSubClient& client);
-void OneNET_Prop_Post(PubSubClient& client,float temp,float humi,bool Bulb_status);
+void OneNET_Prop_Post(PubSubClient& client,DataProvider provider,Threshold threshold,Alarm_Flag alarm_flag);
+
 
 #endif // !1

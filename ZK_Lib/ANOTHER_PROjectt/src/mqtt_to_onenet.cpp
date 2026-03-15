@@ -29,30 +29,38 @@ bool OneNET_Connect(PubSubClient& client){
 }
 
 
-void OneNET_Prop_Post(PubSubClient& client,float temp,float humi,bool Bulb_status) {
+void OneNET_Prop_Post(PubSubClient& client,DataProvider provider,Threshold threshold,Alarm_Flag alarm_flag) {
   if(client.connected())
   {
-    char parmas[256];//属性参数
-    char jsonBuf[256];//JSON字符串缓冲区，用于上报属性的缓存区
-    snprintf(
-      parmas,
-      sizeof(parmas),
-      "{\"temp\":{\"value\":%.1f},\"humi\":{\"value\":%.1f},\"LED1\":{\"value\":%s},\"bulb\":{\"value\":%s}}",
-      temp,
-      humi,
-      Bulb_status ? "true" : "false",
-      Bulb_status ? "true" : "false"
-    );//构造属性上报的参数，格式为JSON字符串
-    Serial.println(parmas);
-    snprintf(jsonBuf, sizeof(jsonBuf), ONENET_TOPIC_PROP_FORMAT, postMsgId++, parmas);//构造属性上报的JSON字符串，格式为{"id":"<postMsgId>","version":"1.0","params":<parmas>}
-    Serial.println(jsonBuf);
-    if(client.publish(ONENET_TOPIC_PROP_POST, jsonBuf))//上报属性
+    JsonDocument root;
+    int currentMsgId = postMsgId++;
+
+    root["id"] = String(currentMsgId);
+    root["version"] = "1.0";
+
+    JsonObject params = root["params"].to<JsonObject>();
+    params["temp"]["value"] = provider.temperature;
+    params["humi"]["value"] = provider.humidity;
+    params["mq4"]["value"] = provider.mq4_ppm;
+    params["bulb"]["value"] = provider.bulb_status;
+    params["Motor"]["value"] = provider.motor_status;
+    params["temp_threshold"]["value"] = threshold.temp_threshold;
+    params["humi_threshold"]["value"] = threshold.hum_threshold;
+    params["mq4_threshold"]["value"] = threshold.mq4_threshold;
+    params["temp_alarm"]["value"] = alarm_flag.temp_alarm;
+    params["hum_alarm"]["value"] = alarm_flag.hum_alarm;
+    params["mq4_alarm"]["value"] = alarm_flag.mq4_alarm;
+
+    String payload;
+    serializeJson(root, payload);
+
+    if(client.publish(ONENET_TOPIC_PROP_POST, payload.c_str()))//上报属性
     {
-      Serial.println("Post property success!");
+      Serial.printf("[TX_OK] id=%d\n", currentMsgId);
     }
     else
     {
-      Serial.println("Post property failed!");
+      Serial.printf("[TX_FAIL] id=%d len=%u state=%d\n", currentMsgId, payload.length(), client.state());
     }
   }
 }

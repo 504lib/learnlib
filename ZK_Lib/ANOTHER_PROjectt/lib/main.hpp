@@ -7,7 +7,6 @@
 #include <ArduinoJson.h>
 #include <array>
 #include "../lib/dht11.hpp"
-#include "../lib/mqtt_to_onenet.hpp"
 #include "../lib/Webserver_router.hpp"
 #include "../lib/MQ4_calculate.hpp"
 
@@ -27,7 +26,8 @@ struct Alarm_Flag
 struct Use_Flag
 {
   bool isLEDUsed;                 // LED 是否被使用
-  bool isMotorUsed;               // 电机是否被使用  
+  bool isMotorUsed;               // 用户电机控制位
+  bool isMotorForceOn;            // 安全策略强制开电机位
 };
 
 struct Threshold

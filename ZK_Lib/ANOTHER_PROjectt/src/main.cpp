@@ -1,4 +1,5 @@
 #include "../lib/main.hpp"
+#include "../lib/mqtt_to_onenet.hpp"
 #include <Preferences.h>
 
 
@@ -6,8 +7,9 @@ void wifi_connect();
 void Get_data();
 
 // 全局变量定义
+DataProvider data_provider = {0.0f, 0.0f,0.0f, false, false};
 Alarm_Flag alarm_flag = {false, false, false};
-Use_Flag use_flag = {false, false};
+Use_Flag use_flag = {false, false, false};
 Data_Monitor data_monitor = {0.0f, 0.0f, 0.0f};
 Threshold threshold = {30.0f, 60.0f, 200.0f};
 
@@ -29,12 +31,13 @@ std::array<char,32> Connect_PASS;
 
 volatile bool iswifiConfigured = false;
 static uint32_t last_wifi_retry_ms = 0;
+static bool wifiNoCredLogged = false;
+static uint32_t mq4_warmup_start_ms = 0;
+static bool mq4WarmupLogged = false;
+static bool mq4InvalidLogged = false;
 
-// 报警上升沿触发后交替切换电机强制状态：第一次强制关，第二次强制开。
-static bool last_alarm_on = false;
-static bool alarm_force_motor_off = false;
-static bool alarm_force_motor_on = false;
-static uint32_t alarm_rise_count = 0;
+static constexpr uint32_t MQ4_WARMUP_MS = 90000;     // MQ4 预热静默期
+static constexpr float MQ4_MAX_VALID_PPM = 5000.0f;  // 过大值保护上限
 
 AsyncWebServer server(80);
 Preferences wifiPrefs;
@@ -97,13 +100,6 @@ static void clear_wifi_credentials()
 
 
 void callback(char* topic,byte* payload,unsigned int length){
-  Serial.print("Message arrived [");
-  Serial.print(topic);//打印主题
-  Serial.print("] ");
-  for (int i = 0; i < length; i++) {
-    Serial.print((char)payload[i]);//打印消息内容
-  }
-  Serial.println();//换行
   if(strcmp(topic,ONENET_TOPIC_PROP_SET) == 0)//如果收到的消息是属性设置请求
   {
     JsonDocument doc; // 使用 JsonDocument（大小根据实际 payload 调整）
@@ -117,46 +113,156 @@ void callback(char* topic,byte* payload,unsigned int length){
     JsonObject msg = doc.as<JsonObject>();
     JsonObject params = msg["params"].as<JsonObject>();
 
+    auto readBoolParam = [](JsonVariantConst value, bool& out) -> bool {
+      if (value.isNull()) {
+        return false;
+      }
+
+      JsonVariantConst actual = value;
+      if (value.is<JsonObjectConst>() && !value["value"].isNull()) {
+        actual = value["value"].as<JsonVariantConst>();
+      }
+
+      if (actual.is<bool>()) {
+        out = actual.as<bool>();
+        return true;
+      }
+      if (actual.is<int>()) {
+        out = (actual.as<int>() != 0);
+        return true;
+      }
+      if (actual.is<const char*>()) {
+        const char* s = actual.as<const char*>();
+        out = (strcmp(s, "true") == 0 || strcmp(s, "1") == 0);
+        return true;
+      }
+      return false;
+    };
+
+    auto readFloatParam = [](JsonVariantConst value, float& out) -> bool {
+      if (value.isNull()) {
+        return false;
+      }
+
+      JsonVariantConst actual = value;
+      if (value.is<JsonObjectConst>() && !value["value"].isNull()) {
+        actual = value["value"].as<JsonVariantConst>();
+      }
+
+      if (actual.is<float>() || actual.is<double>() || actual.is<int>()) {
+        out = actual.as<float>();
+        return true;
+      }
+      if (actual.is<const char*>()) {
+        out = atof(actual.as<const char*>());
+        return true;
+      }
+      return false;
+    };
+
     // 处理 params 中的 LED1，兼容 "LED1": true / "LED1": {"value": true} / "LED1": 1 等
     JsonVariant v = params["LED1"];
     if (!v.isNull()) {
       bool newState = false;
-      if (v.is<bool>()) {
-        newState = v.as<bool>();
-      } else if (v.is<int>()) {
-        newState = (v.as<int>() != 0);
-      } else if (v.is<const char*>()) {
-        const char* s = v.as<const char*>();
-        newState = (strcmp(s, "true") == 0 || strcmp(s, "1") == 0);
-      } else if (v.is<JsonObject>() && v["value"].is<bool>()) {
-        newState = v["value"].as<bool>();
+      if (readBoolParam(v, newState)) {
+        bool LED1_status = newState;
+        digitalWrite(LED_BUILTIN2, LED1_status ? HIGH : LOW);
+        Serial.print("Set LED1 -> ");
+        Serial.println(LED1_status ? "ON" : "OFF");
+      } else {
+        Serial.println("Invalid LED1 value");
       }
-      JsonVariant bulb_v = params["bulb"];
-      if (!bulb_v.isNull())
-      {
-        bool bulbState = false;
-        if (bulb_v.is<bool>()) {
-          bulbState = bulb_v.as<bool>();
-        } else if (bulb_v.is<int>()) {
-          bulbState = (bulb_v.as<int>() != 0);
-        } else if (bulb_v.is<const char*>()) {
-          const char* s = bulb_v.as<const char*>();
-          bulbState = (strcmp(s, "true") == 0 || strcmp(s, "1") == 0);
-        } else if (bulb_v.is<JsonObject>() && bulb_v["value"].is<bool>()) {
-          bulbState = bulb_v["value"].as<bool>();
-        }
-        use_flag.isLEDUsed = bulbState;
-        printf("Set Bulb -> %s\n", bulbState ? "ON" : "OFF");
-      }
-      
-
-      bool LED1_status = newState;
-      digitalWrite(LED_BUILTIN2, LED1_status ? HIGH : LOW);
-      Serial.print("Set LED1 -> ");
-      Serial.println(LED1_status ? "ON" : "OFF");
     } else {
       Serial.println("No LED1 in params");
     }
+
+    JsonVariant bulb_v = params["bulb"];
+    if (!bulb_v.isNull())
+    {
+      bool bulbState = false;
+      if (readBoolParam(bulb_v, bulbState)) {
+        use_flag.isLEDUsed = bulbState;
+        printf("Set Bulb -> %s\n", bulbState ? "ON" : "OFF");
+      } else {
+        Serial.println("Invalid bulb value");
+      }
+    }
+    else
+    {
+      Serial.println("No bulb in params");
+    }
+    JsonVariant Motor_v = params["Motor"];
+    if (!Motor_v.isNull())
+    {
+      bool MotorState = false;
+      if (readBoolParam(Motor_v, MotorState)) {
+        use_flag.isMotorUsed = MotorState;
+        printf("Set Motor -> %s\n", MotorState ? "ON" : "OFF");
+      } else {
+        Serial.println("Invalid Motor value");
+      }
+    }
+    else
+    {
+      Serial.println("No Motor in params");
+    }
+
+    JsonVariant temp_threshold_v = params["temp_threshold"];
+    if (!temp_threshold_v.isNull())
+    {
+      float tempThreshold = 0.0f;
+      if (readFloatParam(temp_threshold_v, tempThreshold))
+      {
+        threshold.temp_threshold = tempThreshold;
+        Serial.printf("Set temp_threshold -> %.1f\n", threshold.temp_threshold);
+      }
+      else
+      {
+        Serial.println("Invalid temp_threshold value");
+      }
+    }
+    else
+    {
+      Serial.println("No temp_threshold in params");
+    }
+    JsonVariant humi_threshold_v = params["humi_threshold"];
+    if (!humi_threshold_v.isNull())
+    {
+      float humiThreshold = 0.0f;
+      if (readFloatParam(humi_threshold_v, humiThreshold))
+      {
+        threshold.hum_threshold = humiThreshold;
+        Serial.printf("Set humi_threshold -> %.1f\n", threshold.hum_threshold);
+      }
+      else
+      {
+        Serial.println("Invalid humi_threshold value");
+      }
+    }
+    else
+    {
+      Serial.println("No humi_threshold in params");
+    }
+    JsonVariant mq4_threshold_v = params["mq4_threshold"];
+    if (!mq4_threshold_v.isNull())
+    {
+      float mq4Threshold = 0.0f;
+      if (readFloatParam(mq4_threshold_v, mq4Threshold))
+      {
+        threshold.mq4_threshold = mq4Threshold;
+        Serial.printf("Set mq4_threshold -> %.1f\n", threshold.mq4_threshold);
+      }
+      else
+      {
+        Serial.println("Invalid mq4_threshold value");
+      }
+    }
+    else
+    {
+      Serial.println("No mq4_threshold in params");
+    }
+
+
 
     // 构造回复（如果带 id 则带上）
     const char* id_c = msg["id"];
@@ -167,12 +273,11 @@ void callback(char* topic,byte* payload,unsigned int length){
     } else {
       snprintf(reply, sizeof(reply), "{\"code\":200,\"msg\":\"success\"}");
     }
-    Serial.println(reply);
     delay(100);  
     if (client.publish(ONENET_TOPIC_PROP_SET_REPLY, reply)) {
-      Serial.println("Send set reply success!");
+      Serial.println("[SET_REPLY_OK]");
     } else {
-      Serial.println("Send set reply failed!");
+      Serial.println("[SET_REPLY_FAIL]");
     }
   }
   else if(strcmp(topic,ONENET_TOPIC_PROP_POST_REPLY) == 0)//如果收到的消息是属性设置回复
@@ -190,12 +295,14 @@ void callback(char* topic,byte* payload,unsigned int length){
     int code = msg["code"] | 0;
     const char* info = msg["msg"] | "";
 
-    Serial.print("Post reply -> id: ");
-    Serial.print(id);
-    Serial.print("  code: ");
-    Serial.print(code);
-    Serial.print("  msg: ");
-    Serial.println(info);
+    if (code != 200) {
+      Serial.print("[POST_REPLY_ERR] id=");
+      Serial.print(id);
+      Serial.print(" code=");
+      Serial.print(code);
+      Serial.print(" msg=");
+      Serial.println(info);
+    }
   }
 }
 
@@ -214,6 +321,7 @@ void setup()
   Connect_PASS.fill('\0');
   init_wifi_storage();
   load_wifi_credentials_from_nvs();
+  mq4_warmup_start_ms = millis();
   dht.begin();
   if (WiFi.softAP(WIFI_SSID, WIFI_PASS,1,0,10,false)) {
     Serial.println("AP 模式启动成功!");
@@ -287,6 +395,7 @@ void setup()
     request->send_P(200, "text/html;charset=utf-8", WIFI_CONFIG_HTML);
   });
   server.begin();
+  client.setBufferSize(512);
   client.setCallback(callback);//设置MQTT消息回调函数，当接收到MQTT消息时，调用callback函数处理消息
 }
 
@@ -294,6 +403,7 @@ void wifi_connect()
 {
   wl_status_t status = WiFi.status();
   if (status == WL_CONNECTED) {
+    wifiNoCredLogged = false;
     if (!iswifiConfigured) {
       iswifiConfigured = true;
       Serial.print("WiFi connected, STA IP: ");
@@ -304,9 +414,13 @@ void wifi_connect()
 
   iswifiConfigured = false;
   if (Connect_SSID[0] == '\0' || Connect_PASS[0] == '\0') {
-    Serial.println("WiFi not configured yet. Please connect to the AP and send credentials.");
+    if (!wifiNoCredLogged) {
+      Serial.println("[WIFI] waiting credentials");
+      wifiNoCredLogged = true;
+    }
     return;
   }
+  wifiNoCredLogged = false;
 
   uint32_t now_ms = millis();
   if (last_wifi_retry_ms != 0 && (now_ms - last_wifi_retry_ms) < 10000) {
@@ -333,45 +447,54 @@ void Get_data()
       data_monitor.humidity = 0.8f * data_monitor.humidity + 0.2f * hum_cur;          // 使用低通滤波更新湿度数据
     }
 
-    float resistance = readMQ135Resistance(MQ4_AO_PIN);                                         // 读取MQ-4电阻值
-    data_monitor.mq4_ppm = calculatePPM(resistance);                                  // 计算MQ-4的ppm值
-    alarm_flag.hum_alarm = (data_monitor.humidity > threshold.hum_threshold);              // 更新湿度预警标志
-    alarm_flag.temp_alarm = (data_monitor.temperature > threshold.temp_threshold);        // 更新温度预警标志
-    alarm_flag.mq4_alarm = (data_monitor.mq4_ppm > threshold.mq4_threshold);              // 更新MQ-4预警标志
-    bool alarm_on = alarm_flag.hum_alarm || alarm_flag.temp_alarm || alarm_flag.mq4_alarm;    // 计算总预警状态
-
-    // 仅在报警上升沿时改变一次强制策略，避免报警持续期间反复抖动。
-    if (alarm_on && !last_alarm_on) {
-      alarm_rise_count++;
-      if (alarm_rise_count % 2 == 1) {
-        alarm_force_motor_off = true;
-        alarm_force_motor_on = false;
-      } else {
-        alarm_force_motor_on = true;
-        alarm_force_motor_off = false;
-      }
+    uint32_t now_ms = millis();
+    bool mq4_warmed = (now_ms - mq4_warmup_start_ms) >= MQ4_WARMUP_MS;
+    if (!mq4_warmed && !mq4WarmupLogged) {
+      Serial.println("[MQ4] warming up, ppm protection enabled");
+      mq4WarmupLogged = true;
     }
-    last_alarm_on = alarm_on;
 
-    // 用户端拥有最高权限：用户命令存在时，直接覆盖报警强制状态。
-    bool final_motor_on = use_flag.isMotorUsed;
-    if (!use_flag.isMotorUsed) {
-      if (alarm_force_motor_on) {
-        final_motor_on = true;
-      }
-      if (alarm_force_motor_off) {
-        final_motor_on = false;
+    float resistance = readMQ135Resistance(MQ4_AO_PIN);                                         // 读取MQ-4电阻值
+    float mq4_ppm_raw = calculatePPM(resistance);                                                // 计算MQ-4的ppm值
+    bool mq4_valid = mq4_warmed && isfinite(mq4_ppm_raw) && mq4_ppm_raw >= 0.0f && mq4_ppm_raw <= MQ4_MAX_VALID_PPM;
+
+    if (mq4_valid) {
+      data_monitor.mq4_ppm = mq4_ppm_raw;
+      if (mq4InvalidLogged) {
+        Serial.println("[MQ4] reading back to normal");
+        mq4InvalidLogged = false;
       }
     } else {
-      alarm_force_motor_on = false;
-      alarm_force_motor_off = false;
+      if (mq4_warmed && !mq4InvalidLogged) {
+        Serial.printf("[MQ4] invalid reading ignored raw=%.1f\n", mq4_ppm_raw);
+        mq4InvalidLogged = true;
+      }
     }
+
+    alarm_flag.hum_alarm = (data_monitor.humidity >= threshold.hum_threshold);              // 更新湿度预警标志
+    alarm_flag.temp_alarm = (data_monitor.temperature >= threshold.temp_threshold);        // 更新温度预警标志
+    alarm_flag.mq4_alarm = mq4_valid && (data_monitor.mq4_ppm >= threshold.mq4_threshold); // 更新MQ-4预警标志
+    bool alarm_on = alarm_flag.hum_alarm || alarm_flag.temp_alarm || alarm_flag.mq4_alarm;    // 计算总预警状态
+
+    bool motor_is_high = (digitalRead(MOTOR_PIN) == HIGH);
+    if (alarm_on && !motor_is_high) {
+      use_flag.isMotorForceOn = true;
+    }
+    if (!alarm_on) {
+      use_flag.isMotorForceOn = false;
+    }
+    bool final_motor_on = use_flag.isMotorUsed || use_flag.isMotorForceOn;
     
     // digitalWrite(bulb, use_flag.isLEDUsed );                             // 控制第二个LED状态
     digitalWrite(LIGHT_BULB_PIN,use_flag.isLEDUsed);                             // 控制灯泡状态
     digitalWrite(MOTOR_PIN, final_motor_on ? HIGH : LOW);                                  // 控制电机状态
 
     digitalWrite(LED_BUILTIN, ledState);                                    // 板载LED闪烁
+    data_provider.temperature = data_monitor.temperature;
+    data_provider.humidity = data_monitor.humidity;
+    data_provider.mq4_ppm = data_monitor.mq4_ppm;
+    data_provider.bulb_status = use_flag.isLEDUsed;
+    data_provider.motor_status = (digitalRead(MOTOR_PIN) == HIGH);
 }
 
 void loop() {
@@ -389,7 +512,7 @@ void loop() {
 
   if (client.connected() && millis() - last_prop_post_ms > 2000)
   {
-    OneNET_Prop_Post(client, data_monitor.temperature, data_monitor.humidity, use_flag.isLEDUsed);
+    OneNET_Prop_Post(client, data_provider,threshold,alarm_flag);
     last_prop_post_ms = millis();
   }
   
