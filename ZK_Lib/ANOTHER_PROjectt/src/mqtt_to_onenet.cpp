@@ -37,9 +37,10 @@ void OneNET_Prop_Post(PubSubClient& client,float temp,float humi,bool Bulb_statu
     snprintf(
       parmas,
       sizeof(parmas),
-      "{\"temp\":{\"value\":%.1f},\"humi\":{\"value\":%.1f},\"LED1\":{\"value\":%s}}",
+      "{\"temp\":{\"value\":%.1f},\"humi\":{\"value\":%.1f},\"LED1\":{\"value\":%s},\"bulb\":{\"value\":%s}}",
       temp,
       humi,
+      Bulb_status ? "true" : "false",
       Bulb_status ? "true" : "false"
     );//构造属性上报的参数，格式为JSON字符串
     Serial.println(parmas);

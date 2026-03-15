@@ -1,4 +1,5 @@
 #include "../lib/main.hpp"
+#include <Preferences.h>
 
 
 void wifi_connect();
@@ -36,10 +37,57 @@ static bool alarm_force_motor_on = false;
 static uint32_t alarm_rise_count = 0;
 
 AsyncWebServer server(80);
+Preferences wifiPrefs;
+static bool wifiPrefsReady = false;
+
+static void init_wifi_storage()
+{
+  wifiPrefsReady = wifiPrefs.begin("wifi", false);
+  if (!wifiPrefsReady) {
+    Serial.println("NVS init failed");
+  }
+}
+
+static void load_wifi_credentials_from_nvs()
+{
+  if (!wifiPrefsReady) {
+    return;
+  }
+
+  String ssid = wifiPrefs.getString("ssid", "");
+  String pass = wifiPrefs.getString("pwd", "");
+  if (ssid.length() == 0 || pass.length() == 0) {
+    return;
+  }
+
+  ssid.toCharArray(Connect_SSID.data(), Connect_SSID.size());
+  pass.toCharArray(Connect_PASS.data(), Connect_PASS.size());
+  Serial.printf("Loaded WiFi credentials from NVS - SSID: %s\n", Connect_SSID.data());
+}
+
+static void save_wifi_credentials_to_nvs(const String& ssid, const String& pass)
+{
+  if (!wifiPrefsReady) {
+    return;
+  }
+
+  String oldSsid = wifiPrefs.getString("ssid", "");
+  String oldPass = wifiPrefs.getString("pwd", "");
+  if (oldSsid == ssid && oldPass == pass) {
+    return;
+  }
+
+  wifiPrefs.putString("ssid", ssid);
+  wifiPrefs.putString("pwd", pass);
+}
 
 static void clear_wifi_credentials()
 {
   client.disconnect();
+  if (wifiPrefsReady) {
+    wifiPrefs.remove("ssid");
+    wifiPrefs.remove("pwd");
+  }
   Connect_SSID.fill('\0');
   Connect_PASS.fill('\0');
   iswifiConfigured = false;
@@ -83,6 +131,24 @@ void callback(char* topic,byte* payload,unsigned int length){
       } else if (v.is<JsonObject>() && v["value"].is<bool>()) {
         newState = v["value"].as<bool>();
       }
+      JsonVariant bulb_v = params["bulb"];
+      if (!bulb_v.isNull())
+      {
+        bool bulbState = false;
+        if (bulb_v.is<bool>()) {
+          bulbState = bulb_v.as<bool>();
+        } else if (bulb_v.is<int>()) {
+          bulbState = (bulb_v.as<int>() != 0);
+        } else if (bulb_v.is<const char*>()) {
+          const char* s = bulb_v.as<const char*>();
+          bulbState = (strcmp(s, "true") == 0 || strcmp(s, "1") == 0);
+        } else if (bulb_v.is<JsonObject>() && bulb_v["value"].is<bool>()) {
+          bulbState = bulb_v["value"].as<bool>();
+        }
+        use_flag.isLEDUsed = bulbState;
+        printf("Set Bulb -> %s\n", bulbState ? "ON" : "OFF");
+      }
+      
 
       bool LED1_status = newState;
       digitalWrite(LED_BUILTIN2, LED1_status ? HIGH : LOW);
@@ -146,6 +212,8 @@ void setup()
   pinMode(MQ4_DO_PIN,INPUT);
   Connect_SSID.fill('\0');
   Connect_PASS.fill('\0');
+  init_wifi_storage();
+  load_wifi_credentials_from_nvs();
   dht.begin();
   if (WiFi.softAP(WIFI_SSID, WIFI_PASS,1,0,10,false)) {
     Serial.println("AP 模式启动成功!");
@@ -184,14 +252,19 @@ void setup()
       String ssid = request->getParam("ssid", true)->value();
       String pass = request->getParam("pass", true)->value();
 
-      // 重新配网前，先断开当前 STA 并清理旧状态/凭证。
-      WiFi.disconnect(true, true);
-      clear_wifi_credentials();
-
       if (ssid.length() == 0 || pass.length() == 0) {
         request->send(400, "text/plain", "SSID or password is empty");
         return;
       }
+
+      save_wifi_credentials_to_nvs(ssid, pass);
+
+      // 重新配网前，先断开当前 STA 并清理旧状态/凭证。
+      WiFi.disconnect(true, true);
+      Connect_SSID.fill('\0');
+      Connect_PASS.fill('\0');
+      iswifiConfigured = false;
+      last_wifi_retry_ms = 0;
 
       ssid.toCharArray(Connect_SSID.data(), Connect_SSID.size());
       pass.toCharArray(Connect_PASS.data(), Connect_PASS.size());
@@ -294,6 +367,7 @@ void Get_data()
       alarm_force_motor_off = false;
     }
     
+    // digitalWrite(bulb, use_flag.isLEDUsed );                             // 控制第二个LED状态
     digitalWrite(LIGHT_BULB_PIN,use_flag.isLEDUsed);                             // 控制灯泡状态
     digitalWrite(MOTOR_PIN, final_motor_on ? HIGH : LOW);                                  // 控制电机状态
 
