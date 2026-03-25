@@ -1,4 +1,9 @@
 #include "../lib/mqtt_to_onenet.hpp"
+#include <math.h>
+
+static float quantizeToTenth(float value) {
+  return roundf(value * 10.0f) / 10.0f;
+}
 
 int postMsgId = 0;//消息ID，消息ID是需要改变的，每次上报时属性递增
 static uint32_t last_mqtt_retry_ms = 0;
@@ -35,18 +40,25 @@ void OneNET_Prop_Post(PubSubClient& client,DataProvider provider,Threshold thres
     JsonDocument root;
     int currentMsgId = postMsgId++;
 
+    float tempValue = quantizeToTenth(provider.temperature);
+    float humiValue = quantizeToTenth(provider.humidity);
+    float mq4Value = quantizeToTenth(provider.mq4_ppm);
+    float tempThresholdValue = quantizeToTenth(threshold.temp_threshold);
+    float humiThresholdValue = quantizeToTenth(threshold.hum_threshold);
+    float mq4ThresholdValue = quantizeToTenth(threshold.mq4_threshold);
+
     root["id"] = String(currentMsgId);
     root["version"] = "1.0";
 
     JsonObject params = root["params"].to<JsonObject>();
-    params["temp"]["value"] = provider.temperature;
-    params["humi"]["value"] = provider.humidity;
-    params["mq4"]["value"] = provider.mq4_ppm;
+    params["temp"]["value"] = tempValue;
+    params["humi"]["value"] = humiValue;
+    params["mq4"]["value"] = mq4Value;
     params["bulb"]["value"] = provider.bulb_status;
     params["Motor"]["value"] = provider.motor_status;
-    params["temp_threshold"]["value"] = threshold.temp_threshold;
-    params["humi_threshold"]["value"] = threshold.hum_threshold;
-    params["mq4_threshold"]["value"] = threshold.mq4_threshold;
+    params["temp_threshold"]["value"] = tempThresholdValue;
+    params["humi_threshold"]["value"] = humiThresholdValue;
+    params["mq4_threshold"]["value"] = mq4ThresholdValue;
     params["temp_alarm"]["value"] = alarm_flag.temp_alarm;
     params["hum_alarm"]["value"] = alarm_flag.hum_alarm;
     params["mq4_alarm"]["value"] = alarm_flag.mq4_alarm;

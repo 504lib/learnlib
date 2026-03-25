@@ -32,6 +32,7 @@
 #include "string.h"
 #include "u8g2.h"
 #include "u8g2_user.h"
+#include "stm32f1xx_ll_tim.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -123,7 +124,7 @@ int main(void)
   while (1)
   {
 
-    
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
