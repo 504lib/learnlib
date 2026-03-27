@@ -9,6 +9,10 @@ class DataProvider extends ChangeNotifier{
   double _tempratureThreshold = 0.0;
   double _humidityThreshold = 0.0;
   double _mq4Threshold = 0.0;
+  bool _motorOn = false;
+  bool _bulbOn = false;
+  bool get bulbOn => _bulbOn;
+  bool get motorOn => _motorOn;
   double get temperature => _temperature;
   double get humidity => _humidity;
   double get mq4 => _mq4;
@@ -41,6 +45,14 @@ class DataProvider extends ChangeNotifier{
     _mq4Threshold = value;
     notifyListeners();
   }
+  set motorOn(bool value) {
+    _motorOn = value;
+    notifyListeners();
+  }
+  set bulbOn(bool value) {
+    _bulbOn = value;
+    notifyListeners();
+  }
   Future<double> getDataFromOneNet({required HttpToOneNet httpToOneNet,required String field}) async {
     bool ok = await httpToOneNet.updataPropertyData();
     if(!ok)
@@ -60,5 +72,32 @@ class DataProvider extends ChangeNotifier{
       debugPrint("Unexpected temp value type: ${temp.runtimeType}");
       return 0.0;
     }
+  }
+  Future<bool> getBoolDataFromOneNet({required HttpToOneNet httpToOneNet, required String field}) async {
+    bool ok = await httpToOneNet.updataPropertyData();
+    if(!ok)
+    {
+      debugPrint("数据更新失败\n");
+      return false;
+    }
+    var value = await httpToOneNet.fetchProperties(field: field);
+    var temp = value?[field];
+    // debugPrint("Fetched bool temp: $temp\n");
+    if (temp is bool) {
+      return temp;
+    } else if (temp is String) {
+      return temp.toLowerCase() == 'true';
+    } else {
+      debugPrint("Unexpected value type for boolean: ${temp.runtimeType}");
+      return false;
+    }
+  }
+  Future<bool> fetchStatusWithRetry(HttpToOneNet httpToOneNet,{required String field,int retry = 3}) async {
+    for (int i = 0; i < retry; i++) {
+      await Future.delayed(Duration(milliseconds: 200));
+      final res = await httpToOneNet.fetchBoolFieldDirect(field: field);
+      if (res != null) return res;
+    }
+    return false; // 或返回上一次的状态
   }
 }

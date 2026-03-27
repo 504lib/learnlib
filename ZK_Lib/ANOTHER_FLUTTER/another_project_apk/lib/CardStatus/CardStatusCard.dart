@@ -30,7 +30,11 @@ class CardStatusCard extends StatelessWidget {
         openBuilder: (context, _) => CardStatusDetailPage(
           title: title,
           icon: icon,
-          settingsWidget: child,
+          settingsWidget: child == null
+              ? null
+              : Builder(
+                  builder: (context) => child!,
+                ),
           valueNotifier: valueNotifier,
         ),
         closedBuilder: (context, openContainer) => SizedBox(

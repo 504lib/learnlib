@@ -86,6 +86,7 @@ class HttpToOneNet{
             debugPrint('Unexpected data format: properties should be a list');
             return false;
           }
+          // debugPrint('Raw properties data: $rawData\n');  
           final List<dynamic> propertiesData = rawData;
           for(var item in propertiesData)
           {
@@ -139,4 +140,45 @@ class HttpToOneNet{
         return false;
       }
     }
+      /// 直接访问OneNet接口，实时获取指定bool字段的值
+      Future<bool?> fetchBoolFieldDirect({required String field}) async {
+        final url = Uri.parse(_urlStr);
+        try {
+          final response = await http.get(url, headers: header);
+          if (response.statusCode == 200) {
+            final Map<String, dynamic> data = Map<String, dynamic>.from(jsonDecode(response.body));
+            final int code = data['code'] ?? -1;
+            if (code != 0) {
+              return null;
+            }
+            final dynamic rawData = data['data'] ?? {};
+            if (rawData is! List) {
+              debugPrint('Unexpected data format: properties should be a list');
+              return null;
+            }
+            for (var item in rawData) {
+              if (item['identifier'] == field) {
+                final dynamic value = item['value'];
+                if (value is bool) {
+                  return value;
+                } else if (value is String) {
+                  return value.toLowerCase() == 'true';
+                } else {
+                  debugPrint('Unexpected value type for $field: {value.runtimeType}');
+                  return null;
+                }
+              }
+            }
+            debugPrint('Field $field not found in properties');
+            return null;
+          } else {
+            debugPrint('Failed to fetch properties. Status code: {response.statusCode}');
+            return null;
+          }
+        } catch (e) {
+          debugPrint('Error fetching properties: $e');
+          return null;
+        }
+      }
+
  }
