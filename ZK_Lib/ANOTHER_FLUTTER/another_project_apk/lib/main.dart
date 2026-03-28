@@ -11,7 +11,7 @@ final GoRouter _goRouter = GoRouter(
      GoRoute(
       path: "/",
       builder: (context, state) => const MyHomePage(
-        title: "Flutter Demo Home Page",
+        title: "智能家居",
       ),
     )
   ],
@@ -35,7 +35,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'Flutter Demo',
+      title: '智能家居',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color.fromARGB(255, 45, 45, 120)),
       ),
@@ -118,6 +118,9 @@ class _MyHomePageState extends State<MyHomePage> {
   }
   @override
   Widget build(BuildContext context) {
+    FlutterError.onError = (FlutterErrorDetails details) {
+      debugPrint(details.toString());
+    };
     // This method is rerun every time setState is called, for instance as done
     // by the _incrementCounter method above.
     //
