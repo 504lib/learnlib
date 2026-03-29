@@ -12,7 +12,6 @@ static float ComputeDerivative(PID_Node* node, float error, float dt);
 static float ApplyFeedforward(PID_Node* node, float pid_output);
 static inline bool SearchTargetStringNode(PID_Link* link, const char* name, PID_Node** out_node);
 static inline bool IsNodeInList(PID_Link* link, PID_Node* node);
-static void PID_ExecuteNode(PID_Node* node, float dt);
 
 
 
@@ -290,17 +289,17 @@ inline static void SetError(PID_Node* node, float error)
  * @param    node      PID节点
  * @param    dt        时间增量，单位tick,通常是ms
  */
-static void PID_ExecuteNode(PID_Node* node, float dt)
+ PID_RETURN_CORE PID_ExecuteNode(PID_Node* node, float dt)
 {
     if (dt <= 0.0f)
     {
         LOG_WARN("PID_ExecuteNode: dt must be positive");
-        return;
+        return PID_INVALID_PARAMETER;
     }
     if (!node)
     {
         LOG_WARN("PID_ExecuteNode: node is NULL");
-        return;
+        return PID_INVALID_PARAMETER;
     }
 
     // 1. 更新测量值（无论后续如何处理，都要先从前驱获取最新值）
@@ -308,11 +307,11 @@ static void PID_ExecuteNode(PID_Node* node, float dt)
 
     // 2. 输出范围无效 -> 直通测量值并返回
     if (HandleInvalidOutputRange(node))
-        return;
+        return PID_SUCCESS;
 
     // 3. 节点禁用 -> 直通测量值并返回
     if (HandleDisabledNode(node))
-        return;
+        return PID_SUCCESS;
 
     // 4. 计算误差（会更新 node->data.error）
     float error = ComputeError(node);
@@ -335,6 +334,7 @@ static void PID_ExecuteNode(PID_Node* node, float dt)
     // 10. 设置输出并保存本次误差供下次微分使用
     SetOutput(node, final_output);
     node->data.previous_error = error;
+    return PID_SUCCESS;
 }
 
 /**

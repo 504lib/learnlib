@@ -100,9 +100,12 @@ PID_RETURN_CORE PID_Link_RemoveNode(PID_Link* link, const char* name);
 PID_RETURN_CORE PID_Link_InsertNode(PID_Link* link, PID_Node* node_prev, PID_Node* node);
 PID_RETURN_CORE PID_Link_Output(PID_Link* link,float* tail_value);
 
-PID_RETURN_CORE PID_Node_SetEnabled(PID_Node* node, bool enabled);
 PID_RETURN_CORE PID_Node_Init(PID_Node* node, const char* name, float kp, float ki, float kd);
+
 PID_RETURN_CORE PID_Node_Update(PID_Link* L, float head_measured_value,float dt);
+PID_RETURN_CORE PID_ExecuteNode(PID_Node* node, float dt);
+
+PID_RETURN_CORE PID_Node_SetEnabled(PID_Node* node, bool enabled);
 PID_RETURN_CORE PID_Node_SetKp(PID_Node* node , float kp);
 PID_RETURN_CORE PID_Node_SetKi(PID_Node* node , float Ki);
 PID_RETURN_CORE PID_Node_SetKd(PID_Node* node , float Kd);
