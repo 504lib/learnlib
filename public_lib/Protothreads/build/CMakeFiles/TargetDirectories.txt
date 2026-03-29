@@ -1,0 +1,3 @@
+C:/learnlib/public_lib/Protothreads/build/CMakeFiles/Protothreads.dir
+C:/learnlib/public_lib/Protothreads/build/CMakeFiles/edit_cache.dir
+C:/learnlib/public_lib/Protothreads/build/CMakeFiles/rebuild_cache.dir

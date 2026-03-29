@@ -1,0 +1,20 @@
+[
+{
+  "directory": "C:/learnlib/public_lib/PID_fibric/build",
+  "command": "C:\\dev\\llvm-mingw\\bin\\clang.exe  @CMakeFiles/exmaple.dir/includes_C.rsp -g -std=gnu99 -o CMakeFiles\\exmaple.dir\\exmaple.c.obj -c C:\\learnlib\\public_lib\\PID_fibric\\exmaple.c",
+  "file": "C:/learnlib/public_lib/PID_fibric/exmaple.c",
+  "output": "CMakeFiles/exmaple.dir/exmaple.c.obj"
+},
+{
+  "directory": "C:/learnlib/public_lib/PID_fibric/build",
+  "command": "C:\\dev\\llvm-mingw\\bin\\clang.exe  @CMakeFiles/exmaple.dir/includes_C.rsp -g -std=gnu99 -o CMakeFiles\\exmaple.dir\\PID_Node.c.obj -c C:\\learnlib\\public_lib\\PID_fibric\\PID_Node.c",
+  "file": "C:/learnlib/public_lib/PID_fibric/PID_Node.c",
+  "output": "CMakeFiles/exmaple.dir/PID_Node.c.obj"
+},
+{
+  "directory": "C:/learnlib/public_lib/PID_fibric/build",
+  "command": "C:\\dev\\llvm-mingw\\bin\\clang.exe  @CMakeFiles/exmaple.dir/includes_C.rsp -g -std=gnu99 -o CMakeFiles\\exmaple.dir\\Log\\Log.c.obj -c C:\\learnlib\\public_lib\\PID_fibric\\Log\\Log.c",
+  "file": "C:/learnlib/public_lib/PID_fibric/Log/Log.c",
+  "output": "CMakeFiles/exmaple.dir/Log/Log.c.obj"
+}
+]

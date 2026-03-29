@@ -1,0 +1,3 @@
+C:\Users\whyP762\AppData\Local\stm32cube\bundles\cmake\4.0.1+st.3\bin\cmake.exe -E rm -f CMakeFiles\exmaple.dir/objects.a
+C:\dev\llvm-mingw\bin\llvm-ar.exe qc CMakeFiles\exmaple.dir/objects.a @CMakeFiles\exmaple.dir\objects1.rsp
+C:\dev\llvm-mingw\bin\clang.exe -g -Wl,--whole-archive CMakeFiles\exmaple.dir/objects.a -Wl,--no-whole-archive -o C:\learnlib\public_lib\PID_fibric\output\exmaple.exe -Wl,--out-implib,libexmaple.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles\exmaple.dir\linkLibs.rsp

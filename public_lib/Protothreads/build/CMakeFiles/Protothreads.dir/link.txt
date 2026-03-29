@@ -1,0 +1,3 @@
+C:\Users\whyP762\AppData\Local\stm32cube\bundles\cmake\4.0.1+st.3\bin\cmake.exe -E rm -f CMakeFiles\Protothreads.dir/objects.a
+C:\dev\llvm-mingw\bin\llvm-ar.exe qc CMakeFiles\Protothreads.dir/objects.a @CMakeFiles\Protothreads.dir\objects1.rsp
+C:\dev\llvm-mingw\bin\clang.exe -g -Wl,--whole-archive CMakeFiles\Protothreads.dir/objects.a -Wl,--no-whole-archive -o Protothreads.exe -Wl,--out-implib,libProtothreads.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles\Protothreads.dir\linkLibs.rsp

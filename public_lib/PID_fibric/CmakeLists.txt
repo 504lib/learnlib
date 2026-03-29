@@ -1,0 +1,28 @@
+
+# 最低CMake版本
+cmake_minimum_required(VERSION 3.10)
+
+# 项目名
+project(PID_fibric C)
+
+# 设置C标准
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+
+# 源文件
+set(SRC_FILES
+	exmaple.c
+	PID_Node.c
+	Log/Log.c
+)
+
+# 生成可执行文件
+add_executable(exmaple ${SRC_FILES})
+
+# 输出目录
+set_target_properties(exmaple PROPERTIES
+	RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/output
+)
+
+# 包含头文件目录
+target_include_directories(exmaple PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/Log)

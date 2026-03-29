@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"C:/learnlib/public_lib/Protothreads/build/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

@@ -1,0 +1,8 @@
+[
+{
+  "directory": "C:/learnlib/public_lib/Protothreads/build",
+  "command": "C:\\dev\\llvm-mingw\\bin\\clang.exe   -g -std=gnu99 -o CMakeFiles\\Protothreads.dir\\Protothreads.c.obj -c C:\\learnlib\\public_lib\\Protothreads\\Protothreads.c",
+  "file": "C:/learnlib/public_lib/Protothreads/Protothreads.c",
+  "output": "CMakeFiles/Protothreads.dir/Protothreads.c.obj"
+}
+]
