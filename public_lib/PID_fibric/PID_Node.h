@@ -22,6 +22,11 @@ typedef struct feedforward
     float (*feedforward_values)(float target);      // 前馈值获取函数,根据目标值返回前馈值
 } feedforward;
 
+typedef struct measured_callback
+{
+    float (*get_measured_value)(void);              // 获取测量值的回调函数
+} measured_callback;
+
 typedef enum
 {
     FEEDFORWARD_TYPE_SINGLE = 0,        // 单一前馈，使用feedforward_Kp乘以测量值作为前馈输出
@@ -32,6 +37,8 @@ typedef struct PID_Node_Flag
 {
     bool isInitialized;                 // 是否初始化
     bool isEnabled;                     // 是否启用
+    bool isUserDefinedMeasuredValue;     // 是否使用用户定义的测量值回调函数
+    bool isUserBaseValue;                 // 是否使用用户定义的基准值
     FeedForwardType feedforward_type;   // 前馈类型
 } PID_Node_Flag;
 
@@ -47,6 +54,10 @@ typedef enum
 
 typedef struct PID_Limit
 {
+    float setpoint_min;              // 设定值最小值
+    float setpoint_max;              // 设定值最大值
+    float input_min;                // 输入最小值
+    float input_max;                // 输入最大值
     float output_min;               // 输出最小值
     float output_max;               // 输出最大值
     float integral_max;             // 积分最小值
@@ -64,11 +75,13 @@ typedef struct PID_Data
 
 typedef struct
 {
-    float kp;                           // 比例系数
-    float ki;                           // 积分系数
-    float kd;                           // 微分系数 
-    float integral_attenuation_Kp;      // 积分衰减系数
-    feedforward feedforward;            // 前馈参数
+    float kp;                                       // 比例系数
+    float ki;                                       // 积分系数
+    float kd;                                       // 微分系数 
+    float SetPointBaseValue;                        // 设定值基准值,如果启用则会加到设定值上
+    float integral_attenuation_Kp;                  // 积分衰减系数
+    feedforward feedforward;                        // 前馈参数
+    measured_callback measured_callback;            // 测量值回调函数
 } PID_Parameters;
     
 typedef struct PID_Node 
@@ -102,8 +115,9 @@ PID_RETURN_CORE PID_Link_Output(PID_Link* link,float* tail_value);
 
 PID_RETURN_CORE PID_Node_Init(PID_Node* node, const char* name, float kp, float ki, float kd);
 
-PID_RETURN_CORE PID_Node_Update(PID_Link* L, float head_measured_value,float dt);
+PID_RETURN_CORE PID_Node_UpdateMeasurement(PID_Node* node, float measured_value);
 PID_RETURN_CORE PID_ExecuteNode(PID_Node* node, float dt);
+PID_RETURN_CORE PID_Node_Link_Update(PID_Link* link,float dt);
 
 PID_RETURN_CORE PID_Node_SetEnabled(PID_Node* node, bool enabled);
 PID_RETURN_CORE PID_Node_SetKp(PID_Node* node , float kp);
@@ -113,12 +127,20 @@ PID_RETURN_CORE PID_Node_SetSetpoint(PID_Node* node , float setpoint);
 PID_RETURN_CORE PID_Node_SetIntegralAttenuationKp(PID_Node* node , float integral_attenuation_Kp);
 PID_RETURN_CORE PID_Node_SetFeedForward(PID_Node* node, FeedForwardType feedforward_type, float feedforward_Kp, float (*feedforward_values_callback)(float target));
 PID_RETURN_CORE PID_Node_SetLimit(PID_Node* node,PID_Limit limit);
+
+PID_RETURN_CORE PID_Node_SetMaxInput(PID_Node* node, float max_input);
+PID_RETURN_CORE PID_Node_SetMinInput(PID_Node* node, float min_input);
+
 PID_RETURN_CORE PID_Node_SetMaxOutput(PID_Node* node, float max_output);
 PID_RETURN_CORE PID_Node_SetMinOutput(PID_Node* node, float min_output);
+
 PID_RETURN_CORE PID_Node_SetMaxIntegral(PID_Node* node, float max_integral);
 PID_RETURN_CORE PID_Node_SetMaxDerivative(PID_Node* node, float max_derivative);
 PID_RETURN_CORE PID_Node_SetDeadband(PID_Node* node, float deadband);
 PID_RETURN_CORE PID_Node_ResetIntegral(PID_Node* node);
+
+PID_RETURN_CORE PID_Node_SetUserDefinedMeasuredValue(PID_Node* node, bool isEnble ,float (*get_measured_value_callback)(void));
+PID_RETURN_CORE PID_Node_SetUserBaseValue(PID_Node* node, bool isEnble , float base_value);
 
 
 void PID_AllNode(PID_Link* link, void (*operation)(PID_Node* node));

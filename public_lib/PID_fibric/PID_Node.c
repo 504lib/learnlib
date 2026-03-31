@@ -1,9 +1,7 @@
 #include "./PID_Node.h"
 
-inline static void SetMeasuredValue(PID_Node* node, float measured_value);
 inline static void SetOutput(PID_Node* node, float output);
 inline static void SetError(PID_Node* node, float error);
-static void UpdateMeasuredValueFromPrev(PID_Node* node);
 static bool HandleInvalidOutputRange(PID_Node* node);
 static bool HandleDisabledNode(PID_Node* node);
 static float ComputeError(PID_Node* node);
@@ -15,22 +13,25 @@ static inline bool IsNodeInList(PID_Link* link, PID_Node* node);
 
 
 
-/**
- * @brief    更新当前节点的测量值，从前驱节点的输出映射而来
- * 
- * @param    node      function of param
- */
-static void UpdateMeasuredValueFromPrev(PID_Node* node)
+
+static void UpdateSetPointValueFromPrev(PID_Node* node)
 {
-    if (!node->prev) return;
-
-    float prev_range = node->prev->limit.output_max - node->prev->limit.output_min;
-    if (fabsf(prev_range) < 1e-6f) return;  // 前驱范围无效，保持原测量值
-
-    float offset_ratio = (node->prev->output - node->prev->limit.output_min) / prev_range;
-    float range = node->limit.output_max - node->limit.output_min;
-    float new_measured = node->limit.output_min + offset_ratio * range;
-    SetMeasuredValue(node, new_measured);
+    if (!node->prev)
+    {
+        return;
+    }
+    float combined_setpoint = 0.0f;
+    if (node->flag.isUserBaseValue)
+    {
+        combined_setpoint = node->prev->output + node->parameters.SetPointBaseValue;
+    }
+    else
+    {
+        combined_setpoint = node->prev->output;
+    }
+    PID_Node_SetSetpoint(node, (combined_setpoint > node->limit.setpoint_max) ? node->limit.setpoint_max :
+                    (combined_setpoint < node->limit.setpoint_min) ? node->limit.setpoint_min :
+                    combined_setpoint);
 }
 
 /**
@@ -224,23 +225,6 @@ inline static bool IsNodeInList(PID_Link* link, PID_Node* node)
 
 
 /**
- * @brief    执行单个PID节点的计算逻辑。包含测量值更新、输出范围检查、节点使能检查、误差计算、PID计算以及前馈应用等完整的执行流程。通过分步骤处理不同的情况，使得代码结构清晰且易于维护。
- * 
- * @param    node      PID节点
- * @param    measured_value 当前节点的测量值（通常来自前驱节点的输出映射）
- */
-inline static void SetMeasuredValue(PID_Node* node, float measured_value)
-{
-    if (!node)
-    {
-        LOG_WARN("SetMeasuredValue: Invalid parameter - node is NULL");
-        return;
-    }
-    node->measured_value = measured_value;
-}
-
-
-/**
  * @brief    设置PID节点的输出值，并进行输出限幅处理。如果输出值超过设定的最大或最小限制，则将输出值限制在范围内。否则直接设置输出值。
  * 
  * @param    node      PID节点
@@ -303,7 +287,7 @@ inline static void SetError(PID_Node* node, float error)
     }
 
     // 1. 更新测量值（无论后续如何处理，都要先从前驱获取最新值）
-    UpdateMeasuredValueFromPrev(node);
+    UpdateSetPointValueFromPrev(node);
 
     // 2. 输出范围无效 -> 直通测量值并返回
     if (HandleInvalidOutputRange(node))
@@ -334,6 +318,29 @@ inline static void SetError(PID_Node* node, float error)
     // 10. 设置输出并保存本次误差供下次微分使用
     SetOutput(node, final_output);
     node->data.previous_error = error;
+    return PID_SUCCESS;
+}
+
+
+
+PID_RETURN_CORE PID_Node_Link_Update(PID_Link* link,float dt)
+{
+    if (!link)
+    {
+        LOG_WARN("PID_Node_Link_Update: link is NULL");
+        return PID_INVALID_PARAMETER;
+    }
+    PID_Node* current = link->head;
+    while (current) 
+    {
+        PID_RETURN_CORE result = PID_ExecuteNode(current, dt);
+        if (result != PID_SUCCESS)
+        {
+            LOG_WARN("PID_Node_Link_Update: Failed to execute node '%s', error code: %d", current->name, result);
+            return result;
+        }
+        current = current->next;
+    }
     return PID_SUCCESS;
 }
 
@@ -622,10 +629,15 @@ PID_RETURN_CORE PID_Node_Init(PID_Node* node, const char* name, float kp, float 
     node->parameters.integral_attenuation_Kp = 0.9f;
     node->parameters.feedforward.feedforward_Kp = 0.0f;
     node->parameters.feedforward.feedforward_values = NULL;
+    node->parameters.measured_callback.get_measured_value = NULL;
     node->data.error = 0.0f;
     node->data.previous_error = 0.0f;
     node->data.integral_sum = 0.0f;
     node->data.derivative = 0.0f;
+    node->limit.setpoint_min = -1000.0f;
+    node->limit.setpoint_max = 1000.0f;
+    node->limit.input_min = -1000.0f;
+    node->limit.input_max = 1000.0f;
     node->limit.output_min = -1000.0f;
     node->limit.output_max = 1000.0f;
     node->limit.integral_max = 1000.0f;
@@ -633,45 +645,29 @@ PID_RETURN_CORE PID_Node_Init(PID_Node* node, const char* name, float kp, float 
     node->limit.deadband = 0.0f;
     node->flag.isInitialized = true;
     node->flag.isEnabled = true;
+    node->flag.isUserDefinedMeasuredValue = false;
     node->flag.feedforward_type = NO_FEEDFORWARD;
+    node->flag.isUserBaseValue = false;
     node->prev = NULL;
     node->next = NULL;
+    LOG_DEBUG("PID_Node_Init: Node '%s' initialized with Kp=%.2f, Ki=%.2f, Kd=%.2f", node->name, kp, ki, kd);
     return PID_SUCCESS;
 }
 
 
-/**
- * @brief    更新PID链表中所有节点的输出值。根据输入的测量值和时间增量，遍历链表中的每个节点并执行PID计算逻辑来更新其输出值。调用者需要确保链表已经通过PID_Link_Init函数初始化，并且链表中至少有一个节点，否则函数将返回PID_NO_ENOUGH_NODES。
- * 
- * @param    L         PID链表指针，调用者需要确保该指针指向一个已经初始化的PID链表，并且链表中至少有一个节点，否则函数将返回PID_NO_ENOUGH_NODES
- * @param    head_measured_value 链表头节点的测量值，调用者需要根据实际情况提供正确的测量值，这个值通常来自于系统的传感器或其他数据源
- * @param    dt        时间增量，单位tick,通常是ms，调用者需要确保该值为正数，否则函数将返回PID_INVALID_PARAMETER
- * @return   PID_RETURN_CORE 返回函数执行结果，成功返回PID_SUCCESS，参数无效返回PID_INVALID_PARAMETER，如果链表中没有足够的节点可供更新则返回PID_NO_ENOUGH_NODES
- */
-PID_RETURN_CORE PID_Node_Update(PID_Link* L, float head_measured_value,float dt)
+PID_RETURN_CORE PID_Node_UpdateMeasurement(PID_Node* node, float measured_value)
 {
-    if (dt <= 0.0f)
+    if (!node)
     {
-        LOG_WARN("PID_Node_Update: Invalid parameter - dt should be non-negative");
+        LOG_WARN("PID_Node_Update: Invalid parameter - node is NULL");
         return PID_INVALID_PARAMETER;
     }
-    if (!L)
-    {
-        LOG_WARN("PID_Node_Update: Invalid parameter - link is NULL");
-        return PID_INVALID_PARAMETER;
-    }
-    if(!L->head || !L->tail || L->size == 0)
-    {
-        LOG_WARN("PID_Node_Update: No nodes to update - link is empty");
-        return PID_NO_ENOUGH_NODES;
-    }
-    PID_Node* current = L->head;
-    current->measured_value = head_measured_value; // 将头节点的测量值设置为输入的测量值
-    while (current)
-    {
-        PID_ExecuteNode(current, dt);
-        current = current->next;
-    }
+    float measured_value_temp = (node->flag.isUserDefinedMeasuredValue && node->parameters.measured_callback.get_measured_value) ?
+                            node->parameters.measured_callback.get_measured_value() :
+                            measured_value;
+    if (measured_value_temp > node->limit.input_max) measured_value_temp = node->limit.input_max;
+    if (measured_value_temp < node->limit.input_min) measured_value_temp = node->limit.input_min;
+    node->measured_value = measured_value_temp;
     return PID_SUCCESS;
 }
 
@@ -744,6 +740,14 @@ PID_RETURN_CORE PID_Node_SetSetpoint(PID_Node* node , float setpoint)
         return PID_INVALID_PARAMETER;
     }
     node->setpoint = setpoint;
+    if (node->setpoint > node->limit.setpoint_max)
+    {
+        node->setpoint = node->limit.setpoint_max;
+    }
+    else if (node->setpoint < node->limit.setpoint_min)
+    {
+        node->setpoint = node->limit.setpoint_min;
+    }
     return PID_SUCCESS;
 }
 
@@ -841,6 +845,11 @@ PID_RETURN_CORE PID_Node_SetLimit(PID_Node* node,PID_Limit limit)
         LOG_WARN("PID_Node_SetLimit: Invalid parameter - node is NULL");
         return PID_INVALID_PARAMETER;
     }
+    if (limit.input_max < limit.input_min && fabsf(limit.input_max - limit.input_min) > 1e-6f)
+    {
+        LOG_WARN("PID_Node_SetLimit: Invalid parameter - input_max should be greater than input_min");
+        return PID_INVALID_PARAMETER;
+    }
     if (limit.output_max < limit.output_min && fabsf(limit.output_max - limit.output_min) > 1e-6f)
     {
         LOG_WARN("PID_Node_SetLimit: Invalid parameter - output_max should be greater than output_min");
@@ -860,6 +869,40 @@ PID_RETURN_CORE PID_Node_SetLimit(PID_Node* node,PID_Limit limit)
     return PID_SUCCESS;
 }
 
+
+
+PID_RETURN_CORE PID_Node_SetMaxInput(PID_Node* node, float max_input)
+{
+    if (!node)
+    {
+        LOG_WARN("PID_Node_SetMaxInput: Invalid parameter - node is NULL");
+        return PID_INVALID_PARAMETER;
+    }
+    if (max_input < node->limit.input_min)
+    {
+        LOG_WARN("PID_Node_SetMaxInput: Invalid parameter - max_input should be greater than or equal to current input_min");
+        return PID_INVALID_PARAMETER;
+    }
+    node->limit.input_max = max_input;
+    return PID_SUCCESS;
+}
+
+
+PID_RETURN_CORE PID_Node_SetMinInput(PID_Node* node, float min_input)
+{
+    if (!node)
+    {
+        LOG_WARN("PID_Node_SetMinInput: Invalid parameter - node is NULL");
+        return PID_INVALID_PARAMETER;
+    }
+    if (min_input > node->limit.input_max)
+    {
+        LOG_WARN("PID_Node_SetMinInput: Invalid parameter - min_input should be less than or equal to current input_max");
+        return PID_INVALID_PARAMETER;
+    }
+    node->limit.input_min = min_input;
+    return PID_SUCCESS;
+}
 
 /**
  * @brief 设置PID节点的最大输出。
@@ -996,7 +1039,7 @@ PID_RETURN_CORE PID_Link_Output(PID_Link* link,float* tail_value)
     }
     if(!link->head || !link->tail || link->size == 0)
     {
-        LOG_WARN("PID_Link_Output: No nodes to reset - link is empty");
+        LOG_WARN("PID_Link_Output: No nodes to reset - No nodes in the link");
         return PID_NO_ENOUGH_NODES;
     }
     *tail_value = link->tail->output; // 将尾节点的测量值保存到输出参数
@@ -1017,5 +1060,39 @@ PID_RETURN_CORE PID_Node_ResetIntegral(PID_Node* node)
         return PID_INVALID_PARAMETER;
     }
     node->data.integral_sum = 0.0f;
+    return PID_SUCCESS;
+}
+
+
+PID_RETURN_CORE PID_Node_SetUserDefinedMeasuredValue(PID_Node* node, bool isEnble ,float (*get_measured_value_callback)(void))
+{
+    if (!node)
+    {
+        LOG_WARN("PID_Node_SetUserDefinedMeasuredValue: Invalid parameter - node is NULL");
+        return PID_INVALID_PARAMETER;
+    }
+    if (isEnble && !get_measured_value_callback)
+    {
+        LOG_WARN("PID_Node_SetUserDefinedMeasuredValue: Invalid parameter - get_measured_value_callback should not be NULL when enabling user defined measured value");
+        return PID_INVALID_PARAMETER;
+    }
+    node->flag.isUserDefinedMeasuredValue = isEnble;
+    node->parameters.measured_callback.get_measured_value = (isEnble) ? get_measured_value_callback : NULL;
+    return PID_SUCCESS;
+}
+
+
+PID_RETURN_CORE PID_Node_SetUserBaseValue(PID_Node* node, bool isEnble , float base_value)
+{
+    if (!node)
+    {
+        LOG_WARN("PID_Node_SetUserBaseValue: Invalid parameter - node is NULL");
+        return PID_INVALID_PARAMETER;
+    }
+    node->flag.isUserBaseValue = isEnble;
+    if (isEnble)
+    {
+        node->parameters.SetPointBaseValue = base_value;
+    }
     return PID_SUCCESS;
 }
