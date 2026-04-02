@@ -1,0 +1,22 @@
+add_library(static_queue INTERFACE)
+
+target_include_directories(static_queue INTERFACE
+	${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(static_queue INTERFACE
+	Log
+)
+
+option(STATIC_QUEUE_BUILD_DEMO "Build static_queue demo" OFF)
+
+if(STATIC_QUEUE_BUILD_DEMO)
+	add_executable(static_queue_demo
+		static_queue_demo.c
+	)
+
+	target_link_libraries(static_queue_demo PRIVATE
+		static_queue
+	)
+endif()
+

@@ -1,0 +1,17 @@
+add_library(Protothreads INTERFACE)
+
+target_include_directories(Protothreads INTERFACE
+	${CMAKE_CURRENT_SOURCE_DIR}
+	${CMAKE_CURRENT_SOURCE_DIR}/../Core/Inc
+
+)
+
+option(PROTOTHREADS_BUILD_DEMO "Build Protothreads desktop demo" OFF)
+
+if(PROTOTHREADS_BUILD_DEMO)
+	add_executable(Protothreads_demo Protothreads.c)
+
+	target_include_directories(Protothreads_demo PRIVATE
+		${CMAKE_CURRENT_SOURCE_DIR}
+	)
+endif()
