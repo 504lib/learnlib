@@ -10,6 +10,14 @@
 #include "../Log/Log.h"
 #endif
 
+#ifndef STATIC_QUEUE_ENTER_CRITICAL
+#define STATIC_QUEUE_ENTER_CRITICAL() ((void)0)
+#endif
+
+#ifndef STATIC_QUEUE_EXIT_CRITICAL
+#define STATIC_QUEUE_EXIT_CRITICAL() ((void)0)
+#endif
+
 #define STATIC_QUEUE_MAX_CAPACITY 64
 
 #define DECLARE_STATIC_QUEUE(NAME,TYPE,CAPACITY)\
@@ -43,27 +51,45 @@
     }\
     static inline bool NAME##_IS_EMPTY(const NAME##_t* q)\
     {\
+        bool is_empty;\
         LOG_ASSERT(q != NULL);\
         LOG_ASSERT(NAME##_IS_INIT(q));\
-        return q->head == q->tail;\
+        STATIC_QUEUE_ENTER_CRITICAL();\
+        is_empty = (q->head == q->tail);\
+        STATIC_QUEUE_EXIT_CRITICAL();\
+        return is_empty;\
     }\
     static inline bool NAME##_IS_FULL(const NAME##_t* q)\
     {\
+        bool is_full;\
+        size_t head;\
+        size_t tail;\
         size_t next_tail;\
         LOG_ASSERT(q != NULL);\
         LOG_ASSERT(NAME##_IS_INIT(q));\
-        next_tail = (q->tail + 1U) % NAME##_RAW_CAPACITY();\
-        return next_tail == q->head;\
+        STATIC_QUEUE_ENTER_CRITICAL();\
+        head = q->head;\
+        tail = q->tail;\
+        STATIC_QUEUE_EXIT_CRITICAL();\
+        next_tail = (tail + 1U) % NAME##_RAW_CAPACITY();\
+        is_full = (next_tail == head);\
+        return is_full;\
     }\
     static inline size_t NAME##_SIZE(const NAME##_t* q)\
     {\
+        size_t head;\
+        size_t tail;\
         LOG_ASSERT(q != NULL);\
         LOG_ASSERT(NAME##_IS_INIT(q));\
-        if (q->tail >= q->head)\
+        STATIC_QUEUE_ENTER_CRITICAL();\
+        head = q->head;\
+        tail = q->tail;\
+        STATIC_QUEUE_EXIT_CRITICAL();\
+        if (tail >= head)\
         {\
-            return q->tail - q->head;\
+            return tail - head;\
         }\
-        return NAME##_RAW_CAPACITY() - q->head + q->tail;\
+        return NAME##_RAW_CAPACITY() - head + tail;\
     }\
     static inline size_t NAME##_CAPACITY(const NAME##_t* q)\
     {\
@@ -72,54 +98,82 @@
     }\
     static inline bool NAME##_PUSH(NAME##_t* q,TYPE item)\
     {\
+        bool pushed;\
         size_t next_tail;\
         LOG_ASSERT(q != NULL);\
         LOG_ASSERT(NAME##_IS_INIT(q));\
+        STATIC_QUEUE_ENTER_CRITICAL();\
         next_tail = (q->tail + 1U) % NAME##_RAW_CAPACITY();\
         if (next_tail == q->head)\
         {\
-            return false;\
+            pushed = false;\
         }\
-        q->buffer[q->tail] = item;\
-        q->tail = next_tail;\
-        return true;\
+        else\
+        {\
+            q->buffer[q->tail] = item;\
+            q->tail = next_tail;\
+            pushed = true;\
+        }\
+        STATIC_QUEUE_EXIT_CRITICAL();\
+        return pushed;\
     }\
     static inline bool NAME##_POP(NAME##_t* q,TYPE* item)\
     {\
+        bool popped;\
         LOG_ASSERT(q != NULL);\
         LOG_ASSERT(NAME##_IS_INIT(q));\
         LOG_ASSERT(item != NULL);\
+        STATIC_QUEUE_ENTER_CRITICAL();\
         if (q->head == q->tail)\
         {\
-            return false;\
+            popped = false;\
         }\
-        *item = q->buffer[q->head];\
-        q->head = (q->head + 1U) % NAME##_RAW_CAPACITY();\
-        return true;\
+        else\
+        {\
+            *item = q->buffer[q->head];\
+            q->head = (q->head + 1U) % NAME##_RAW_CAPACITY();\
+            popped = true;\
+        }\
+        STATIC_QUEUE_EXIT_CRITICAL();\
+        return popped;\
     }\
     static inline bool NAME##_PEEK(const NAME##_t* q,TYPE* item)\
     {\
+        bool peeked;\
         LOG_ASSERT(q != NULL);\
         LOG_ASSERT(NAME##_IS_INIT(q));\
         LOG_ASSERT(item != NULL);\
+        STATIC_QUEUE_ENTER_CRITICAL();\
         if (q->head == q->tail)\
         {\
-            return false;\
+            peeked = false;\
         }\
-        *item = q->buffer[q->head];\
-        return true;\
+        else\
+        {\
+            *item = q->buffer[q->head];\
+            peeked = true;\
+        }\
+        STATIC_QUEUE_EXIT_CRITICAL();\
+        return peeked;\
     }\
     static inline bool NAME##_BACK(const NAME##_t* q,TYPE* item)\
     {\
+        bool backed;\
         size_t back_index;\
         LOG_ASSERT(q != NULL);\
         LOG_ASSERT(NAME##_IS_INIT(q));\
         LOG_ASSERT(item != NULL);\
+        STATIC_QUEUE_ENTER_CRITICAL();\
         if (q->head == q->tail)\
         {\
-            return false;\
+            backed = false;\
         }\
-        back_index = (q->tail == 0U) ? (NAME##_RAW_CAPACITY() - 1U) : (q->tail - 1U);\
-        *item = q->buffer[back_index];\
-        return true;\
+        else\
+        {\
+            back_index = (q->tail == 0U) ? (NAME##_RAW_CAPACITY() - 1U) : (q->tail - 1U);\
+            *item = q->buffer[back_index];\
+            backed = true;\
+        }\
+        STATIC_QUEUE_EXIT_CRITICAL();\
+        return backed;\
     }
