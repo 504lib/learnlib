@@ -130,9 +130,8 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM4_Init();
   MX_USART1_UART_Init();
-  OLED_Init();
-//  HAL_TIM_Base_Start_IT(&htim4);  // 启动定时器4中断
   /* USER CODE BEGIN 2 */
+  OLED_Init();
   OLED_Clear();
   OLED_ShowString(0, 0, "Calibrating...", 16, 1);
   OLED_ShowString(0, 16, "Keep Still!", 16, 1);
@@ -152,12 +151,13 @@ int main(void)
   HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
 
 	// 启动 TIM4 中断（周期已在 MX_TIM4_Init 中配置为 10ms）
-  HAL_TIM_Base_Start_IT(&htim4);    
   Control_Init();
   MPU6050_Calibrate(200);
   KeyControl_Init();
   Tasks_Init();
   mpu = MPU6050_GetHandle();   // 获取句柄
+  HAL_TIM_Base_Start_IT(&htim4);    
+	OLED_ShowString(0, 0, "test", 16, 1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -231,6 +231,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     {
         static uint32_t last_tick = 0;
         uint32_t now = HAL_GetTick();
+        if (now - last_tick > 1000)
+        {
+          printf("1000 ms elapsed\n");
+        }
         float dt = (now - last_tick) / 1000.0f;
         last_tick = now;
 

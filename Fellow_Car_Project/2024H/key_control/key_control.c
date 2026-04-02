@@ -11,8 +11,8 @@ static uint8_t display_mode = 0;
 // 按键回调函数（声明为 static）
 static uint8_t Key1_ReadPin(MulitKey_t* key)
 {
-    // 假设按键1接在 key1 引脚
-    return HAL_GPIO_ReadPin(key1_GPIO_Port, key1_Pin);
+    // 假设按键1接在 key2 引脚
+    return HAL_GPIO_ReadPin(key2_GPIO_Port, key2_Pin);
 }
 
 static void Key1_OnPressed(MulitKey_t* key)

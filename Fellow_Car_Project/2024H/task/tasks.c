@@ -15,6 +15,8 @@ Protothread_t task1_pt;
 Protothread_t task2_pt;
 Protothread_t SerialTask_pt;
 Protothread_t oled_pt;
+
+
 // 初始化所有任务
 void Tasks_Init(void)
 {
@@ -50,11 +52,13 @@ void task2(Protothread_t* pt)
 void SerialTask(Protothread_t* pt)
 {
     char buffer[50] = {0};
+    mpu = MPU6050_GetHandle();   // 获取全局实例指针
     PT_BEGIN(pt);
     static size_t times = 0;
     while(1)
     {
-        snprintf(buffer, sizeof(buffer), "Serial task has execute %d time(s)\n", ++times);
+//        snprintf(buffer, sizeof(buffer), "Serial task has execute %d time(s)\n", ++times);
+		snprintf(buffer, sizeof(buffer),"Y:%.1f R:%.1f\n", mpu->yaw, mpu->roll);
         HAL_UART_Transmit(&huart1, (uint8_t*)buffer, strlen(buffer), 100);
         PT_WAIT_TICK(pt, 1000);
     }

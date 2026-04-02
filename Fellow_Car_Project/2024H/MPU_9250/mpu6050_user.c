@@ -31,9 +31,9 @@ static void convert_to_physical(void) {
     const float DEG_TO_RAD  = M_PI / 180.0f;
 
     // 加速度：原始值 → 减去偏移 → 转换为 g → 转换为 m/s²
-    mpu_data.phys.ax = (mpu_data.raw.ax - mpu_data.calib.ax_offset) / ACCEL_SCALE ;//* 9.8f;
-    mpu_data.phys.ay = (mpu_data.raw.ay - mpu_data.calib.ay_offset) / ACCEL_SCALE ;//* 9.8f;
-    mpu_data.phys.az = (mpu_data.raw.az - mpu_data.calib.az_offset) / ACCEL_SCALE ;//* 9.8f;
+    mpu_data.phys.ax = (mpu_data.raw.ax - mpu_data.calib.ax_offset) / ACCEL_SCALE * 9.8f;
+    mpu_data.phys.ay = (mpu_data.raw.ay - mpu_data.calib.ay_offset) / ACCEL_SCALE * 9.8f;
+    mpu_data.phys.az = (mpu_data.raw.az - mpu_data.calib.az_offset) / ACCEL_SCALE * 9.8f;
 
     // 角速度：原始值 → 减去偏移 → 转换为 dps → 转换为 rad/s
     mpu_data.phys.gx = (mpu_data.raw.gx - mpu_data.calib.gx_offset) / GYRO_SCALE * DEG_TO_RAD;
