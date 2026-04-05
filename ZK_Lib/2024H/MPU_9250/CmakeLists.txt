@@ -1,0 +1,16 @@
+add_library(MPU_9250 STATIC
+    ./mpu6050.c
+    ./MadgwickAHRS.c
+    ./mpu6050_user.c
+)
+
+target_include_directories(MPU_9250 PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../Core/Inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../SPI_OLED
+    ${CMAKE_CURRENT_SOURCE_DIR}/../Log
+)
+
+target_link_libraries(MPU_9250 PUBLIC
+    stm32cubemx
+)

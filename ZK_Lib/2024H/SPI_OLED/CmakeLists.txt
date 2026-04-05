@@ -1,0 +1,12 @@
+add_library(SPI_OLED STATIC
+    oled.c
+)
+
+target_include_directories(SPI_OLED PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../Core/Inc
+)
+
+target_link_libraries(SPI_OLED PUBLIC
+    stm32cubemx
+)

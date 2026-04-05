@@ -65,6 +65,12 @@ void Error_Handler(void);
 #define PCB_KEY1_GPIO_Port GPIOB
 #define PCB_KEY0_Pin GPIO_PIN_15
 #define PCB_KEY0_GPIO_Port GPIOB
+#define RES_OLED_Pin GPIO_PIN_0
+#define RES_OLED_GPIO_Port GPIOD
+#define DC_OLED_Pin GPIO_PIN_1
+#define DC_OLED_GPIO_Port GPIOD
+#define CS_OLED_Pin GPIO_PIN_2
+#define CS_OLED_GPIO_Port GPIOD
 
 /* USER CODE BEGIN Private defines */
 

@@ -18,6 +18,8 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "i2c.h"
+#include "spi.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -28,6 +30,10 @@
 #include "Log.h"
 #include "static_queue.h"
 #include "multikey.h"
+#include "oled.h"
+#include "mpu6050_user.h"
+#include "MadgwickAHRS.h"
+#include "mpu6050.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -49,9 +55,21 @@
 
 /* USER CODE BEGIN PV */
 Protothread_t LED0_Task, LED1_Task;
+Protothread_t OLED_ShowPage0_Task, OLED_ShowPage1_Task, OLED_ShowPage2_Task, OLED_ShowPage3_Task;
+Protothread_t IMU_Task;
 DECLARE_STATIC_QUEUE(TestQueue,int,10);
+DECLARE_STATIC_QUEUE(OLED_Page_Index_Queue,uint8_t,10);
 TestQueue_t testQueue;
+OLED_Page_Index_Queue_t OLED_index_Queue;
 MulitKey_t key1;
+MulitKey_t key2;
+
+#define IMU_UPDATE_PERIOD_MS 20U
+
+uint8_t OLED_ShowPage_Index_Global = 0;
+
+MPU6050_Data_t* mpu_data = NULL;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -67,6 +85,7 @@ void task1(Protothread_t* pt)
 {
     PT_BEGIN(pt);
     static int value = 0;
+    LOG_DEBUG("Task 1 is running,ticks: %lu", GET_TICKS());
     while(1){
       PT_WAIT_UNTIL(pt, !TestQueue_IS_EMPTY(&testQueue)); // 等待队列非空
       TestQueue_POP(&testQueue, &value); // 从队列中取出一个
@@ -87,16 +106,93 @@ void task2(Protothread_t* pt)
     PT_END(pt);
 }
 
+void IMU_task(Protothread_t* pt)
+{
+    PT_BEGIN(pt);
+    while(1){
+        MPU6050_Update();
+        LOG_DEBUG("Yaw: %.2f, Pitch: %.2f, Roll: %.2f", mpu_data->yaw, mpu_data->pitch, mpu_data->roll);
+        LOG_DEBUG("gz: %.2f", mpu_data->phys.gz);
+        PT_WAIT_TICK(pt, IMU_UPDATE_PERIOD_MS); // 每 20ms 更新一次 IMU
+    }
+    PT_END(pt);
+}
+
+void OLED_ShowPage0(Protothread_t* pt)
+{
+  char buffer[50];
+  PT_BEGIN(pt);
+  while(1){
+    PT_WAIT_UNTIL(pt, OLED_ShowPage_Index_Global == 0);
+    PT_WAIT_TICK(pt, 20); // 每隔2000毫秒执行一次 a
+    snprintf(buffer, sizeof(buffer), "yaw = %.2f", mpu_data->yaw);
+    OLED_ShowString(0, 0, (uint8_t*)buffer,16,1);
+    OLED_Refresh();
+  }
+  PT_END(pt);
+}
+
+void OLED_ShowPage1(Protothread_t* pt)
+{
+  char buffer[50];
+  PT_BEGIN(pt);
+  while(1){
+    PT_WAIT_UNTIL(pt, OLED_ShowPage_Index_Global == 1);
+    PT_WAIT_TICK(pt, 20); // 每隔2000毫秒执行一次 a
+    snprintf(buffer, sizeof(buffer), "Page Index: %d", OLED_ShowPage_Index_Global);
+    OLED_ShowString(0, 0, (uint8_t*)buffer,16,1);
+    OLED_Refresh();
+  }
+  PT_END(pt);
+}
+
+
+void OLED_ShowPage2(Protothread_t* pt)
+{
+  char buffer[50];
+  PT_BEGIN(pt);
+  while(1){
+    PT_WAIT_UNTIL(pt, OLED_ShowPage_Index_Global == 2);
+    PT_WAIT_TICK(pt, 20); // 每隔2000毫秒执行一次 a
+    snprintf(buffer, sizeof(buffer), "Page Index: %d", OLED_ShowPage_Index_Global);
+    OLED_ShowString(0, 0, (uint8_t*)buffer,16,1);
+    OLED_Refresh();
+  }
+  PT_END(pt);
+}
+
+void OLED_ShowPage3(Protothread_t* pt)
+{
+  char buffer[50];
+  PT_BEGIN(pt);
+  while(1){
+    PT_WAIT_UNTIL(pt, OLED_ShowPage_Index_Global == 3);
+    PT_WAIT_TICK(pt, 20); // 每隔2000毫秒执行一次 a
+    snprintf(buffer, sizeof(buffer), "Page Index: %d", OLED_ShowPage_Index_Global);
+    OLED_ShowString(0, 0, (uint8_t*)buffer,16,1);
+    OLED_Refresh();
+  }
+  PT_END(pt);
+}
+
 uint8_t ReadKey1Pin(MulitKey_t* key)
 {
-    return HAL_GPIO_ReadPin(PCB_KEY1_GPIO_Port, PCB_KEY1_Pin);
+    return HAL_GPIO_ReadPin(PCB_KEY0_GPIO_Port, PCB_KEY0_Pin);
+}
+
+uint8_t ReadKey2Pin(MulitKey_t* key)
+{
+  return HAL_GPIO_ReadPin(PCB_KEY1_GPIO_Port, PCB_KEY1_Pin);
 }
 
 void Key1PressedCallback(MulitKey_t* key)
 {
-  static uint32_t press_count = 0;
-  TestQueue_PUSH(&testQueue, ++press_count); // 模拟按键事件，向队列中添加一个值
-  LOG_DEBUG("Key 1 Pressed,ticks: %lu", GET_TICKS());
+  OLED_ShowPage_Index_Global = (OLED_ShowPage_Index_Global + 1) % 4; // 假设有4页
+}
+
+void Key2PressedCallback(MulitKey_t* key)
+{
+  OLED_ShowPage_Index_Global = (OLED_ShowPage_Index_Global == 0U) ? 3U : (OLED_ShowPage_Index_Global - 1U);
 }
 
 /* USER CODE END 0 */
@@ -131,11 +227,37 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART1_UART_Init();
+  MX_SPI3_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
+  OLED_Init();
+  OLED_Clear(); 
+  OLED_ColorTurn(0);
+  OLED_DisplayTurn(0);
+  OLED_DisPlay_On();
   PT_INIT(&LED0_Task);
   PT_INIT(&LED1_Task);
+  PT_INIT(&OLED_ShowPage0_Task);  
+  PT_INIT(&OLED_ShowPage1_Task);
+  PT_INIT(&OLED_ShowPage2_Task);
+  PT_INIT(&OLED_ShowPage3_Task);
+  PT_INIT(&IMU_Task);
   TestQueue_INIT(&testQueue);
+  OLED_Page_Index_Queue_INIT(&OLED_index_Queue);
   MulitKey_Init(&key1,ReadKey1Pin,Key1PressedCallback,Key1PressedCallback,RISE_BORDER_TRIGGER);
+  MulitKey_Init(&key2,ReadKey2Pin,Key2PressedCallback,Key2PressedCallback,RISE_BORDER_TRIGGER);
+  MadgwickAHRSsetSampleFreq(1000.0f / IMU_UPDATE_PERIOD_MS);
+  mpu_data = MPU6050_GetHandle();
+  uint8_t res =  MPU_Init();
+  if (!res)
+  {
+    LOG_INFO("MPU6050 initialization successful,res = %u", res);
+  }
+  else
+  {
+    LOG_INFO("MPU6050 initialization failed,res = %u", res);
+  }
+  MPU6050_Calibrate(200);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -143,9 +265,16 @@ int main(void)
   while (1)
   {
     MulitKey_Scan(&key1);
+    MulitKey_Scan(&key2);
     task1(&LED0_Task);
     task2(&LED1_Task);
+    OLED_ShowPage0(&OLED_ShowPage0_Task);
+    OLED_ShowPage1(&OLED_ShowPage1_Task);
+    OLED_ShowPage2(&OLED_ShowPage2_Task);
+    OLED_ShowPage3(&OLED_ShowPage3_Task);
+    IMU_task(&IMU_Task);
     /* USER CODE END WHILE */
+
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
