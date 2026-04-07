@@ -3,27 +3,136 @@ name: Cppcheck Analysis
 on:
   push:
     paths:
-      - 'Core/Src/**'
-      - 'Core/Inc/**'
+      - '**/*.c'
+      - '**/*.h'
+      - '**/*.cc'
+      - '**/*.cpp'
+      - '**/*.hpp'
+      - '.github/workflows/cppcheck-keil.yml'
   pull_request:
     paths:
-      - 'Core/Src/**'
-      - 'Core/Inc/**'
+      - '**/*.c'
+      - '**/*.h'
+      - '**/*.cc'
+      - '**/*.cpp'
+      - '**/*.hpp'
+      - '.github/workflows/cppcheck-keil.yml'
+  workflow_dispatch:
 
 jobs:
   cppcheck:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Run Cppcheck
-        uses: deep5050/cppcheck-action@main
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          args: >
-            --enable=warning,style
-            --suppress=missingIncludeSystem
-            --error-exitcode=1
-            --max-configs=1
-            -i Drivers
-            -i Middlewares
-            ./Core
+      - name: Install cppcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cppcheck
+
+      - name: Run cppcheck for all STM32 projects
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mapfile -t projects < <(
+            find . -type d -path '*/Core/Src' | \
+              sed 's#^./##' | \
+              sed 's#/Core/Src$##' | \
+              sort -u
+          )
+
+          if [ ${#projects[@]} -eq 0 ]; then
+            echo 'No STM32 projects with Core/Src were found.'
+            exit 0
+          fi
+
+          printf 'Discovered %s project(s):\n' "${#projects[@]}"
+          printf ' - %s\n' "${projects[@]}"
+
+          for project in "${projects[@]}"; do
+            echo "::group::cppcheck ${project}"
+
+            args=(
+              --enable=warning,style
+              --suppress=missingIncludeSystem
+              --error-exitcode=1
+              --max-configs=1
+            )
+
+            include_dirs=(
+              "${project}/Core/Inc"
+            )
+            source_targets=(
+              "${project}/Core"
+            )
+            excluded_dirs=(
+              Core
+              Drivers
+              Middlewares
+              MDK-ARM
+              Debug
+              Release
+              build
+              cmake-build-debug
+              cmake-build-release
+              Log
+              .settings
+              .vscode
+            )
+
+            if [ -d "${project}/Drivers" ]; then
+              while IFS= read -r -d '' dir; do
+                include_dirs+=("${dir}")
+              done < <(
+                find "${project}/Drivers" -type d \( -name Inc -o -name Include \) -print0
+              )
+            fi
+
+            while IFS= read -r -d '' dir; do
+              include_dirs+=("${dir}")
+            done < <(
+              find "${project}" \
+                -path "${project}/Drivers" -prune -o \
+                -path "${project}/Middlewares" -prune -o \
+                -path "${project}/MDK-ARM" -prune -o \
+                -type d \( -name Inc -o -name Include \) -print0
+            )
+
+            while IFS= read -r -d '' dir; do
+              dir_name="$(basename "${dir}")"
+              skip_dir=0
+
+              for excluded in "${excluded_dirs[@]}"; do
+                if [ "${dir_name}" = "${excluded}" ]; then
+                  skip_dir=1
+                  break
+                fi
+              done
+
+              if [ "${skip_dir}" -eq 1 ]; then
+                continue
+              fi
+
+              if find "${dir}" -type f \( -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \) | grep -q .; then
+                source_targets+=("${dir}")
+              fi
+            done < <(find "${project}" -mindepth 1 -maxdepth 1 -type d -print0)
+
+            for dir in "${include_dirs[@]}"; do
+              if [ -d "${dir}" ]; then
+                args+=("-I" "${dir}")
+              fi
+            done
+
+            if [ -d "${project}/Drivers" ]; then
+              args+=("-i" "${project}/Drivers")
+            fi
+
+            if [ -d "${project}/Middlewares" ]; then
+              args+=("-i" "${project}/Middlewares")
+            fi
+
+            cppcheck "${args[@]}" "${source_targets[@]}"
+
+            echo "::endgroup::"
+          done
