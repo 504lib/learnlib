@@ -61,6 +61,10 @@ jobs:
               --suppress=missingIncludeSystem
               --error-exitcode=1
               --max-configs=1
+              --std=c11
+              -D__GNUC__=10
+              -D__GNUC_MINOR__=3
+              -D__GNUC_PATCHLEVEL__=1
             )
             project_file=""
             define_text=""
@@ -205,6 +209,7 @@ jobs:
             cppcheck \
               --project="${database}" \
               --enable=warning,style \
+              --std=c11 \
               --error-exitcode=1 \
               --suppress=missingIncludeSystem
             echo "::endgroup::"
