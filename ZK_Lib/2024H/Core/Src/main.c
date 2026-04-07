@@ -118,6 +118,7 @@ int main(void)
   PT_INIT(&IMU_Task);
   MulitKey_Init(&key1,ReadKey1Pin,Key1PressedCallback,Key1PressedCallback,RISE_BORDER_TRIGGER);
   MulitKey_Init(&key2,ReadKey2Pin,Key2PressedCallback,Key2PressedCallback,RISE_BORDER_TRIGGER);
+  // test push
   /* USER CODE END 2 */
 
   /* Infinite loop */
