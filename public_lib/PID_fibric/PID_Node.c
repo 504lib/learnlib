@@ -76,7 +76,15 @@ static bool HandleDisabledNode(PID_Node* node)
  */
 static float ComputeError(PID_Node* node)
 {
-    float error = node->setpoint - node->measured_value;
+    float error = 0.0f;
+    if (node->custom_functions.custom_error_calculation)
+    {
+        error = node->custom_functions.custom_error_calculation(node->setpoint, node->measured_value);
+    }
+    else
+    {
+        error = node->setpoint - node->measured_value;
+    }
     if (error < node->limit.deadband && error > -node->limit.deadband)
         error = 0.0f;
     SetError(node, error);
@@ -1096,3 +1104,16 @@ PID_RETURN_CORE PID_Node_SetUserBaseValue(PID_Node* node, bool isEnble , float b
     }
     return PID_SUCCESS;
 }
+
+PID_RETURN_CORE PID_Node_SetCustomCallback(PID_Node* node, PID_Custom_Functions custom_functions)
+{
+    if (!node)
+    {
+        LOG_WARN("PID_Node_SetCustomCallback: Invalid parameter - node is NULL");
+        return PID_INVALID_PARAMETER;
+    }
+    node->custom_functions = custom_functions;
+    return PID_SUCCESS;
+}
+
+

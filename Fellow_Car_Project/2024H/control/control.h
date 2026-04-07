@@ -17,7 +17,8 @@ extern PID_Node pidMotor1Speed;
 extern PID_Node pidMotor2Speed;
 extern PID_Node pidAngularVelocity;
 //extern PID_Node pidYaw;
-//extern PID_Node pidGrayscale;
+extern PID_Node pidGrayscale;
+extern PID_Node pidAngle;
 
 // MPU6050 数据句柄
 extern MPU6050_Data_t* mpu;

@@ -6,7 +6,7 @@
 void task3(Protothread_t* pt){
     PT_BEGIN(pt);
     while(1){
-        printf("Task 3 is running,ticks: %lu\n", GET_TICKS());
+        printf("Task 3 is running,ticks: %u\n", GET_TICKS());
         PT_WAIT_TICK(pt, 500); // 每隔2000毫秒执行一次
     }
     PT_END(pt);
@@ -16,7 +16,7 @@ void task1(Protothread_t* pt){
     PT_BEGIN(pt);
     pt->ticks = GET_TICKS(); // 记录当前时间戳
     while(1){
-        printf("Task 1 is running,ticks: %lu\n", GET_TICKS());
+        printf("Task 1 is running,ticks: %u\n", GET_TICKS());
         // PT_WAIT_UNTIL(pt,GET_TICKS() - pt->ticks >= 1000); // 每隔1000毫秒执行一次
         // pt->ticks = GET_TICKS(); // 记录当前时间戳
         PT_WAIT_TICK(pt, 1000); // 每隔1000毫秒执行一次
@@ -28,7 +28,7 @@ void task2(Protothread_t* pt){
     PT_BEGIN(pt);
     pt->ticks = GET_TICKS(); // 记录当前时间戳
     while(1){
-        printf("Task 2 is running,ticks: %lu\n", GET_TICKS());
+        printf("Task 2 is running,ticks: %u\n", GET_TICKS());
         // PT_WAIT_UNTIL(pt, GET_TICKS() - pt->ticks >= 5000); // 每隔1500毫秒执行一次
         // pt->ticks = GET_TICKS(); // 记录当前时间戳
         PT_WAIT_TICK(pt, 10000);

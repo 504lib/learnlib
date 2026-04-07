@@ -16,7 +16,8 @@ Protothread_t task2_pt;
 Protothread_t SerialTask_pt;
 Protothread_t oled_pt;
 
-
+extern PID_Node pidMotor1Speed;
+extern PID_Node pidMotor2Speed;
 // 初始化所有任务
 void Tasks_Init(void)
 {
@@ -57,10 +58,24 @@ void SerialTask(Protothread_t* pt)
     static size_t times = 0;
     while(1)
     {
+//		snprintf(buffer, sizeof(buffer), "%.3f,%.3f\n", Actual_Speed_A, Actual_Speed_B);
+//        HAL_UART_Transmit(&huart1, (uint8_t*)buffer, strlen(buffer), 100);
+        PT_WAIT_TICK(pt, 100);   // 每200ms打印一次
 //        snprintf(buffer, sizeof(buffer), "Serial task has execute %d time(s)\n", ++times);
-		snprintf(buffer, sizeof(buffer),"Y:%.1f R:%.1f\n", mpu->yaw, mpu->roll);
-        HAL_UART_Transmit(&huart1, (uint8_t*)buffer, strlen(buffer), 100);
-        PT_WAIT_TICK(pt, 1000);
+//		snprintf(buffer, sizeof(buffer),"Y:%.1f R:%.1f", mpu->yaw, mpu->roll);
+//        HAL_UART_Transmit(&huart1, (uint8_t*)buffer, strlen(buffer), 100);
+//	printf("Target=%.2f, Meas=%.2f, Out=%.2f, Speed1=%.5f,Speed=%.5f\n", 
+//       pidMotor1Speed.setpoint, 
+//       pidMotor1Speed.measured_value,
+//       pidMotor1Speed.output,
+//	   Actual_Speed_A,
+//	   Actual_Speed_B);
+//	printf("PID_SPEED1: output:%.2f,measure_value:%.2f,setpoint = %.2f\n",
+//			pidMotor1Speed.output,
+//			pidMotor1Speed.measured_value,
+//			pidMotor1Speed.setpoint);
+
+//	PT_WAIT_TICK(pt, 200);
     }
     PT_END(pt);
 }
@@ -90,6 +105,7 @@ void OLED_Task(Protothread_t* pt)
             OLED_ShowString(0, 0, (uint8_t*)buffer, 16, 1);
             snprintf(buffer, sizeof(buffer), "R:%.1f", mpu->roll);
             OLED_ShowString(0, 16, (uint8_t*)buffer, 16, 1);
+			OLED_ShowString(0, 48, "TAT TAT TAT TAT", 16, 1);
             // 不再显示 Y_TAR 和 A_target
         }
         else if (mode == 1)   // 灰度模式

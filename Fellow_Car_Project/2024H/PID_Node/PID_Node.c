@@ -662,12 +662,15 @@ PID_RETURN_CORE PID_Node_UpdateMeasurement(PID_Node* node, float measured_value)
         LOG_WARN("PID_Node_Update: Invalid parameter - node is NULL");
         return PID_INVALID_PARAMETER;
     }
+//	LOG_INFO("receive value:%.2f",measured_value);
     float measured_value_temp = (node->flag.isUserDefinedMeasuredValue && node->parameters.measured_callback.get_measured_value) ?
                             node->parameters.measured_callback.get_measured_value() :
                             measured_value;
+//	LOG_INFO("measured value temp = %.2f",measured_value_temp);
     if (measured_value_temp > node->limit.input_max) measured_value_temp = node->limit.input_max;
     if (measured_value_temp < node->limit.input_min) measured_value_temp = node->limit.input_min;
     node->measured_value = measured_value_temp;
+//	LOG_INFO("current value:%.2f,measured value temp = %.2f",node->measured_value,measured_value_temp);
     return PID_SUCCESS;
 }
 

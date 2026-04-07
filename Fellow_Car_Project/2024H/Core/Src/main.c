@@ -44,6 +44,7 @@
 #include <stdbool.h>
 #include "control.h"
 #include "Protothreads.h"
+#include "state_machine.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -137,8 +138,8 @@ int main(void)
   OLED_ShowString(0, 16, "Keep Still!", 16, 1);
   OLED_Refresh();   // 立即刷新，否则可能不显示
 	// 初始化电机
-  MotorInit_AT46950(&motor1, SetMotor1PWM, SetMotor1IN1, 1000-1); // ARR = 999
-  MotorInit_AT46950(&motor2, SetMotor2PWM, SetMotor2IN1, 1000-1);
+  MotorInit_AT46950(&motor1, SetMotor1PWM, SetMotor1IN1, 100); // ARR = 999
+  MotorInit_AT46950(&motor2, SetMotor2PWM, SetMotor2IN1, 100);
   SetDefaultDirection(&motor1, High_Level);
   SetDefaultDirection(&motor2, High_Level);
 
@@ -155,9 +156,14 @@ int main(void)
   MPU6050_Calibrate(200);
   KeyControl_Init();
   Tasks_Init();
+  SM_Init();    //状态机初始化
+  SM_StartTask(TASK_2);
   mpu = MPU6050_GetHandle();   // 获取句柄
   HAL_TIM_Base_Start_IT(&htim4);    
-	OLED_ShowString(0, 0, "test", 16, 1);
+//	OLED_ShowString(0, 0, "test", 16, 1);
+//Motor_setSpeed(&motor1, 500);
+//Motor_setSpeed(&motor2, 500);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -229,40 +235,49 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     if (htim->Instance == TIM4)
     {
+		static uint8_t cnt = 0;
+		cnt++;
         static uint32_t last_tick = 0;
-        uint32_t now = HAL_GetTick();
-        if (now - last_tick > 1000)
-        {
-          printf("1000 ms elapsed\n");
-        }
-        float dt = (now - last_tick) / 1000.0f;
-        last_tick = now;
-
+        float dt = 4;
+//        uint32_t now = HAL_GetTick();
+//		if (now - last_tick > 1000)
+//        {
+//          printf("1000 ms elapsed\n");
+//        }
+//        float dt = (now - last_tick) / 1000.0f;
+//        last_tick = now;
         // 读取 MPU6050 原始数据（已封装在 MPU6050_Update 中）
         MPU6050_Update();   // 该函数会读原始值、校准、转换并更新欧拉角
 
         // 读取灰度传感器并计算误差
         gray_byte = GPIOE->IDR & 0xFF;
         gray_error = CalculateGrayError_Advanced(gray_byte);
-
         // 读取编码器差值（注意：编码器计数器可能为负数，需根据实际接线调整符号）
-        static int32_t last_A = 0, last_B = 0;
-        int32_t current_A = (int16_t)__HAL_TIM_GET_COUNTER(&htim2);
-        int32_t current_B = (int16_t)__HAL_TIM_GET_COUNTER(&htim3);
-        int32_t diff_A = current_A - last_A;
-        int32_t diff_B = current_B - last_B;
-        last_A = current_A;
-        last_B = current_B;
-        Control_UpdateSpeedFeedback(diff_A, diff_B, dt);
+        static int32_t last_A = 0,last_B = 0;
+//		printf("diffA:%u,diffB:%u\n",diff_A,diff_B);
+		if (cnt % 5 == 0)
+		{
+      
+			int32_t current_A = (int16_t)__HAL_TIM_GET_COUNTER(&htim2);
+			int32_t current_B = (int32_t)(int16_t)__HAL_TIM_GET_COUNTER(&htim3);
+		    int32_t diff_A = current_A - last_A;
+		    int32_t diff_B = current_B - last_B;
+		    last_A = current_A;
+		    last_B = current_B;
+			Control_UpdateSpeedFeedback(diff_A, diff_B, 20);
+			// Control_UpdateSpeedFeedback(current_A, current_B, 20);
+		}
 
         // 执行控制
         Control_Update(dt);
-
+//		printf("target_A=%.2f,target_B=%.2f",target_A,target_B);
+//		printf("diff_A=%ld, speed=%.3f\n", diff_A, Actual_Speed_A);
         // 定期清零编码器（防止溢出）
-        static uint8_t cnt = 0;
-        if (++cnt >= 50) {
+        if (cnt >= 20) {
             __HAL_TIM_SetCounter(&htim2, 0);
             __HAL_TIM_SetCounter(&htim3, 0);
+            last_A = 0;
+            last_B = 0;
             cnt = 0;
         }
     }

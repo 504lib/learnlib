@@ -336,7 +336,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32F407xx</Define>
               <Undefine></Undefine>
-              <IncludePath>../Core/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F4xx/Include;../Drivers/CMSIS/Include;../Motor_AT4950;../multikey;../PID_Node;../SPI_OLED;../Protothreads;../grayscale;../MPU_9250;../Log;../key_control;../task;../control</IncludePath>
+              <IncludePath>../Core/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F4xx/Include;../Drivers/CMSIS/Include;../Motor_AT4950;../multikey;../PID_Node;../SPI_OLED;../Protothreads;../grayscale;../MPU_9250;../Log;../key_control;../task;../control;..\state_machine</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -699,6 +699,21 @@
               <FileName>control.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\control\control.h</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>state_machine</GroupName>
+          <Files>
+            <File>
+              <FileName>state_machine.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\state_machine\state_machine.c</FilePath>
+            </File>
+            <File>
+              <FileName>state_machine.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\state_machine\state_machine.h</FilePath>
             </File>
           </Files>
         </Group>
