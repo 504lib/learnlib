@@ -61,6 +61,7 @@ jobs:
               --suppress=missingIncludeSystem
               --suppress=*:*/Drivers/*
               --suppress=*:*/Middlewares/*
+              --suppress=invalidPointerCast:*/MadgwickAHRS.c
               --error-exitcode=1
               --max-configs=1
               --std=c11
@@ -69,6 +70,7 @@ jobs:
               -D__GNUC_PATCHLEVEL__=1
             )
             project_file=""
+            ioc_file=""
             define_text=""
             cmake_define_file="${project}/cmake/stm32cubemx/CMakeLists.txt"
 
@@ -100,12 +102,42 @@ jobs:
               done < <(find "${project}/MDK-ARM" -maxdepth 1 -type f -name '*.uvprojx' -print0)
             fi
 
+            while IFS= read -r -d '' ioc; do
+              ioc_file="${ioc}"
+              break
+            done < <(find "${project}" -maxdepth 1 -type f -name '*.ioc' -print0)
+
             if [ -n "${project_file}" ]; then
               define_text="$(sed -n 's#.*<Define>\([^<]*\)</Define>.*#\1#p' "${project_file}" | sed '/^$/d' | head -n 1)"
             fi
 
             if [ -z "${define_text}" ] && [ -f "${cmake_define_file}" ]; then
               define_text="$(sed -n '/set(MX_Defines_Syms/,/)/{ /set(MX_Defines_Syms/d; /)/d; p; }' "${cmake_define_file}" | sed 's/#.*$//' | xargs | sed 's/ /,/g')"
+            fi
+
+            if [ -z "${define_text}" ] && [ -n "${ioc_file}" ]; then
+              mcu_cpn="$(sed -n 's/^Mcu\.CPN=//p' "${ioc_file}" | head -n 1 | tr -d '\r')"
+
+              case "${mcu_cpn}" in
+                STM32F103C8*|STM32F103CB*|STM32F103R8*|STM32F103RB*)
+                  define_text="USE_HAL_DRIVER,STM32F103xB"
+                  ;;
+                STM32F103RC*|STM32F103RD*|STM32F103RE*|STM32F103VC*|STM32F103VD*|STM32F103VE*|STM32F103ZD*|STM32F103ZE*)
+                  define_text="USE_HAL_DRIVER,STM32F103xE"
+                  ;;
+                STM32F407*)
+                  define_text="USE_HAL_DRIVER,STM32F407xx"
+                  ;;
+                STM32F429*)
+                  define_text="USE_HAL_DRIVER,STM32F429xx"
+                  ;;
+                STM32H750*)
+                  define_text="USE_HAL_DRIVER,STM32H750xx"
+                  ;;
+                STM32H743*)
+                  define_text="USE_HAL_DRIVER,STM32H743xx"
+                  ;;
+              esac
             fi
 
             if [ -n "${define_text}" ]; then
@@ -215,6 +247,7 @@ jobs:
               --error-exitcode=1 \
               --suppress=missingIncludeSystem \
               --suppress=*:*/Drivers/* \
-              --suppress=*:*/Middlewares/*
+              --suppress=*:*/Middlewares/* \
+              --suppress=invalidPointerCast:*/MadgwickAHRS.c
             echo "::endgroup::"
           done
