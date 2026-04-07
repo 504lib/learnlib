@@ -221,8 +221,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			      printf("%.2f,%.2f,%.2f,%.2f,%lu,%lu\r\n", 
            Target_Speed_A, Target_Speed_B, 
            Actual_Speed_A, Actual_Speed_B,
-           __HAL_TIM_GET_COMPARE(&htim1, TIM_CHANNEL_1),
-           __HAL_TIM_GET_COMPARE(&htim1, TIM_CHANNEL_2));
+           (unsigned long)__HAL_TIM_GET_COMPARE(&htim1, TIM_CHANNEL_1),
+           (unsigned long)__HAL_TIM_GET_COMPARE(&htim1, TIM_CHANNEL_2));
 
 	}
     if (count >= 50)
