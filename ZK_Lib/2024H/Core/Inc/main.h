@@ -71,6 +71,8 @@ void Error_Handler(void);
 #define DC_OLED_GPIO_Port GPIOD
 #define CS_OLED_Pin GPIO_PIN_2
 #define CS_OLED_GPIO_Port GPIOD
+#define TestPin_Pin GPIO_PIN_0
+#define TestPin_GPIO_Port GPIOE
 
 /* USER CODE BEGIN Private defines */
 

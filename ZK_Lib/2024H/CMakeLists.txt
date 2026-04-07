@@ -44,6 +44,7 @@ add_subdirectory(Protothreads)
 add_subdirectory(static_queue)
 add_subdirectory(SPI_OLED)
 add_subdirectory(MPU_9250)
+add_subdirectory(Tasks)
 
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
