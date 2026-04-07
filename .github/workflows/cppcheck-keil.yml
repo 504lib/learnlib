@@ -57,8 +57,10 @@ jobs:
             echo "::group::cppcheck ${project}"
 
             args=(
-              --enable=warning,style
+              --enable=warning,performance,portability
               --suppress=missingIncludeSystem
+              --suppress=*:*/Drivers/*
+              --suppress=*:*/Middlewares/*
               --error-exitcode=1
               --max-configs=1
               --std=c11
@@ -208,9 +210,11 @@ jobs:
             echo "::group::cppcheck ${database}"
             cppcheck \
               --project="${database}" \
-              --enable=warning,style \
+              --enable=warning,performance,portability \
               --std=c11 \
               --error-exitcode=1 \
-              --suppress=missingIncludeSystem
+              --suppress=missingIncludeSystem \
+              --suppress=*:*/Drivers/* \
+              --suppress=*:*/Middlewares/*
             echo "::endgroup::"
           done
