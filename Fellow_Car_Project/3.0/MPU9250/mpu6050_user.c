@@ -1,4 +1,6 @@
 #include "mpu6050_user.h"
+#include <stdio.h>
+#include <string.h>
 #include <math.h>
 #include "mpu6050.h"
 
@@ -47,9 +49,9 @@ MPU6050_Data* MPU6050_Init_Data(void)
 
 static void Calibrate_Magnetometer(MPU6050_Data* mpu6050_data) {
     int16_t mx, my, mz;
-    char buf[20];
+    char buf[32];
     for (int i = 0; i < CALIB_SAMPLES; i++) {
-        sprintf(buf,"calibrating %d times...",i);
+        snprintf(buf, sizeof(buf), "calibrating %d times...", i);
         OLED_ShowString(0,4,(uint8_t*)buf,16,1);
         HAL_UART_Transmit(&huart1, (uint8_t*)buf, strlen(buf), 0xffff);
         MPU_Get_Magnetometer(&mx, &my, &mz); // 用户需要实现
@@ -76,7 +78,7 @@ static void Calibrate_Magnetometer(MPU6050_Data* mpu6050_data) {
     float max_scale = scale_x;
     if (scale_y > max_scale) max_scale = scale_y;
     if (scale_z > max_scale) max_scale = scale_z;
-    sprintf(buf,"max_scale:%0.2f\n",max_scale);
+    snprintf(buf, sizeof(buf), "max_scale:%0.2f\n", max_scale);
     HAL_UART_Transmit(&huart1, (uint8_t*)buf, strlen(buf), 0xffff);
 
 
@@ -171,7 +173,7 @@ static void MPU6050_Calibrate(MPU6050_Data* mpu6050_data)
     float yaw_sum = 0;
     float pitch_sum = 0;
     float roll_sum = 0;
-    char buf[40];
+    char buf[48];
     OLED_Clear();
     short gx, gy, gz;
     short ax, ay, az;
@@ -182,11 +184,11 @@ static void MPU6050_Calibrate(MPU6050_Data* mpu6050_data)
     int32_t ax_sum = 0;
     int32_t ay_sum = 0;
     int32_t az_sum = 0;
-    sprintf(buf,"calibrate_magneto ing ...");
+    snprintf(buf, sizeof(buf), "calibrate_magneto ing ...");
     OLED_ShowString(0,0,(uint8_t*)buf,16,1);
     Calibrate_Magnetometer(mpu6050_data);
     OLED_Clear();
-    sprintf(buf,"calibrate_Gyro and Accelerometer ing ...");
+    snprintf(buf, sizeof(buf), "calibrate_Gyro and Accelerometer ing ...");
     OLED_ShowString(0,0,(uint8_t*)buf,16,1);
     for (i = 0; i < 200; i++) {
         MPU_Get_Gyroscope(&gx, &gy, &gz);
