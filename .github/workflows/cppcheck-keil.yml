@@ -1,0 +1,29 @@
+name: Cppcheck for Keil Projects
+
+on:
+  push:
+    paths:
+      - 'Core/Src/**'
+      - 'Core/Inc/**'
+      - '**.c'
+      - '**.h'
+  pull_request:
+    paths:
+      - 'Core/Src/**'
+      - 'Core/Inc/**'
+
+jobs:
+  cppcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Cppcheck
+        uses: deep5050/cppcheck-action@main
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # 只检查 Core 目录，忽略第三方库或生成代码
+          # 如果 CubeMX 生成了 Drivers 目录，可以一并检查或排除
+          # 常用参数：--enable=all --suppress=missingIncludeSystem
+          args: --enable=warning,style,performance,portability --suppress=missingIncludeSystem --error-exitcode=1
+          # 指定要检查的路径
+          path: './Core'
