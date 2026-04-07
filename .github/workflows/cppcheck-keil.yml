@@ -8,6 +8,8 @@ on:
       - '**/*.cc'
       - '**/*.cpp'
       - '**/*.hpp'
+      - '**/CMakeLists.txt'
+      - '**/CmakeLists.txt'
       - '.github/workflows/cppcheck-keil.yml'
   pull_request:
     paths:
@@ -16,6 +18,8 @@ on:
       - '**/*.cc'
       - '**/*.cpp'
       - '**/*.hpp'
+      - '**/CMakeLists.txt'
+      - '**/CmakeLists.txt'
       - '.github/workflows/cppcheck-keil.yml'
   workflow_dispatch:
 
@@ -58,6 +62,9 @@ jobs:
               --error-exitcode=1
               --max-configs=1
             )
+            project_file=""
+            define_text=""
+            cmake_define_file="${project}/cmake/stm32cubemx/CMakeLists.txt"
 
             include_dirs=(
               "${project}/Core/Inc"
@@ -79,6 +86,31 @@ jobs:
               .settings
               .vscode
             )
+
+            if [ -d "${project}/MDK-ARM" ]; then
+              while IFS= read -r -d '' uvprojx; do
+                project_file="${uvprojx}"
+                break
+              done < <(find "${project}/MDK-ARM" -maxdepth 1 -type f -name '*.uvprojx' -print0)
+            fi
+
+            if [ -n "${project_file}" ]; then
+              define_text="$(sed -n 's#.*<Define>\([^<]*\)</Define>.*#\1#p' "${project_file}" | sed '/^$/d' | head -n 1)"
+            fi
+
+            if [ -z "${define_text}" ] && [ -f "${cmake_define_file}" ]; then
+              define_text="$(sed -n '/set(MX_Defines_Syms/,/)/{ /set(MX_Defines_Syms/d; /)/d; p; }' "${cmake_define_file}" | sed 's/#.*$//' | xargs | sed 's/ /,/g')"
+            fi
+
+            if [ -n "${define_text}" ]; then
+              IFS=',' read -r -a project_defines <<< "${define_text}"
+              for define in "${project_defines[@]}"; do
+                define="$(echo "${define}" | xargs)"
+                if [ -n "${define}" ] && [[ "${define}" != '$<'* ]]; then
+                  args+=("-D${define}")
+                fi
+              done
+            fi
 
             if [ -d "${project}/Drivers" ]; then
               while IFS= read -r -d '' dir; do
@@ -132,7 +164,48 @@ jobs:
               args+=("-i" "${project}/Middlewares")
             fi
 
+            if [ -n "${define_text}" ]; then
+              echo "Using defines: ${define_text}"
+            else
+              echo "No Keil defines found for ${project}; running cppcheck without project-specific -D flags."
+            fi
+
             cppcheck "${args[@]}" "${source_targets[@]}"
 
+            echo "::endgroup::"
+          done
+
+      - name: Run cppcheck for CMake projects with compile_commands
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mapfile -t compile_commands_files < <(
+            find . -type f -name 'compile_commands.json' \
+              ! -path '*/Drivers/*' \
+              ! -path '*/Middlewares/*' \
+              ! -path '*/build/_deps/*' \
+              ! -path '*/windows/*' \
+              ! -path '*/linux/*' \
+              ! -path '*/flutter/*' | \
+              sed 's#^./##' | \
+              sort -u
+          )
+
+          if [ ${#compile_commands_files[@]} -eq 0 ]; then
+            echo 'No compile_commands.json files were found for CMake projects.'
+            exit 0
+          fi
+
+          printf 'Discovered %s compile_commands file(s):\n' "${#compile_commands_files[@]}"
+          printf ' - %s\n' "${compile_commands_files[@]}"
+
+          for database in "${compile_commands_files[@]}"; do
+            echo "::group::cppcheck ${database}"
+            cppcheck \
+              --project="${database}" \
+              --enable=warning,style \
+              --error-exitcode=1 \
+              --suppress=missingIncludeSystem
             echo "::endgroup::"
           done
