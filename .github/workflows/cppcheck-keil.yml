@@ -41,6 +41,9 @@ jobs:
         run: |
           set -euo pipefail
 
+          has_errors=0
+          failure_report="$(mktemp)"
+
           mapfile -t projects < <(
             find . -type d -path '*/Core/Src' | \
               sed 's#^./##' | \
@@ -234,19 +237,33 @@ jobs:
             error_xml="$(mktemp)"
             cppcheck "${common_args[@]}" --xml --xml-version=2 "${source_targets[@]}" 2>"${error_xml}"
             if grep -q 'severity="error"' "${error_xml}"; then
-              cat "${error_xml}" >&2
-              rm -f "${error_xml}"
-              exit 1
+              {
+                echo "cppcheck ${project}"
+                cat "${error_xml}"
+                echo
+              } >> "${failure_report}"
+              has_errors=1
             fi
             rm -f "${error_xml}"
 
             echo "::endgroup::"
           done
 
+          if [ "${has_errors}" -ne 0 ]; then
+            cat "${failure_report}" >&2
+            rm -f "${failure_report}"
+            exit 1
+          fi
+
+          rm -f "${failure_report}"
+
       - name: Run cppcheck for CMake projects with compile_commands
         shell: bash
         run: |
           set -euo pipefail
+
+          has_errors=0
+          failure_report="$(mktemp)"
 
           mapfile -t compile_commands_files < <(
             find . -type f -name 'compile_commands.json' \
@@ -299,10 +316,21 @@ jobs:
               --suppress=invalidPointerCast:*/MadgwickAHRS.c \
               2>"${error_xml}"
             if grep -q 'severity="error"' "${error_xml}"; then
-              cat "${error_xml}" >&2
-              rm -f "${error_xml}"
-              exit 1
+              {
+                echo "cppcheck ${database}"
+                cat "${error_xml}"
+                echo
+              } >> "${failure_report}"
+              has_errors=1
             fi
             rm -f "${error_xml}"
             echo "::endgroup::"
           done
+
+          if [ "${has_errors}" -ne 0 ]; then
+            cat "${failure_report}" >&2
+            rm -f "${failure_report}"
+            exit 1
+          fi
+
+          rm -f "${failure_report}"
