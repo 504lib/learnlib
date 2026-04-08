@@ -317,6 +317,35 @@ jobs:
 
           for database in "${compile_commands_files[@]}"; do
             echo "::group::cppcheck ${database}"
+
+            database_dir="$(dirname "${database}")"
+            skip_database=0
+
+            while IFS= read -r source_file; do
+              if [[ "${source_file}" =~ ^[A-Za-z]:/ ]]; then
+                echo "Skipping ${database}: compilation database contains host-specific absolute path '${source_file}'."
+                skip_database=1
+                break
+              fi
+
+              if [[ "${source_file}" = /* ]]; then
+                candidate_path="${source_file}"
+              else
+                candidate_path="${database_dir}/${source_file}"
+              fi
+
+              if [ ! -f "${candidate_path}" ]; then
+                echo "Skipping ${database}: referenced source file '${source_file}' does not exist on this runner."
+                skip_database=1
+                break
+              fi
+            done < <(sed -n 's/.*"file"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "${database}")
+
+            if [ "${skip_database}" -ne 0 ]; then
+              echo "::endgroup::"
+              continue
+            fi
+
             report_log="$(mktemp)"
             set +e
             cppcheck \
