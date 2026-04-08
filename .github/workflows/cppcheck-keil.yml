@@ -209,6 +209,14 @@ jobs:
               common_args+=("-i" "${project}/Middlewares")
             fi
 
+            if [ -d "${project}/u8g2" ]; then
+              common_args+=("-i" "${project}/u8g2")
+            fi
+
+            if [ -d "${project}/LCD/ILI9341" ]; then
+              common_args+=("-i" "${project}/LCD/ILI9341")
+            fi
+
             if [ -n "${define_text}" ]; then
               echo "Using defines: ${define_text}"
             else
