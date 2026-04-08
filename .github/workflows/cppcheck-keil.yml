@@ -63,6 +63,7 @@ jobs:
               --suppress=missingIncludeSystem
               --suppress=*:*/Drivers/*
               --suppress=*:*/Middlewares/*
+              --suppress=*:*/u8g2/*
               --suppress=invalidPointerCast:*/MadgwickAHRS.c
               --max-configs=1
               --std=c11
@@ -89,6 +90,7 @@ jobs:
               Drivers
               Middlewares
               MDK-ARM
+              u8g2
               Debug
               Release
               build
@@ -260,7 +262,9 @@ jobs:
               --suppress=missingIncludeSystem \
               --suppress=*:*/Drivers/* \
               --suppress=*:*/Middlewares/* \
+              --suppress=*:*/u8g2/* \
               --suppress=invalidPointerCast:*/MadgwickAHRS.c
+              
             error_xml="$(mktemp)"
             cppcheck \
               --project="${database}" \
@@ -270,6 +274,7 @@ jobs:
               --suppress=missingIncludeSystem \
               --suppress=*:*/Drivers/* \
               --suppress=*:*/Middlewares/* \
+              --suppress=*:*/u8g2/* \
               --suppress=invalidPointerCast:*/MadgwickAHRS.c \
               2>"${error_xml}"
             if grep -q 'severity="error"' "${error_xml}"; then
