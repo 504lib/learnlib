@@ -64,6 +64,7 @@ jobs:
               --suppress=*:*/Drivers/*
               --suppress=*:*/Middlewares/*
               --suppress=*:*/u8g2/*
+              --suppress=*:*/LCD/ILI9341/*
               --suppress=invalidPointerCast:*/MadgwickAHRS.c
               --max-configs=1
               --std=c11
@@ -263,6 +264,7 @@ jobs:
               --suppress=*:*/Drivers/* \
               --suppress=*:*/Middlewares/* \
               --suppress=*:*/u8g2/* \
+              --suppress=*:*/LCD/ILI9341/* \
               --suppress=invalidPointerCast:*/MadgwickAHRS.c
               
             error_xml="$(mktemp)"
@@ -275,6 +277,7 @@ jobs:
               --suppress=*:*/Drivers/* \
               --suppress=*:*/Middlewares/* \
               --suppress=*:*/u8g2/* \
+              --suppress=*:*/LCD/ILI9341/* \
               --suppress=invalidPointerCast:*/MadgwickAHRS.c \
               2>"${error_xml}"
             if grep -q 'severity="error"' "${error_xml}"; then
