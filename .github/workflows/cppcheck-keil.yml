@@ -73,10 +73,6 @@ jobs:
             report_args=(
               --enable=warning,performance,portability
             )
-            fail_args=(
-              --enable=error
-              --error-exitcode=1
-            )
             project_file=""
             ioc_file=""
             define_text=""
@@ -217,7 +213,15 @@ jobs:
             fi
 
             cppcheck "${common_args[@]}" "${report_args[@]}" "${source_targets[@]}"
-            cppcheck "${common_args[@]}" "${fail_args[@]}" "${source_targets[@]}"
+
+            error_xml="$(mktemp)"
+            cppcheck "${common_args[@]}" --xml --xml-version=2 "${source_targets[@]}" 2>"${error_xml}"
+            if grep -q 'severity="error"' "${error_xml}"; then
+              cat "${error_xml}" >&2
+              rm -f "${error_xml}"
+              exit 1
+            fi
+            rm -f "${error_xml}"
 
             echo "::endgroup::"
           done
@@ -257,14 +261,22 @@ jobs:
               --suppress=*:*/Drivers/* \
               --suppress=*:*/Middlewares/* \
               --suppress=invalidPointerCast:*/MadgwickAHRS.c
+            error_xml="$(mktemp)"
             cppcheck \
               --project="${database}" \
-              --enable=error \
               --std=c11 \
-              --error-exitcode=1 \
+              --xml \
+              --xml-version=2 \
               --suppress=missingIncludeSystem \
               --suppress=*:*/Drivers/* \
               --suppress=*:*/Middlewares/* \
-              --suppress=invalidPointerCast:*/MadgwickAHRS.c
+              --suppress=invalidPointerCast:*/MadgwickAHRS.c \
+              2>"${error_xml}"
+            if grep -q 'severity="error"' "${error_xml}"; then
+              cat "${error_xml}" >&2
+              rm -f "${error_xml}"
+              exit 1
+            fi
+            rm -f "${error_xml}"
             echo "::endgroup::"
           done
