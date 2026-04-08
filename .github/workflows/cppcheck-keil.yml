@@ -42,7 +42,10 @@ jobs:
           set -euo pipefail
 
           has_errors=0
-          failure_report="$(mktemp)"
+          report_dir="${RUNNER_TEMP}/cppcheck-reports"
+          mkdir -p "${report_dir}"
+          failure_report="${report_dir}/stm32-errors.log"
+          : > "${failure_report}"
 
           mapfile -t projects < <(
             find . -type d -path '*/Core/Src' | \
@@ -249,13 +252,9 @@ jobs:
             echo "::endgroup::"
           done
 
-          if [ "${has_errors}" -ne 0 ]; then
-            cat "${failure_report}" >&2
+          if [ "${has_errors}" -eq 0 ]; then
             rm -f "${failure_report}"
-            exit 1
           fi
-
-          rm -f "${failure_report}"
 
       - name: Run cppcheck for CMake projects with compile_commands
         shell: bash
@@ -263,7 +262,10 @@ jobs:
           set -euo pipefail
 
           has_errors=0
-          failure_report="$(mktemp)"
+          report_dir="${RUNNER_TEMP}/cppcheck-reports"
+          mkdir -p "${report_dir}"
+          failure_report="${report_dir}/compile-commands-errors.log"
+          : > "${failure_report}"
 
           mapfile -t compile_commands_files < <(
             find . -type f -name 'compile_commands.json' \
@@ -327,10 +329,28 @@ jobs:
             echo "::endgroup::"
           done
 
-          if [ "${has_errors}" -ne 0 ]; then
-            cat "${failure_report}" >&2
+          if [ "${has_errors}" -eq 0 ]; then
             rm -f "${failure_report}"
-            exit 1
           fi
 
-          rm -f "${failure_report}"
+      - name: Report cppcheck errors
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          has_errors=0
+          report_dir="${RUNNER_TEMP}/cppcheck-reports"
+
+          if [ -d "${report_dir}" ]; then
+            for report in "${report_dir}"/*.log; do
+              if [ -s "${report}" ]; then
+                cat "${report}" >&2
+                has_errors=1
+              fi
+            done
+          fi
+
+          if [ "${has_errors}" -ne 0 ]; then
+            exit 1
+          fi
