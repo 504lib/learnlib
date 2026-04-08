@@ -237,14 +237,18 @@ jobs:
 
             report_log="$(mktemp)"
             set +e
-            cppcheck "${common_args[@]}" "${report_args[@]}" "${source_targets[@]}" 2>"${report_log}"
+            cppcheck "${common_args[@]}" "${report_args[@]}" "${source_targets[@]}" >"${report_log}" 2>&1
             report_status=$?
             set -e
             cat "${report_log}" >&2
             if [ "${report_status}" -ne 0 ]; then
               {
                 echo "cppcheck ${project}"
-                cat "${report_log}"
+                if [ -s "${report_log}" ]; then
+                  cat "${report_log}"
+                else
+                  echo "cppcheck exited with status ${report_status}, but produced no output."
+                fi
                 echo
               } >> "${failure_report}"
               has_errors=1
@@ -256,13 +260,17 @@ jobs:
 
             error_xml="$(mktemp)"
             set +e
-            cppcheck "${common_args[@]}" --xml --xml-version=2 "${source_targets[@]}" 2>"${error_xml}"
+            cppcheck "${common_args[@]}" --xml --xml-version=2 "${source_targets[@]}" >"${error_xml}" 2>&1
             xml_status=$?
             set -e
             if [ "${xml_status}" -ne 0 ] || grep -q 'severity="error"' "${error_xml}"; then
               {
                 echo "cppcheck ${project}"
-                cat "${error_xml}"
+                if [ -s "${error_xml}" ]; then
+                  cat "${error_xml}"
+                else
+                  echo "cppcheck XML run exited with status ${xml_status}, but produced no output."
+                fi
                 echo
               } >> "${failure_report}"
               has_errors=1
@@ -323,14 +331,18 @@ jobs:
               --suppress=unknownMacro:*/Guider/generated/* \
               --suppress=uninitvar:*/LCD/ILI9341/* \
               --suppress=invalidPointerCast:*/MadgwickAHRS.c \
-              2>"${report_log}"
+              >"${report_log}" 2>&1
             report_status=$?
             set -e
             cat "${report_log}" >&2
             if [ "${report_status}" -ne 0 ]; then
               {
                 echo "cppcheck ${database}"
-                cat "${report_log}"
+                if [ -s "${report_log}" ]; then
+                  cat "${report_log}"
+                else
+                  echo "cppcheck exited with status ${report_status}, but produced no output."
+                fi
                 echo
               } >> "${failure_report}"
               has_errors=1
@@ -355,13 +367,17 @@ jobs:
               --suppress=unknownMacro:*/Guider/generated/* \
               --suppress=uninitvar:*/LCD/ILI9341/* \
               --suppress=invalidPointerCast:*/MadgwickAHRS.c \
-              2>"${error_xml}"
+              >"${error_xml}" 2>&1
             xml_status=$?
             set -e
             if [ "${xml_status}" -ne 0 ] || grep -q 'severity="error"' "${error_xml}"; then
               {
                 echo "cppcheck ${database}"
-                cat "${error_xml}"
+                if [ -s "${error_xml}" ]; then
+                  cat "${error_xml}"
+                else
+                  echo "cppcheck XML run exited with status ${xml_status}, but produced no output."
+                fi
                 echo
               } >> "${failure_report}"
               has_errors=1
