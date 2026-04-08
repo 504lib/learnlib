@@ -59,18 +59,23 @@ jobs:
           for project in "${projects[@]}"; do
             echo "::group::cppcheck ${project}"
 
-            args=(
-              --enable=warning,performance,portability
+            common_args=(
               --suppress=missingIncludeSystem
               --suppress=*:*/Drivers/*
               --suppress=*:*/Middlewares/*
               --suppress=invalidPointerCast:*/MadgwickAHRS.c
-              --error-exitcode=1
               --max-configs=1
               --std=c11
               -D__GNUC__=10
               -D__GNUC_MINOR__=3
               -D__GNUC_PATCHLEVEL__=1
+            )
+            report_args=(
+              --enable=warning,performance,portability
+            )
+            fail_args=(
+              --enable=error
+              --error-exitcode=1
             )
             project_file=""
             ioc_file=""
@@ -148,7 +153,7 @@ jobs:
               for define in "${project_defines[@]}"; do
                 define="$(echo "${define}" | xargs)"
                 if [ -n "${define}" ] && [[ "${define}" != '$<'* ]]; then
-                  args+=("-D${define}")
+                  common_args+=("-D${define}")
                 fi
               done
             fi
@@ -193,16 +198,16 @@ jobs:
 
             for dir in "${include_dirs[@]}"; do
               if [ -d "${dir}" ]; then
-                args+=("-I" "${dir}")
+                common_args+=("-I" "${dir}")
               fi
             done
 
             if [ -d "${project}/Drivers" ]; then
-              args+=("-i" "${project}/Drivers")
+              common_args+=("-i" "${project}/Drivers")
             fi
 
             if [ -d "${project}/Middlewares" ]; then
-              args+=("-i" "${project}/Middlewares")
+              common_args+=("-i" "${project}/Middlewares")
             fi
 
             if [ -n "${define_text}" ]; then
@@ -211,7 +216,8 @@ jobs:
               echo "No Keil defines found for ${project}; running cppcheck without project-specific -D flags."
             fi
 
-            cppcheck "${args[@]}" "${source_targets[@]}"
+            cppcheck "${common_args[@]}" "${report_args[@]}" "${source_targets[@]}"
+            cppcheck "${common_args[@]}" "${fail_args[@]}" "${source_targets[@]}"
 
             echo "::endgroup::"
           done
@@ -246,6 +252,14 @@ jobs:
             cppcheck \
               --project="${database}" \
               --enable=warning,performance,portability \
+              --std=c11 \
+              --suppress=missingIncludeSystem \
+              --suppress=*:*/Drivers/* \
+              --suppress=*:*/Middlewares/* \
+              --suppress=invalidPointerCast:*/MadgwickAHRS.c
+            cppcheck \
+              --project="${database}" \
+              --enable=error \
               --std=c11 \
               --error-exitcode=1 \
               --suppress=missingIncludeSystem \
