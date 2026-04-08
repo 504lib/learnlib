@@ -235,11 +235,31 @@ jobs:
               echo "No Keil defines found for ${project}; running cppcheck without project-specific -D flags."
             fi
 
-            cppcheck "${common_args[@]}" "${report_args[@]}" "${source_targets[@]}"
+            report_log="$(mktemp)"
+            set +e
+            cppcheck "${common_args[@]}" "${report_args[@]}" "${source_targets[@]}" 2>"${report_log}"
+            report_status=$?
+            set -e
+            cat "${report_log}" >&2
+            if [ "${report_status}" -ne 0 ]; then
+              {
+                echo "cppcheck ${project}"
+                cat "${report_log}"
+                echo
+              } >> "${failure_report}"
+              has_errors=1
+              rm -f "${report_log}"
+              echo "::endgroup::"
+              continue
+            fi
+            rm -f "${report_log}"
 
             error_xml="$(mktemp)"
+            set +e
             cppcheck "${common_args[@]}" --xml --xml-version=2 "${source_targets[@]}" 2>"${error_xml}"
-            if grep -q 'severity="error"' "${error_xml}"; then
+            xml_status=$?
+            set -e
+            if [ "${xml_status}" -ne 0 ] || grep -q 'severity="error"' "${error_xml}"; then
               {
                 echo "cppcheck ${project}"
                 cat "${error_xml}"
@@ -289,6 +309,8 @@ jobs:
 
           for database in "${compile_commands_files[@]}"; do
             echo "::group::cppcheck ${database}"
+            report_log="$(mktemp)"
+            set +e
             cppcheck \
               --project="${database}" \
               --enable=warning,performance,portability \
@@ -300,9 +322,26 @@ jobs:
               --suppress=*:*/LCD/ILI9341/* \
               --suppress=unknownMacro:*/Guider/generated/* \
               --suppress=uninitvar:*/LCD/ILI9341/* \
-              --suppress=invalidPointerCast:*/MadgwickAHRS.c
-              
+              --suppress=invalidPointerCast:*/MadgwickAHRS.c \
+              2>"${report_log}"
+            report_status=$?
+            set -e
+            cat "${report_log}" >&2
+            if [ "${report_status}" -ne 0 ]; then
+              {
+                echo "cppcheck ${database}"
+                cat "${report_log}"
+                echo
+              } >> "${failure_report}"
+              has_errors=1
+              rm -f "${report_log}"
+              echo "::endgroup::"
+              continue
+            fi
+            rm -f "${report_log}"
+
             error_xml="$(mktemp)"
+            set +e
             cppcheck \
               --project="${database}" \
               --std=c11 \
@@ -317,7 +356,9 @@ jobs:
               --suppress=uninitvar:*/LCD/ILI9341/* \
               --suppress=invalidPointerCast:*/MadgwickAHRS.c \
               2>"${error_xml}"
-            if grep -q 'severity="error"' "${error_xml}"; then
+            xml_status=$?
+            set -e
+            if [ "${xml_status}" -ne 0 ] || grep -q 'severity="error"' "${error_xml}"; then
               {
                 echo "cppcheck ${database}"
                 cat "${error_xml}"
