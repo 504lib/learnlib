@@ -65,6 +65,7 @@ jobs:
               --suppress=*:*/Middlewares/*
               --suppress=*:*/u8g2/*
               --suppress=*:*/LCD/ILI9341/*
+              --suppress=unknownMacro:*/Guider/generated/*
               --suppress=uninitvar:*/LCD/ILI9341/*
               --suppress=invalidPointerCast:*/MadgwickAHRS.c
               --max-configs=1
@@ -218,6 +219,10 @@ jobs:
               common_args+=("-i" "${project}/LCD/ILI9341")
             fi
 
+            if [ -d "${project}/Guider/generated" ]; then
+              common_args+=("-i" "${project}/Guider/generated")
+            fi
+
             if [ -n "${define_text}" ]; then
               echo "Using defines: ${define_text}"
             else
@@ -274,6 +279,7 @@ jobs:
               --suppress=*:*/Middlewares/* \
               --suppress=*:*/u8g2/* \
               --suppress=*:*/LCD/ILI9341/* \
+              --suppress=unknownMacro:*/Guider/generated/* \
               --suppress=uninitvar:*/LCD/ILI9341/* \
               --suppress=invalidPointerCast:*/MadgwickAHRS.c
               
@@ -288,6 +294,7 @@ jobs:
               --suppress=*:*/Middlewares/* \
               --suppress=*:*/u8g2/* \
               --suppress=*:*/LCD/ILI9341/* \
+              --suppress=unknownMacro:*/Guider/generated/* \
               --suppress=uninitvar:*/LCD/ILI9341/* \
               --suppress=invalidPointerCast:*/MadgwickAHRS.c \
               2>"${error_xml}"
