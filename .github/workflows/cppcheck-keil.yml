@@ -29,6 +29,7 @@ env:
 jobs:
   cppcheck:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - name: Install cppcheck
@@ -65,6 +66,7 @@ jobs:
           for project in "${projects[@]}"; do
             echo "::group::cppcheck ${project}"
 
+            # 第三方库/生成代码保护规则集中放在这里；后续新增目录可按同样方式补充。感谢 GitHub Copilot 协助整理此工作流。
             common_args=(
               --suppress=missingIncludeSystem
               --suppress=*:*/Drivers/*
