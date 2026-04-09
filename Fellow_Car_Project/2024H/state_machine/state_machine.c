@@ -42,6 +42,32 @@ static void SM_NextAction(void) {
     sm.flag_just_entered = true;
 }
 
+static float GetRelativeTurnAngle(TaskType_t task, uint8_t stage, uint8_t lap) {
+    if (task == TASK_2) {
+        switch (stage) {
+            case 0: return 0.0f;
+            case 2: return -6.0f;   // 根据实际标定
+            default: return 0.0f;
+        }
+    } else if (task == TASK_3) {
+        switch (stage) {
+            case 0: return -38.5f;   // A->C
+            case 2: return +40.0f;  // B->D
+            default: return 0.0f;
+        }
+    } else if (task == TASK_4) {
+        float base;
+        switch (stage) {
+            case 0: base = -38.5f; break;
+            case 2: base = +48.5f; break;
+            default: base = 0.0f; break;
+        }
+        float correction = (lap == 0 && stage == 0) ? 0.0f : -6.0f;
+        return base + correction;
+    }
+    return 0.0f;
+}
+
 void SM_Init(void) {
     sm.current_task = TASK_NONE;
     sm.current_action = ACT_IDLE;
@@ -80,47 +106,98 @@ void SM_Update(void) {
     switch (sm.current_action) {
 	case ACT_STRAIGHT:
 		if (sm.flag_just_entered) {
-			// 判断是否是第三题的第一个直行（A→C）
-            LOG_DEBUG("action=STRAIGHT, stage_index=%d", sm.stage_index);
-			if (sm.current_task == TASK_3 && sm.stage_index == 0) {
-				sm.target_angle = 45.0f;
-			} else if (sm.stage_index == 0) {
-				// 其他任务锁定当前航向
-				sm.target_angle = mpu->yaw;
-			} else {
-				// 加固定修正
-				sm.target_angle = mpu->yaw - 15.0f;
-				if (sm.target_angle > 180.0f) sm.target_angle -= 360.0f;
-				if (sm.target_angle < -180.0f) sm.target_angle += 360.0f;
-                LOG_DEBUG("Set target_angle=%.1f", sm.target_angle);
+			// 记录进入直行时的当前航向
+			float current_yaw = mpu->yaw;
+			float relative_turn = 0.0f;
+
+			if (sm.current_task == TASK_2) {
+				// TASK_2 使用相对转角表（可复用统一函数）
+				relative_turn = GetRelativeTurnAngle(sm.current_task, sm.stage_index, sm.lap_count);
 			}
+			else if (sm.current_task == TASK_3 || sm.current_task == TASK_4) {
+				relative_turn = GetRelativeTurnAngle(sm.current_task, sm.stage_index, sm.lap_count);
+			}
+			else if (sm.stage_index == 0) {
+				// 其他任务首次直行：保持当前航向
+				relative_turn = 0.0f;
+			}
+			// 计算目标角度
+			sm.target_angle = current_yaw + relative_turn;
+			// 归一化到 [-180, 180]
+			if (sm.target_angle > 180.0f) sm.target_angle -= 360.0f;
+			if (sm.target_angle < -180.0f) sm.target_angle += 360.0f;
+
+			// 可选：打印调试信息
+			LOG_DEBUG("STRAIGHT: stage=%d, cur_yaw=%.1f, rel_turn=%.1f, target=%.1f",
+					  sm.stage_index, current_yaw, relative_turn, sm.target_angle);
+
 			PID_Node_ResetIntegral(&pidAngle);
 			sm.flag_just_entered = false;
 		}
-		// 检测到黑线（非全白）时切换到循迹
+		// 检测黑线 -> 切换到循迹
 		if (gray_byte != 0xFF) {
 			SM_NextAction();
 			sm.need_sound_light = true;
 		}
 		break;		
 //	case ACT_STRAIGHT:
-//		if (sm.flag_just_entered) {
-//			if (sm.stage_index == 0) {
-//				sm.target_angle = mpu->yaw;           // 第一次直行：不加修正
-//			} else {
-//				sm.target_angle = mpu->yaw - 15.0f;    // 后续直行：加固定修正
-//            if (sm.target_angle > 180.0f) sm.target_angle -= 360.0f;
-//            if (sm.target_angle < -180.0f) sm.target_angle += 360.0f;
+//		if (sm.flag_just_entered) { 
+//			if(sm.current_task == TASK_2)
+//			{
+//				switch(sm.stage_index)
+//				{
+//					case 0: sm.target_angle = 0.0f;	break;
+//					case 2: sm.target_angle = mpu->yaw - 6.0f; 				
+//					LOG_DEBUG("Subsequent straight (stage_index=%d), set target_angle=%.1f (yaw-22)",
+//				    sm.stage_index, sm.target_angle);
+//					break;
+//					default: break;
+//				}
 //			}
+//			if (sm.current_task == TASK_3 || sm.current_task == TASK_4) {
+//				float base_angle = 0.0f;
+//				switch (sm.stage_index) {
+//					case 0: base_angle = -39.0f; break;   // A -> C
+//					case 2: base_angle = -146.0f; break;  // B -> D
+//					default: base_angle = mpu->yaw; break;
+//				}
+//				if (sm.current_task == TASK_4) {
+//					float correction = 0.0f;
+//					if (!(sm.lap_count == 0 && sm.stage_index == 0)) {
+//						correction = -22.0f;
+//					}
+//					sm.target_angle = base_angle + correction;
+//					LOG_DEBUG("TASK_4 lap=%d stage=%d base=%.1f correction=%.1f target=%.1f",
+//							  sm.lap_count, sm.stage_index, base_angle, correction, sm.target_angle);
+//				} else {
+//					sm.target_angle = base_angle;
+//					LOG_DEBUG("TASK_3 straight stage_index=%d, set target_angle=%.1f",
+//							  sm.stage_index, sm.target_angle);
+//				}
+//			}
+//			else if (sm.stage_index == 0) {
+//				sm.target_angle = mpu->yaw;
+//				LOG_DEBUG("First straight (stage_index=0), lock current yaw=%.1f", sm.target_angle);
+//			}
+////			else {
+////				sm.target_angle = mpu->yaw - 22.0f;
+////				LOG_DEBUG("Subsequent straight (stage_index=%d), set target_angle=%.1f (yaw-22)",
+////						  sm.stage_index, sm.target_angle);
+////			}
+//			// 角度归一化到 [-180, 180]
+//			if (sm.target_angle > 180.0f) sm.target_angle -= 360.0f;
+//			if (sm.target_angle < -180.0f) sm.target_angle += 360.0f;
+//			
 //			PID_Node_ResetIntegral(&pidAngle);
 //			sm.flag_just_entered = false;
 //		}
-//		// 检测到黑线 -> 切换到循迹
+
+//		// 检测到黑线（非全白）时切换到循迹
 //		if (gray_byte != 0xFF) {
 //			SM_NextAction();
 //			sm.need_sound_light = true;
 //		}
-//		break;		
+//		break;					
             
         case ACT_TRACKING:
             if (sm.flag_just_entered) {

@@ -50,7 +50,9 @@ typedef enum
     PID_NO_ENOUGH_NODES,                // 没有足够的节点(暂时弃用)
 } PID_RETURN_CORE;
 
-
+typedef struct{
+    float (*custom_error_calculation)(float setpoint, float measured_value); // 用户自定义误差计算函数指针
+} PID_Custom_Functions;
 
 typedef struct PID_Limit
 {
@@ -86,6 +88,7 @@ typedef struct
     
 typedef struct PID_Node 
 {
+    PID_Custom_Functions custom_functions;              // 用户自定义函数集合
     char name[20];                      // PID节点名称
     float setpoint;                     // 设定值
     float measured_value;               // 测量值
@@ -141,6 +144,8 @@ PID_RETURN_CORE PID_Node_ResetIntegral(PID_Node* node);
 
 PID_RETURN_CORE PID_Node_SetUserDefinedMeasuredValue(PID_Node* node, bool isEnble ,float (*get_measured_value_callback)(void));
 PID_RETURN_CORE PID_Node_SetUserBaseValue(PID_Node* node, bool isEnble , float base_value);
+
+PID_RETURN_CORE PID_Node_SetCustomCallback(PID_Node* node, PID_Custom_Functions custom_functions);
 
 
 void PID_AllNode(PID_Link* link, void (*operation)(PID_Node* node));
