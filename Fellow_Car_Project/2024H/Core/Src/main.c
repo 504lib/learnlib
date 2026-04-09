@@ -157,7 +157,7 @@ int main(void)
   KeyControl_Init();
   Tasks_Init();
   SM_Init();    //状态机初始化
-  SM_StartTask(TASK_2);
+  SM_StartTask(TASK_3);
   mpu = MPU6050_GetHandle();   // 获取句柄
   HAL_TIM_Base_Start_IT(&htim4);    
 //	OLED_ShowString(0, 0, "test", 16, 1);

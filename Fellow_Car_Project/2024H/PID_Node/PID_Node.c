@@ -76,7 +76,15 @@ static bool HandleDisabledNode(PID_Node* node)
  */
 static float ComputeError(PID_Node* node)
 {
-    float error = node->setpoint - node->measured_value;
+    float error = 0.0f;
+    if (node->custom_functions.custom_error_calculation)
+    {
+        error = node->custom_functions.custom_error_calculation(node->setpoint, node->measured_value);
+    }
+    else
+    {
+        error = node->setpoint - node->measured_value;
+    }
     if (error < node->limit.deadband && error > -node->limit.deadband)
         error = 0.0f;
     SetError(node, error);
@@ -662,15 +670,12 @@ PID_RETURN_CORE PID_Node_UpdateMeasurement(PID_Node* node, float measured_value)
         LOG_WARN("PID_Node_Update: Invalid parameter - node is NULL");
         return PID_INVALID_PARAMETER;
     }
-//	LOG_INFO("receive value:%.2f",measured_value);
     float measured_value_temp = (node->flag.isUserDefinedMeasuredValue && node->parameters.measured_callback.get_measured_value) ?
                             node->parameters.measured_callback.get_measured_value() :
                             measured_value;
-//	LOG_INFO("measured value temp = %.2f",measured_value_temp);
     if (measured_value_temp > node->limit.input_max) measured_value_temp = node->limit.input_max;
     if (measured_value_temp < node->limit.input_min) measured_value_temp = node->limit.input_min;
     node->measured_value = measured_value_temp;
-//	LOG_INFO("current value:%.2f,measured value temp = %.2f",node->measured_value,measured_value_temp);
     return PID_SUCCESS;
 }
 
@@ -1097,5 +1102,16 @@ PID_RETURN_CORE PID_Node_SetUserBaseValue(PID_Node* node, bool isEnble , float b
     {
         node->parameters.SetPointBaseValue = base_value;
     }
+    return PID_SUCCESS;
+}
+
+PID_RETURN_CORE PID_Node_SetCustomCallback(PID_Node* node, PID_Custom_Functions custom_functions)
+{
+    if (!node)
+    {
+        LOG_WARN("PID_Node_SetCustomCallback: Invalid parameter - node is NULL");
+        return PID_INVALID_PARAMETER;
+    }
+    node->custom_functions = custom_functions;
     return PID_SUCCESS;
 }

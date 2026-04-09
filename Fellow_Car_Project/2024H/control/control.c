@@ -31,6 +31,14 @@ extern MotorAT4950 motor2;
 #define WHEEL_CIRCUMFERENCE 0.1508f   // 车轮周长 m
 #define EFFECTIVE_PPR 1040            // 每转脉冲数（根据编码器配置）
 
+static float AngleErrorCallback(float setpoint, float measured)
+{
+    float err = setpoint - measured;
+    if (err > 180.0f) err -= 360.0f;
+    if (err < -180.0f) err += 360.0f;
+    return err;
+}
+
 // ============ 函数实现 ============
 void Control_Init(void)
 {
@@ -41,7 +49,12 @@ void Control_Init(void)
     PID_Node_Init(&pidMotor1Speed, "M1_Speed", 2000.0f, 6.0f, 0.0f);
     PID_Node_Init(&pidMotor2Speed, "M2_Speed", 2000.0f, 6.0f, 0.0f);
 	// 初始化角度 PID
-	PID_Node_Init(&pidAngle, "Angle", 0.03, 0.0f, 0.01f);
+	PID_Node_Init(&pidAngle, "Angle", 0.025f, 0.00f, 0.02f);
+	
+	// ===== 新增：设置自定义误差计算回调 =====
+    PID_Custom_Functions custom;
+    custom.custom_error_calculation = AngleErrorCallback;
+    PID_Node_SetCustomCallback(&pidAngle, custom);
 	
     PID_Limit limit = {
 		.input_max = 5.0f,
@@ -156,12 +169,19 @@ void Control_Update(float dt)
             // 直行模式：使用角度 PID 保持航向
             // 目标角度在进入 ACT_STRAIGHT 时已锁定在 sm.target_angle
             float current_yaw = mpu_control->yaw;
-            float angle_error = sm.target_angle - current_yaw;
+//            float angle_error = sm.target_angle - current_yaw;
 //            // 角度归一化到 [-180, 180]
 //            if (angle_error > 180.0f) angle_error -= 360.0f;
 //            if (angle_error < -180.0f) angle_error += 360.0f;
 			PID_Node_SetSetpoint(&pidAngle,sm.target_angle);
-            PID_Node_UpdateMeasurement(&pidAngle, current_yaw);
+//            PID_Node_UpdateMeasurement(&pidAngle, current_yaw);
+//			float error = sm.target_angle - current_yaw;
+//			while(error > 180.0f) error -= 360.0f;
+//			while(error < -180.0f) error += 360.0f;
+			PID_Node_SetSetpoint(&pidAngle, sm.target_angle);
+			PID_Node_UpdateMeasurement(&pidAngle, current_yaw);   // 正常更新测量值
+			PID_ExecuteNode(&pidAngle, dt);                       // PID内部会调用回调计算误差			
+//			pidAngle.data.error = error;
             PID_ExecuteNode(&pidAngle, dt);
             float steering = pidAngle.output;   // 范围由 limit.output_max 限制，单位 m/s
 
