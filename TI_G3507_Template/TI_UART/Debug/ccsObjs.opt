@@ -2,6 +2,7 @@
 "./ti_msp_dl_config.o"
 "./startup_mspm0g350x_ticlang.o"
 "./DL_GetTick_Folder/DL_Tick.o"
+"./Motor/Motor_AT4950.o"
 "./SPI_OLED/oled.o"
 "./multikey/multikey.o"
 -l"./device_linker.cmd"

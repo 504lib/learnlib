@@ -1,6 +1,10 @@
 eclipse.preferences.version=1
 encoding//Debug/DL_GetTick_Folder/subdir_rules.mk=UTF-8
 encoding//Debug/DL_GetTick_Folder/subdir_vars.mk=UTF-8
+encoding//Debug/Motor/subdir_rules.mk=UTF-8
+encoding//Debug/Motor/subdir_vars.mk=UTF-8
+encoding//Debug/Protothreads/build/CMakeFiles/4.0.1/CompilerIdC/subdir_rules.mk=UTF-8
+encoding//Debug/Protothreads/build/CMakeFiles/4.0.1/CompilerIdC/subdir_vars.mk=UTF-8
 encoding//Debug/SPI_OLED/subdir_rules.mk=UTF-8
 encoding//Debug/SPI_OLED/subdir_vars.mk=UTF-8
 encoding//Debug/makefile=UTF-8
