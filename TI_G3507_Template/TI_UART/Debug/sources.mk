@@ -120,6 +120,7 @@ GEN_OPTS__QUOTED :=
 SUBDIRS := \
 . \
 DL_GetTick_Folder \
+Motor \
 SPI_OLED \
 multikey \
 
