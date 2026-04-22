@@ -59,6 +59,8 @@ void OneNET_Prop_Post(PubSubClient& client,DataProvider provider,Threshold thres
     params["temp_threshold"]["value"] = tempThresholdValue;
     params["humi_threshold"]["value"] = humiThresholdValue;
     params["mq4_threshold"]["value"] = mq4ThresholdValue;
+    // TODO: 等 OneNET 物模型中的光敏电阻字段名确定后，在这里补充 ADC 原始值上报。
+    // params["light_adc"]["value"] = provider.light_adc;
     params["temp_alarm"]["value"] = alarm_flag.temp_alarm;
     params["hum_alarm"]["value"] = alarm_flag.hum_alarm;
     params["mq4_alarm"]["value"] = alarm_flag.mq4_alarm;
