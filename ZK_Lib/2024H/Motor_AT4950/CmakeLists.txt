@@ -1,0 +1,12 @@
+add_library(Motor_AT4950 STATIC
+	Motor_AT4950.c
+)
+
+target_include_directories(Motor_AT4950 PUBLIC
+	${CMAKE_CURRENT_SOURCE_DIR}
+	${CMAKE_CURRENT_SOURCE_DIR}/../Core/Inc
+)
+
+target_link_libraries(Motor_AT4950 PUBLIC
+	stm32cubemx
+)
