@@ -64,6 +64,7 @@ class _MyHomePageState extends State<MyHomePage> {
   late final ValueNotifier<String> mq4Notifier;
   late final ValueNotifier<String> motorOnNotifier;
   late final ValueNotifier<String> bulbOnNotifier;  
+  late final ValueNotifier<String> lightValNotifier;
   bool isUserMotorOn = false;
   final List<Map<String, dynamic>> motorOptions = [
     {'label': '开', 'value': true, 'icon': Icons.toggle_on},
@@ -83,6 +84,7 @@ class _MyHomePageState extends State<MyHomePage> {
     mq4Notifier = ValueNotifier(dataProvider.mq4.toString());
     motorOnNotifier = ValueNotifier(dataProvider.motorOn ? "ON" : "OFF");
     bulbOnNotifier = ValueNotifier(dataProvider.bulbOn ? "ON" : "OFF");
+    lightValNotifier = ValueNotifier(dataProvider.lightValToString(dataProvider.lightVal));
     timer = Timer.periodic(const Duration(milliseconds: 500), (t) async{
         double tempVal = await dataProvider.getDataFromOneNet(httpToOneNet: httpToOneNet, field: "temp");
         double humidityVal = await dataProvider.getDataFromOneNet(httpToOneNet: httpToOneNet, field: "humi");
@@ -90,9 +92,10 @@ class _MyHomePageState extends State<MyHomePage> {
         double tempThreshold = await dataProvider.getDataFromOneNet(httpToOneNet: httpToOneNet, field: "temp_threshold");
         double humidityThreshold = await dataProvider.getDataFromOneNet(httpToOneNet: httpToOneNet, field: "humi_threshold");
         double mq4Threshold = await dataProvider.getDataFromOneNet(httpToOneNet: httpToOneNet, field: "mq4_threshold");
+        int lightVal = await dataProvider.getIntDataFromOneNet(httpToOneNet: httpToOneNet, field: "light_degree");
         bool isMotorOn = await httpToOneNet.fetchBoolFieldDirect(field: "Motor") ?? false;
         bool isBulbOn = await dataProvider.getBoolDataFromOneNet(httpToOneNet: httpToOneNet, field: "bulb");
-        // debugPrint("Motor status: ${isMotorOn ? "ON" : "OFF"}\n");
+        debugPrint("LightVal status: $lightVal \n");
         if(!mounted) return;
         Provider.of<DataProvider>(context, listen: false).motorOn = isMotorOn;
         Provider.of<DataProvider>(context, listen: false).bulbOn = isBulbOn;
@@ -102,11 +105,13 @@ class _MyHomePageState extends State<MyHomePage> {
         Provider.of<DataProvider>(context, listen: false).tempratureThreshold = tempThreshold;
         Provider.of<DataProvider>(context, listen: false).humidityThreshold = humidityThreshold;
         Provider.of<DataProvider>(context, listen: false).mq4Threshold = mq4Threshold;
+        Provider.of<DataProvider>(context, listen: false).lightVal = lightVal;
         tempNotifier.value = "${tempVal.toString()}℃";
         humidityNotifier.value = "${humidityVal.toString()}%";
         mq4Notifier.value = "${mq4Val.toString()}ppm";
         motorOnNotifier.value = isMotorOn ? "开" : "关"; 
         bulbOnNotifier.value = isBulbOn ? "开" : "关";
+        lightValNotifier.value = dataProvider.lightValToString(lightVal);
         setState(() {
       });
     });
@@ -342,7 +347,7 @@ class _MyHomePageState extends State<MyHomePage> {
               children: [
                 Expanded(
                   child: CardStatusCard(
-                    icon: Icons.light_mode,
+                    icon: Icons.lightbulb,
                     title: "灯泡状态",
                     valueNotifier: bulbOnNotifier,
                     child: Column(
@@ -398,6 +403,19 @@ class _MyHomePageState extends State<MyHomePage> {
                           ],
                         ),
                       ],
+                    ),
+                  )
+                ),
+              ],
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: CardStatusCard(
+                    icon: Icons.light_mode,
+                    title: "亮度状态",
+                    valueNotifier: lightValNotifier,
+                    child: Column(
                     ),
                   )
                 ),
