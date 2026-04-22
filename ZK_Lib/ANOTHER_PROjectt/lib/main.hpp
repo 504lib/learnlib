@@ -15,6 +15,8 @@
 #define MQ4_DO_PIN 1              // MQ-4 数字输出引脚  
 #define MOTOR_PIN 7                // 电机控制引脚
 #define LIGHT_BULB_PIN 6           // 灯泡控制引脚
+#define Photosensitive_RESISTOR_PIN 2   // 光敏电阻引脚
+#define BUZZER_PIN 3                // 蜂鸣器引脚
 
 struct Alarm_Flag
 {

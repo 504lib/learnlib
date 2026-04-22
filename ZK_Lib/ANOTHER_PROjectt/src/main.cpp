@@ -317,6 +317,8 @@ void setup()
   pinMode(LIGHT_BULB_PIN, OUTPUT);
   pinMode(MQ4_AO_PIN,INPUT);
   pinMode(MQ4_DO_PIN,INPUT);
+  pinMode(Photosensitive_RESISTOR_PIN,INPUT);
+  pinMode(BUZZER_PIN,OUTPUT);
   Connect_SSID.fill('\0');
   Connect_PASS.fill('\0');
   init_wifi_storage();
