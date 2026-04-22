@@ -11,7 +11,7 @@ DataProvider data_provider = {0.0f, 0.0f, 0.0f, 0, false, false};
 Alarm_Flag alarm_flag = {false, false, false};
 Use_Flag use_flag = {false, false, false};
 Data_Monitor data_monitor = {0.0f, 0.0f, 0.0f, 0};
-Threshold threshold = {30.0f, 60.0f, 200.0f};
+Threshold threshold = {30.0f, 60.0f, 3000.0f};
 
 DHT dht(DHT_PIN,DHT11);
 
@@ -482,7 +482,7 @@ void Get_data()
     float mq4_ppm_raw = calculatePPM(resistance);                                                // 计算MQ-4的ppm值
     bool mq4_valid = mq4_warmed && isfinite(mq4_ppm_raw) && mq4_ppm_raw >= 0.0f && mq4_ppm_raw <= MQ4_MAX_VALID_PPM;
     data_monitor.light_adc = analogRead(Photosensitive_RESISTOR_PIN);                           // 读取光敏电阻 ADC 原始值
-
+    // Serial.println("current light adc value is " + String(data_monitor.light_adc));
     if (mq4_valid) {
       data_monitor.mq4_ppm = mq4_ppm_raw;
       if (mq4InvalidLogged) {
