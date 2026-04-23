@@ -136,6 +136,21 @@ const char INDEX_HTML[] PROGMEM = R"HTML(<!DOCTYPE html>
             </div>
         </div>
         
+        <div class="card">
+            <h3>🌫️ 粉尘浓度监测</h3>
+            <div class="data-grid">
+                <div class="data-item">
+                    <span class="data-label">真实粉尘:</span>d
+                    <spainput-groupn id="real-dust" class="data-value real-data">-- µg/m³</spainput-groupn>
+                </div>
+                <div class="data-item">
+                    <span class="data-label">模拟粉尘:</span>
+                    d<span id="sim-dust" class="data-value sim-data">-- µg/m³</span>
+                </div>
+                <div class="threshold-info">阈值范围: <span id="dust-range">-- ~ -- µg/m³</span></div>
+            </div>
+        </div>
+
         <div class="mode-panel">
             <h3>🔁 数据模式控制</h3>
             <button class="btn btn-success btn-active" id="use-real-data">使用真实数据</button>
@@ -167,6 +182,15 @@ const char INDEX_HTML[] PROGMEM = R"HTML(<!DOCTYPE html>
                     <label>MQ135 范围 (ppm)</label>
                     <input type="number" id="mq135-min" step="1" placeholder="最小值">
                     <input type="number" id="mq135-max" step="1" placeholder="最大值">
+                </div>
+                <div class="input-group">
+                    <label>粉尘范围 (µg/m³)</label>
+                    <input type="number" id="dust-min" step="1" placeholder="最小值">
+                    <input type="number" id="dust-max" step="1" placeholder="最大值">
+                </div>
+                <div class="input-group">
+                    <label for="dust">粉尘浓度 (µg/m³)</label>
+                    <input type="number" id="dust" value="0" step="1" min="0" max="1000">
                 </div>
             </div>
             <button class="btn" id="update-thresholds">提交范围修改</button>
@@ -217,6 +241,19 @@ const char INDEX_HTML[] PROGMEM = R"HTML(<!DOCTYPE html>
             document.getElementById('hum-max').value = thresholds.hum.max;
             document.getElementById('mq135-min').value = thresholds.mq135.min;
             document.getElementById('mq135-max').value = thresholds.mq135.max;
+            document.getElementById('dust-range').innerText = thresholds.dust.min + ' ~ ' + thresholds.dust.max + ' µg/m³';
+            document.getElementById('dust-min').value = thresholds.dust.min;
+            document.getElementById('dust-max').value = thresholds.dust.max;
+
+            // 更新数据显示
+            document.getElementById('real-dust').textContent = data.real.dust.toFixed(0) + ' µg/m³';
+            document.getElementById('sim-dust').textContent = data.sim.dust.toFixed(0) + ' µg/m³';
+
+            // 提交阈值时
+            dust: { min: parseFloat(document.getElementById('dust-min').value), max: parseFloat(document.getElementById('dust-max').value) }
+
+            // 提交模拟数据时
+            dust: Number(document.getElementById('dust').value)
         }
         
         // 更新显示的数据
@@ -373,8 +410,10 @@ const char INDEX_HTML[] PROGMEM = R"HTML(<!DOCTYPE html>
 #define MQ135_AO_PIN 0
 #define MQ135_DO_PIN 1
 
-#define PM25_AO_PIN 2
-#define PM25_LED_PIN 3
+
+#define DUST_LED_PIN   3
+#define DUST_AO_PIN    2
+
 
 float RLOAD = 10.0;
 float RZERO = 9.65;
@@ -384,6 +423,11 @@ float hum = 0.0f;
 bool motorState = false;
 bool ledState = false;
 bool alarmState = false;
+
+// 粉尘传感器相关
+volatile float simDust = 0.0f;        // 模拟粉尘浓度 (µg/m³)
+volatile float realDust = 0.0f;       // 真实粉尘浓度 (µg/m³)
+float dustMin = 0.0f, dustMax = 150.0f; // 阈值范围 (µg/m³)
 
 DHT dht(DHT_PIN, DHT11);
 
@@ -395,6 +439,29 @@ float readMQ135Resistance() {
 
 float calculatePPM(float resistance) {
   return 116.6020682 * pow((resistance / RZERO), -2.769034857);
+}
+
+// GP2Y1014AU 读取函数，返回浓度 (µg/m³)
+float readDustDensity() {
+  const int samplingTime = 280;
+  const int deltaTime = 40;
+  const int sleepTime = 9680;
+  const float V_REF = 3.3;
+  const float V_NO_DUST = 0.9;   // 清洁空气输出电压典型值
+  const float K = 0.5;           // 灵敏度 0.5V/(0.1mg/m³) → 5V/(mg/m³)
+
+  digitalWrite(DUST_LED_PIN, HIGH);
+  delayMicroseconds(samplingTime);
+  int adc = analogRead(DUST_AO_PIN);
+  delayMicroseconds(deltaTime);
+  digitalWrite(DUST_LED_PIN, LOW);
+
+  float voltage = adc * (V_REF / 4095.0);
+  float density = (voltage - V_NO_DUST) / K * 1000.0; // 转换为 µg/m³ (原公式得出 mg/m³)
+  if (density < 0) density = 0.0;
+  
+  delayMicroseconds(sleepTime);
+  return density;
 }
 
 void setup() {
@@ -409,6 +476,9 @@ void setup() {
   pinMode(Motor_PIN, OUTPUT);
   pinMode(MQ135_AO_PIN, INPUT);
   pinMode(MQ135_DO_PIN, INPUT);
+  pinMode(DUST_LED_PIN, OUTPUT);
+  digitalWrite(DUST_LED_PIN, LOW);
+  analogSetPinAttenuation(DUST_AO_PIN, ADC_11db);// 设置 ADC 衰减
   dht.begin();
   Serial.begin(115200);
 
@@ -433,6 +503,7 @@ void setup() {
     doc["temp"] = simTemp;
     doc["hum"] = simHum;
     doc["mq135"] = simMQ135;
+    doc["dust"] = simDust;   // ← 新增行
     String s;
     serializeJson(doc, s);
     req->send(200, "application/json", s);
@@ -446,6 +517,7 @@ void setup() {
     doc["mq135"] = mq135PPM;
     doc["alarm"] = alarmState;
     doc["motor"] = motorState;
+    doc["dust"]  = realDust;
     String s;
     serializeJson(doc, s);
     req->send(200, "application/json", s);
@@ -470,6 +542,9 @@ void setup() {
     doc["hum"]["max"] = humMax;
     doc["mq135"]["min"] = mq135Min;
     doc["mq135"]["max"] = mq135Max;
+    doc["dust"]["min"] = dustMin;   // ← 新增行
+    doc["dust"]["max"] = dustMax;   // ← 新增行
+
     String s;
     serializeJson(doc, s);
     req->send(200, "application/json", s);
@@ -504,7 +579,11 @@ void setup() {
           float maxv = doc["mq135"]["max"].as<float>();
           if (minv <= maxv) { mq135Min = minv; mq135Max = maxv; }
         }
-
+        if (doc["dust"]["min"].is<float>() && doc["dust"]["max"].is<float>()) {
+            float minv = doc["dust"]["min"].as<float>();
+            float maxv = doc["dust"]["max"].as<float>();
+            if (minv <= maxv) { dustMin = minv; dustMax = maxv; }
+        }
         JsonDocument out;
         out["ok"] = true;
         out["co2"]["min"] = co2Min;
@@ -515,6 +594,8 @@ void setup() {
         out["hum"]["max"] = humMax;
         out["mq135"]["min"] = mq135Min;
         out["mq135"]["max"] = mq135Max;
+        out["dust"]["min"] = dustMin;   // ← 新增行
+        out["dust"]["max"] = dustMax;   // ← 新增行
         String s;
         serializeJson(out, s);
         req->send(200, "application/json", s);
@@ -534,6 +615,7 @@ void setup() {
         simTemp = constrain(doc["temp"] | simTemp, -40, 85);
         simHum = constrain(doc["hum"] | simHum, 0, 100);
         simMQ135 = constrain(doc["mq135"] | simMQ135, 0, 2000);
+        simDust  = constrain(doc["dust"]  | simDust,  0, 1000); // ← 新增行
 
         JsonDocument out;
         out["ok"] = true;
@@ -541,6 +623,7 @@ void setup() {
         out["temp"] = simTemp;
         out["hum"] = simHum;
         out["mq135"] = simMQ135;
+        out["dust"] = simDust;
         String s;
         serializeJson(out, s);
         req->send(200, "application/json", s);
@@ -627,27 +710,35 @@ void loop() {
     last_time = millis();
   }
 
-  // 报警逻辑 - 根据模式选择数据源
-  float currentCO2, currentTemp, currentHum, currentMQ135;
+    // 读取粉尘传感器
+  realDust = readDustDensity();
+  Serial.print("粉尘浓度: ");
+  Serial.print(realDust);
+  Serial.println(" µg/m³");
 
-  if (isSimData) {
-    currentCO2 = simCO2;
-    currentTemp = simTemp;
-    currentHum = simHum;
-    currentMQ135 = simMQ135;
-  } else {
-    currentCO2 = realCO2;
-    currentTemp = realTemp;
-    currentHum = realHum;
-    currentMQ135 = mq135PPM;
-  }
+  // 报警逻辑 - 根据模式选择数据源
+float currentCO2, currentTemp, currentHum, currentMQ135, currentDust;
+if (isSimData) {
+  currentCO2 = simCO2;
+  currentTemp = simTemp;
+  currentHum = simHum;
+  currentMQ135 = simMQ135;
+  currentDust = simDust;
+} else {
+  currentCO2 = realCO2;
+  currentTemp = realTemp;
+  currentHum = realHum;
+  currentMQ135 = mq135PPM;
+  currentDust = realDust;
+}
 
   // 报警条件判断：超出阈值范围即报警
   bool mq135Alarm = (currentMQ135 < mq135Min || currentMQ135 > mq135Max);
   bool co2Alarm   = (currentCO2   < co2Min   || currentCO2   > co2Max);
   bool tempAlarm  = (currentTemp  < tempMin  || currentTemp  > tempMax);
   bool humAlarm   = (currentHum   < humMin   || currentHum   > humMax);
-
+  bool dustAlarm = (currentDust < dustMin || currentDust > dustMax);
+alarmState = (mq135Alarm || co2Alarm || tempAlarm || humAlarm || dustAlarm);
   alarmState = (mq135Alarm || co2Alarm || tempAlarm || humAlarm);
 
   // 控制电机
