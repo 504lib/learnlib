@@ -46,6 +46,8 @@ const char INDEX_HTML[] PROGMEM = R"HTML(<!DOCTYPE html>
         .threshold-info { font-size: 0.9rem; color: #7f8c8d; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ddd; }
         .control-panel, .mode-panel, .threshold-panel { background: rgba(255, 255, 255, 0.95); border-radius: 15px; padding: 25px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1); margin-bottom: 20px; }
         .control-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .sim-control-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .sim-dust-group { grid-column: 1 / -1; }
         .input-group { display: flex; flex-direction: column; gap: 5px; }
         .input-group label { font-weight: 600; color: #333; }
         .input-group input { padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; }
@@ -188,17 +190,13 @@ const char INDEX_HTML[] PROGMEM = R"HTML(<!DOCTYPE html>
                     <input type="number" id="dust-min" step="1" placeholder="最小值">
                     <input type="number" id="dust-max" step="1" placeholder="最大值">
                 </div>
-                <div class="input-group">
-                    <label for="dust">粉尘浓度 (µg/m³)</label>
-                    <input type="number" id="dust" value="0" step="1" min="0" max="1000">
-                </div>
             </div>
             <button class="btn" id="update-thresholds">提交范围修改</button>
         </div>
         
         <div class="control-panel">
             <h3>🎛️ 模拟数据控制</h3>
-            <div class="control-grid">
+            <div class="sim-control-grid">
                 <div class="input-group">
                     <label for="co2">CO2 浓度 (ppm)</label>
                     <input type="number" id="co2" value="420" min="0" max="5000">
@@ -214,6 +212,10 @@ const char INDEX_HTML[] PROGMEM = R"HTML(<!DOCTYPE html>
                 <div class="input-group">
                     <label for="mq135">MQ135 气体 (ppm)</label>
                     <input type="number" id="mq135" value="250.0" step="0.1" min="0" max="2000">
+                </div>
+                <div class="input-group sim-dust-group">
+                  <label for="dust">粉尘浓度 (µg/m³)</label>
+                  <input type="number" id="dust" value="0" step="1" min="0" max="1000">
                 </div>
             </div>
             <button class="btn" id="send">提交模拟数据</button>
@@ -729,8 +731,7 @@ if (isSimData) {
   bool tempAlarm  = (currentTemp  < tempMin  || currentTemp  > tempMax);
   bool humAlarm   = (currentHum   < humMin   || currentHum   > humMax);
   bool dustAlarm = (currentDust < dustMin || currentDust > dustMax);
-alarmState = (mq135Alarm || co2Alarm || tempAlarm || humAlarm || dustAlarm);
-  alarmState = (mq135Alarm || co2Alarm || tempAlarm || humAlarm);
+  alarmState = (mq135Alarm || co2Alarm || tempAlarm || humAlarm || dustAlarm);
 
   // 控制电机
   if (alarmState) {
@@ -741,6 +742,7 @@ alarmState = (mq135Alarm || co2Alarm || tempAlarm || humAlarm || dustAlarm);
     if (co2Alarm) Serial.println("  - CO2浓度超出范围");
     if (tempAlarm) Serial.println("  - 温度超出范围");
     if (humAlarm) Serial.println("  - 湿度超出范围");
+    if (dustAlarm) Serial.println("  - 粉尘浓度超出范围");
   } else {
     digitalWrite(Motor_PIN, LOW);
     motorState = false;
