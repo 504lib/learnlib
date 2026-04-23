@@ -140,12 +140,12 @@ const char INDEX_HTML[] PROGMEM = R"HTML(<!DOCTYPE html>
             <h3>🌫️ 粉尘浓度监测</h3>
             <div class="data-grid">
                 <div class="data-item">
-                    <span class="data-label">真实粉尘:</span>d
-                    <spainput-groupn id="real-dust" class="data-value real-data">-- µg/m³</spainput-groupn>
+              <span class="data-label">真实粉尘:</span>
+              <span id="real-dust" class="data-value real-data">-- µg/m³</span>
                 </div>
                 <div class="data-item">
                     <span class="data-label">模拟粉尘:</span>
-                    d<span id="sim-dust" class="data-value sim-data">-- µg/m³</span>
+              <span id="sim-dust" class="data-value sim-data">-- µg/m³</span>
                 </div>
                 <div class="threshold-info">阈值范围: <span id="dust-range">-- ~ -- µg/m³</span></div>
             </div>
@@ -244,16 +244,6 @@ const char INDEX_HTML[] PROGMEM = R"HTML(<!DOCTYPE html>
             document.getElementById('dust-range').innerText = thresholds.dust.min + ' ~ ' + thresholds.dust.max + ' µg/m³';
             document.getElementById('dust-min').value = thresholds.dust.min;
             document.getElementById('dust-max').value = thresholds.dust.max;
-
-            // 更新数据显示
-            document.getElementById('real-dust').textContent = data.real.dust.toFixed(0) + ' µg/m³';
-            document.getElementById('sim-dust').textContent = data.sim.dust.toFixed(0) + ' µg/m³';
-
-            // 提交阈值时
-            dust: { min: parseFloat(document.getElementById('dust-min').value), max: parseFloat(document.getElementById('dust-max').value) }
-
-            // 提交模拟数据时
-            dust: Number(document.getElementById('dust').value)
         }
         
         // 更新显示的数据
@@ -263,12 +253,14 @@ const char INDEX_HTML[] PROGMEM = R"HTML(<!DOCTYPE html>
             document.getElementById('real-temp').textContent = data.real.temp.toFixed(1) + ' °C';
             document.getElementById('real-hum').textContent = data.real.hum.toFixed(1) + ' %';
             document.getElementById('real-mq135').textContent = data.real.mq135.toFixed(1) + ' ppm';
+          document.getElementById('real-dust').textContent = data.real.dust.toFixed(0) + ' µg/m³';
             
             // 模拟数据
             document.getElementById('sim-co2').textContent = data.sim.co2.toFixed(0) + ' ppm';
             document.getElementById('sim-temp').textContent = data.sim.temp.toFixed(1) + ' °C';
             document.getElementById('sim-hum').textContent = data.sim.hum.toFixed(1) + ' %';
             document.getElementById('sim-mq135').textContent = data.sim.mq135.toFixed(1) + ' ppm';
+          document.getElementById('sim-dust').textContent = data.sim.dust.toFixed(0) + ' µg/m³';
             
             // 系统状态
             document.getElementById('alarm-status').textContent = data.status.alarm ? '🚨 报警' : '✅ 正常';
@@ -335,7 +327,8 @@ const char INDEX_HTML[] PROGMEM = R"HTML(<!DOCTYPE html>
                 co2: { min: parseFloat(document.getElementById('co2-min').value), max: parseFloat(document.getElementById('co2-max').value) },
                 temp: { min: parseFloat(document.getElementById('temp-min').value), max: parseFloat(document.getElementById('temp-max').value) },
                 hum: { min: parseFloat(document.getElementById('hum-min').value), max: parseFloat(document.getElementById('hum-max').value) },
-                mq135: { min: parseFloat(document.getElementById('mq135-min').value), max: parseFloat(document.getElementById('mq135-max').value) }
+            mq135: { min: parseFloat(document.getElementById('mq135-min').value), max: parseFloat(document.getElementById('mq135-max').value) },
+            dust: { min: parseFloat(document.getElementById('dust-min').value), max: parseFloat(document.getElementById('dust-max').value) }
             };
             try {
                 const response = await fetch('/api/thresholds', {
@@ -360,7 +353,8 @@ const char INDEX_HTML[] PROGMEM = R"HTML(<!DOCTYPE html>
                 co2: Number(document.getElementById('co2').value),
                 temp: Number(document.getElementById('temp').value),
                 hum: Number(document.getElementById('hum').value),
-                mq135: Number(document.getElementById('mq135').value)
+            mq135: Number(document.getElementById('mq135').value),
+            dust: Number(document.getElementById('dust').value)
             };
             
             try {
@@ -466,12 +460,12 @@ float readDustDensity() {
 
 void setup() {
   Serial1.begin(9600, SERIAL_8N1, 5, 4);
-  pinMode(PM25_LED_PIN, OUTPUT);
-  digitalWrite(PM25_LED_PIN, LOW);     // 初始化为低电平
+  pinMode(DUST_LED_PIN, OUTPUT);
+  digitalWrite(DUST_LED_PIN, LOW);     // 初始化为低电平
   
   // ESP32-C3的ADC默认是12位精度 (0-4095)
   analogReadResolution(12);      // 可选，明确设置12位精度
-  analogSetPinAttenuation(PM25_AO_PIN, ADC_11db); // 设置衰减为11dB，使输入电压范围达到约3.3V
+  analogSetPinAttenuation(DUST_AO_PIN, ADC_11db); // 设置衰减为11dB，使输入电压范围达到约3.3V
   pinMode(LED_PIN, OUTPUT);
   pinMode(Motor_PIN, OUTPUT);
   pinMode(MQ135_AO_PIN, INPUT);
@@ -762,16 +756,16 @@ alarmState = (mq135Alarm || co2Alarm || tempAlarm || humAlarm || dustAlarm);
     const float V_NO_DUST = 0.9;     // 规格书: 清洁空气中输出电压典型值为0.9V
     const float K = 0.5;             // 规格书: 灵敏度 0.5V/(0.1mg/m³) => 5V/(mg/m³)
 
-  digitalWrite(PM25_LED_PIN, HIGH);
+  digitalWrite(DUST_LED_PIN, HIGH);
   // 步骤2: 等待280us让LED稳定
   delayMicroseconds(280);
   
   // 步骤3: 在正确的时间点采样ADC
-  uint16_t voMeasured = analogRead(PM25_AO_PIN);
+  uint16_t voMeasured = analogRead(DUST_AO_PIN);
   
   // 步骤4: 等待40us后，拉低LED引脚，结束脉冲
   delayMicroseconds(40);
-  digitalWrite(PM25_LED_PIN, LOW);
+  digitalWrite(DUST_LED_PIN, LOW);
   
   // 步骤5: 在剩余的9.68ms内，处理数据并延时
   // 5.1 将ADC原始值转换为电压
