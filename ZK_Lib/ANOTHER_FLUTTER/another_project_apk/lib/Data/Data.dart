@@ -11,6 +11,7 @@ class DataProvider extends ChangeNotifier{
   double _mq4Threshold = 0.0;
   bool _motorOn = false;
   bool _bulbOn = false;
+  int _lightVal = 0;
   bool get bulbOn => _bulbOn;
   bool get motorOn => _motorOn;
   double get temperature => _temperature;
@@ -19,6 +20,7 @@ class DataProvider extends ChangeNotifier{
   double get tempratureThreshold => _tempratureThreshold;
   double get humidityThreshold => _humidityThreshold;
   double get mq4Threshold => _mq4Threshold;
+  int get lightVal => _lightVal;
   DataProvider();
 
   set temperature(double value) {
@@ -51,6 +53,10 @@ class DataProvider extends ChangeNotifier{
   }
   set bulbOn(bool value) {
     _bulbOn = value;
+    notifyListeners();
+  }
+  set lightVal(int value) {
+    _lightVal = value;
     notifyListeners();
   }
   Future<double> getDataFromOneNet({required HttpToOneNet httpToOneNet,required String field}) async {
@@ -92,6 +98,25 @@ class DataProvider extends ChangeNotifier{
       return false;
     }
   }
+  Future<int> getIntDataFromOneNet({required HttpToOneNet httpToOneNet, required String field}) async {
+    bool ok = await httpToOneNet.updataPropertyData();
+    if(!ok)
+    {
+      debugPrint("数据更新失败\n");
+      return 0;
+    }
+    var value = await httpToOneNet.fetchProperties(field: field);
+    var temp = value?[field];
+    // debugPrint("Fetched int temp: $temp\n");
+    if (temp is num) {
+      return temp.toInt();
+    } else if (temp is String) {
+      return int.tryParse(temp) ?? 0;
+    } else {
+      debugPrint("Unexpected value type for int: ${temp.runtimeType}");
+      return 0;
+    }
+  }
   Future<bool> fetchStatusWithRetry(HttpToOneNet httpToOneNet,{required String field,int retry = 3}) async {
     for (int i = 0; i < retry; i++) {
       await Future.delayed(Duration(milliseconds: 200));
@@ -99,5 +124,19 @@ class DataProvider extends ChangeNotifier{
       if (res != null) return res;
     }
     return false; // 或返回上一次的状态
+  }
+  String lightValToString(int lightVal) {
+    switch (lightVal) {
+      case 0:
+        return "亮度过大";
+      case 1:
+        return "明亮";
+      case 2:
+        return "较暗";
+      case 3:
+        return "亮度过小";
+      default:
+        return "未知亮度";
+    }
   }
 }

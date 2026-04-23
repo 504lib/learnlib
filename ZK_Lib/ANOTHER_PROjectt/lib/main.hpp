@@ -15,6 +15,8 @@
 #define MQ4_DO_PIN 1              // MQ-4 数字输出引脚  
 #define MOTOR_PIN 7                // 电机控制引脚
 #define LIGHT_BULB_PIN 6           // 灯泡控制引脚
+#define Photosensitive_RESISTOR_PIN 2   // 光敏电阻引脚
+#define BUZZER_PIN 4                // 蜂鸣器引脚
 
 struct Alarm_Flag
 {
@@ -43,6 +45,7 @@ struct Data_Monitor
   volatile float temperature;     // 温度监测数据
   volatile float humidity;        // 湿度监测数据
   volatile float mq4_ppm;         // MQ-4 监测数据，单位为ppm
+  volatile uint16_t light_adc;    // 光敏电阻 ADC 原始值
 };
 
 

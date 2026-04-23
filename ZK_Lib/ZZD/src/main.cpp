@@ -410,8 +410,10 @@ const char INDEX_HTML[] PROGMEM = R"HTML(<!DOCTYPE html>
 #define MQ135_AO_PIN 0
 #define MQ135_DO_PIN 1
 
+
 #define DUST_LED_PIN   3
 #define DUST_AO_PIN    2
+
 
 float RLOAD = 10.0;
 float RZERO = 9.65;
@@ -464,6 +466,12 @@ float readDustDensity() {
 
 void setup() {
   Serial1.begin(9600, SERIAL_8N1, 5, 4);
+  pinMode(PM25_LED_PIN, OUTPUT);
+  digitalWrite(PM25_LED_PIN, LOW);     // 初始化为低电平
+  
+  // ESP32-C3的ADC默认是12位精度 (0-4095)
+  analogReadResolution(12);      // 可选，明确设置12位精度
+  analogSetPinAttenuation(PM25_AO_PIN, ADC_11db); // 设置衰减为11dB，使输入电压范围达到约3.3V
   pinMode(LED_PIN, OUTPUT);
   pinMode(Motor_PIN, OUTPUT);
   pinMode(MQ135_AO_PIN, INPUT);
@@ -747,6 +755,45 @@ alarmState = (mq135Alarm || co2Alarm || tempAlarm || humAlarm || dustAlarm);
     motorState = false;
     Serial.println("✅ 环境参数正常");
   }
+
+
+
+    const float V_REF = 3.3;        // ESP32-C3的ADC参考电压为3.3V
+    const float V_NO_DUST = 0.9;     // 规格书: 清洁空气中输出电压典型值为0.9V
+    const float K = 0.5;             // 规格书: 灵敏度 0.5V/(0.1mg/m³) => 5V/(mg/m³)
+
+  digitalWrite(PM25_LED_PIN, HIGH);
+  // 步骤2: 等待280us让LED稳定
+  delayMicroseconds(280);
+  
+  // 步骤3: 在正确的时间点采样ADC
+  uint16_t voMeasured = analogRead(PM25_AO_PIN);
+  
+  // 步骤4: 等待40us后，拉低LED引脚，结束脉冲
+  delayMicroseconds(40);
+  digitalWrite(PM25_LED_PIN, LOW);
+  
+  // 步骤5: 在剩余的9.68ms内，处理数据并延时
+  // 5.1 将ADC原始值转换为电压
+  float calcVoltage = voMeasured * (V_REF / 4095.0); // 12位ADC，最大值4095
+  
+  // 5.2 计算灰尘浓度 (单位: mg/m³)
+  // 公式: 浓度 = (测量电压 - 无尘电压) / 灵敏度
+  float dustDensity = (calcVoltage - V_NO_DUST) / K;
+  
+  // 5.3 确保浓度不为负数 (因噪声可能出现微小负值)
+  if (dustDensity < 0) {
+    dustDensity = 0.0;
+  }
+
+  // 5.4 打印结果到串口
+  Serial.print("Raw ADC: ");
+  Serial.print(voMeasured);
+  Serial.print("\t Voltage: ");
+  Serial.print(calcVoltage, 3);
+  Serial.print(" V\t Dust Density: ");
+  Serial.print(dustDensity, 3);
+  Serial.println(" mg/m³");
 
   Serial.print("数据模式: ");
   Serial.println(isSimData ? "模拟数据" : "真实数据");

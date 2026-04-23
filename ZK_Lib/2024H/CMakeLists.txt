@@ -43,6 +43,7 @@ add_subdirectory(multikey)
 add_subdirectory(Protothreads)
 add_subdirectory(static_queue)
 add_subdirectory(SPI_OLED)
+add_subdirectory(Motor_AT4950)
 add_subdirectory(MPU_9250)
 add_subdirectory(Tasks)
 
@@ -82,6 +83,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     Protothreads
     static_queue
     SPI_OLED
+    Motor_AT4950
     MPU_9250
     ${TOOLCHAIN_LINK_LIBRARIES}
     # Add user defined libraries

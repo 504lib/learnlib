@@ -20,6 +20,7 @@
 #include "main.h"
 #include "i2c.h"
 #include "spi.h"
+#include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -35,6 +36,7 @@
 #include "MadgwickAHRS.h"
 #include "mpu6050.h"
 #include "tasks.h"
+#include "Motor_AT4950.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -60,6 +62,7 @@ Protothread_t IMU_Task;
 Protothread_t SerialTask_handle;
 MulitKey_t key1;
 MulitKey_t key2;
+MotorAT4950 motor1;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -70,6 +73,16 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+static void SetMotor1Level(uint8_t level) 
+{
+    HAL_GPIO_WritePin(AIN_GPIO_Port, AIN_Pin, (GPIO_PinState)level);
+}
+
+
+static void SetMotor1ComparePWM(uint16_t ccr_value) 
+{
+    __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, ccr_value);
+}
 
 /* USER CODE END 0 */
 
@@ -105,6 +118,7 @@ int main(void)
   MX_USART1_UART_Init();
   MX_SPI3_Init();
   MX_I2C1_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
   OLED_Init();
   OLED_Clear(); 
@@ -118,7 +132,11 @@ int main(void)
   PT_INIT(&IMU_Task);
   MulitKey_Init(&key1,ReadKey1Pin,Key1PressedCallback,Key1PressedCallback,RISE_BORDER_TRIGGER);
   MulitKey_Init(&key2,ReadKey2Pin,Key2PressedCallback,Key2PressedCallback,RISE_BORDER_TRIGGER);
-  // test push
+  MotorInit_AT46950(&motor1, SetMotor1ComparePWM, SetMotor1Level, 1000);
+  SetDefaultDirection(&motor1, High_Level);
+  HAL_TIM_Base_Start_IT(&htim1);
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+  Motor_setSpeed(&motor1, 500); // 设置电机以50%的占空比正向旋转
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -187,6 +205,20 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  static uint32_t counter = 0;  
+  if (htim->Instance == TIM1)
+  {
+    if (++counter % 500 == 0)
+    {
+      // printf("Counter: %lu\n", counter);
+    }
+    
+  }
+  
+}
 
 /* USER CODE END 4 */
 

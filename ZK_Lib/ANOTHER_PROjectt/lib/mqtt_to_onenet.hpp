@@ -29,6 +29,7 @@ struct DataProvider
     float temperature;
     float humidity;
     float mq4_ppm;
+    uint16_t light_adc;
     bool bulb_status;
     bool motor_status;
 };

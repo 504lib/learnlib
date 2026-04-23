@@ -7,11 +7,11 @@ void wifi_connect();
 void Get_data();
 
 // 全局变量定义
-DataProvider data_provider = {0.0f, 0.0f,0.0f, false, false};
+DataProvider data_provider = {0.0f, 0.0f, 0.0f, 0, false, false};
 Alarm_Flag alarm_flag = {false, false, false};
 Use_Flag use_flag = {false, false, false};
-Data_Monitor data_monitor = {0.0f, 0.0f, 0.0f};
-Threshold threshold = {30.0f, 60.0f, 200.0f};
+Data_Monitor data_monitor = {0.0f, 0.0f, 0.0f, 0};
+Threshold threshold = {30.0f, 60.0f, 3000.0f};
 
 DHT dht(DHT_PIN,DHT11);
 
@@ -35,13 +35,32 @@ static bool wifiNoCredLogged = false;
 static uint32_t mq4_warmup_start_ms = 0;
 static bool mq4WarmupLogged = false;
 static bool mq4InvalidLogged = false;
+static bool buzzerAlarmActive = false;
 
 static constexpr uint32_t MQ4_WARMUP_MS = 90000;     // MQ4 预热静默期
 static constexpr float MQ4_MAX_VALID_PPM = 5000.0f;  // 过大值保护上限
+static constexpr uint8_t BUZZER_PWM_CHANNEL = 0;
+static constexpr uint16_t BUZZER_ALARM_FREQ_HZ = 2000;
+static constexpr uint8_t BUZZER_PWM_RESOLUTION = 8;
 
 AsyncWebServer server(80);
 Preferences wifiPrefs;
 static bool wifiPrefsReady = false;
+
+static void set_buzzer_alarm(bool enabled)
+{
+  if (enabled == buzzerAlarmActive) {
+    return;
+  }
+
+  buzzerAlarmActive = enabled;
+  if (enabled) {
+    ledcWriteTone(BUZZER_PWM_CHANNEL, BUZZER_ALARM_FREQ_HZ);
+  } else {
+    ledcWriteTone(BUZZER_PWM_CHANNEL, 0);
+    ledcWrite(BUZZER_PWM_CHANNEL, 0);
+  }
+}
 
 static void init_wifi_storage()
 {
@@ -317,6 +336,11 @@ void setup()
   pinMode(LIGHT_BULB_PIN, OUTPUT);
   pinMode(MQ4_AO_PIN,INPUT);
   pinMode(MQ4_DO_PIN,INPUT);
+  pinMode(Photosensitive_RESISTOR_PIN,INPUT);
+  pinMode(BUZZER_PIN,OUTPUT);
+  ledcSetup(BUZZER_PWM_CHANNEL, BUZZER_ALARM_FREQ_HZ, BUZZER_PWM_RESOLUTION);
+  ledcAttachPin(BUZZER_PIN, BUZZER_PWM_CHANNEL);
+  set_buzzer_alarm(false);
   Connect_SSID.fill('\0');
   Connect_PASS.fill('\0');
   init_wifi_storage();
@@ -457,7 +481,8 @@ void Get_data()
     float resistance = readMQ135Resistance(MQ4_AO_PIN);                                         // 读取MQ-4电阻值
     float mq4_ppm_raw = calculatePPM(resistance);                                                // 计算MQ-4的ppm值
     bool mq4_valid = mq4_warmed && isfinite(mq4_ppm_raw) && mq4_ppm_raw >= 0.0f && mq4_ppm_raw <= MQ4_MAX_VALID_PPM;
-
+    data_monitor.light_adc = analogRead(Photosensitive_RESISTOR_PIN);                           // 读取光敏电阻 ADC 原始值
+    // Serial.println("current light adc value is " + String(data_monitor.light_adc));
     if (mq4_valid) {
       data_monitor.mq4_ppm = mq4_ppm_raw;
       if (mq4InvalidLogged) {
@@ -488,11 +513,13 @@ void Get_data()
     // digitalWrite(bulb, use_flag.isLEDUsed );                             // 控制第二个LED状态
     digitalWrite(LIGHT_BULB_PIN,use_flag.isLEDUsed);                             // 控制灯泡状态
     digitalWrite(MOTOR_PIN, final_motor_on ? HIGH : LOW);                                  // 控制电机状态
+    set_buzzer_alarm(alarm_on);                                                            // 无源蜂鸣器输出报警方波
 
     digitalWrite(LED_BUILTIN, ledState);                                    // 板载LED闪烁
     data_provider.temperature = data_monitor.temperature;
     data_provider.humidity = data_monitor.humidity;
     data_provider.mq4_ppm = data_monitor.mq4_ppm;
+    data_provider.light_adc = data_monitor.light_adc;
     data_provider.bulb_status = use_flag.isLEDUsed;
     data_provider.motor_status = (digitalRead(MOTOR_PIN) == HIGH);
 }

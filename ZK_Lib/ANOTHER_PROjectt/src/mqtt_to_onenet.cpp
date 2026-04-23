@@ -5,6 +5,21 @@ static float quantizeToTenth(float value) {
   return roundf(value * 10.0f) / 10.0f;
 }
 
+// 将光敏电阻 ADC 原始值映射为亮度枚举：
+// 0=亮度过大, 1=明亮, 2=稍暗, 3=亮度过小
+static uint8_t mapLightAdcToDegree(uint16_t lightAdc) {
+  if (lightAdc <= 1023) {
+    return 0;
+  }
+  if (lightAdc <= 2047) {
+    return 1;
+  }
+  if (lightAdc <= 3071) {
+    return 2;
+  }
+  return 3;
+}
+
 int postMsgId = 0;//消息ID，消息ID是需要改变的，每次上报时属性递增
 static uint32_t last_mqtt_retry_ms = 0;
 
@@ -46,6 +61,7 @@ void OneNET_Prop_Post(PubSubClient& client,DataProvider provider,Threshold thres
     float tempThresholdValue = quantizeToTenth(threshold.temp_threshold);
     float humiThresholdValue = quantizeToTenth(threshold.hum_threshold);
     float mq4ThresholdValue = quantizeToTenth(threshold.mq4_threshold);
+    uint8_t lightDegree = mapLightAdcToDegree(provider.light_adc);
 
     root["id"] = String(currentMsgId);
     root["version"] = "1.0";
@@ -59,6 +75,7 @@ void OneNET_Prop_Post(PubSubClient& client,DataProvider provider,Threshold thres
     params["temp_threshold"]["value"] = tempThresholdValue;
     params["humi_threshold"]["value"] = humiThresholdValue;
     params["mq4_threshold"]["value"] = mq4ThresholdValue;
+    params["light_degree"]["value"] = lightDegree;
     params["temp_alarm"]["value"] = alarm_flag.temp_alarm;
     params["hum_alarm"]["value"] = alarm_flag.hum_alarm;
     params["mq4_alarm"]["value"] = alarm_flag.mq4_alarm;
