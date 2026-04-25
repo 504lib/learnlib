@@ -1,24 +1,30 @@
 #include "protocol.h"
 
 
+#define DEFAULT_TIMEOUT_THRESHOLD_MS        200
+#define DEFALUT_TIMEOUT_MAX_RETRY_TIMES     3
 
-typedef struct {
-    CmdType cmd_type;
-    uint8_t pram_length;
-    FrameHandler handler;
-}CmdHandlerEntry;
 
-typedef struct{
-    UART_protocol G_UART_protocol_structure;
-    FrameTransmit transmit_function;
-    CmdHandlerEntry CmdHandlerTable[MAX_CMD_TYPE_HANDLERS];
-}G_Protocol_Context;
+typedef enum
+{
+    isNone = 0,
+    isInitialized = (1 << 0),                 // 协议库是否已初始化
+    isEnableAck =   (1 << 1),            // 是否启用ACK机制
+    isWatingForAck = (1 << 2),          // 是否正在等待数据帧的ACK
+}Flag_Type;
+typedef enum
+{
+    UART_protocol_WaitingHeader1 = 0,          // 等待帧头一
+    UART_protocol_WaitingHeader2,              // 等待帧头二
+    UART_protocol_WaitingType,                // 等待帧类型
+    UART_protocol_WaitingLength,              // 等待帧长度
+    UART_protocol_ReceivingPayload,           // 正在接收数据载荷
+    UART_protocol_WaitingChecksum1,           // 等待校验高字节
+    UART_protocol_WaitingChecksum2,           // 等待校验低字节
+    UART_protocol_WaitingTail1,               // 等待帧尾一
+    UART_protocol_WaitingTail2,               // 等待帧尾二
+}Frame_Process_Type;
 
-// 静态环形缓冲区
-static UartFrame Receive_Uart_Frame_Buffer = {0};
-static G_Protocol_Context g_protocol_context = {0};
-
-// 回调函数实例 + 初始化
 
 /**
  * @brief    校验和计算
@@ -82,222 +88,153 @@ void wr_f32_be(uint8_t* p, float f)
     wr_u32_be(p, u);
 }
 
-void UART_Protocol_Init(UART_protocol UART_protocol_structure,FrameTransmit transmit_function)
+
+
+static inline bool __Uart_Protocol_IsInitialized(UART_protocol_t* protocol_instance)
 {
-    if (!transmit_function)
+    return (protocol_instance->hander_flags & (uint32_t)isInitialized) != 0;           // 检查已初始化标志
+}
+
+static inline bool __Uart_Protocol_Init_Frame_Process_Type(UART_protocol_t* protocol_instance)
+{
+    protocol_instance->Frame_Process_Type = UART_protocol_WaitingHeader1;                                       // 初始化状态机状态
+    return true;
+}
+
+static inline bool __Uart_Protocol_Init_CheckPayLoadLen()
+{
+    return (MAX_PAYLOAD_LEN > 0) && (MAX_PAYLOAD_LEN <= 255);    // 数据载荷长度必须大于0且不超过65535（因为长度字段为1字节）
+}
+
+static inline bool __Uart_Protocol_Check_isNULLPointer(void* ptr)
+{
+    return !ptr;
+}
+
+static inline bool __Uart_Protocol_Check_isFatalInputRequiredParameters(Uart_Protocol_FunctionsParameters params)
+{
+    if (params.Head_Tial_Frame_struct.Headerframe1 == 0 && 
+        params.Head_Tial_Frame_struct.Headerframe2 == 0 && 
+        params.Head_Tial_Frame_struct.Tailframe1 == 0 && 
+        params.Head_Tial_Frame_struct.Tailframe2 == 0)
     {
+        LOG_FATAL("Frame structure parameters are all zero. Initialization failed.");
+        return true;
+    }
+    
+    if (!params.transmit_function)
+    {
+        LOG_FATAL("Transmit function pointer is NULL. Initialization failed.");
+        return true;
+    }
+    if (!params.frame_received_handler)
+    {
+        LOG_FATAL("Frame received handler pointer is NULL. Initialization failed.");
+        return true;
+    }
+    if (!params.queue_ops.Queue_instance)
+    {
+        LOG_FATAL("Queue instance pointer is NULL. Initialization failed.");
+        return true;
+    }
+    if (!params.queue_ops.Queue_popfront)
+    {
+        LOG_FATAL("Queue popfront function pointer is NULL. Initialization failed.");
+        return true;
+    }
+    if (!params.queue_ops.Queue_pushback)
+    {
+        LOG_FATAL("Queue pushback function pointer is NULL. Initialization failed.");
+        return true;
+    }
+    if (!params.queue_ops.Queue_size)
+    {
+        LOG_INFO("If Queue push/pop operations is bases on size of Queue itself, Queue_size function pointer can be NULL. Initialization continues.");
+    }
+    return false;
+}
+
+static inline bool __Uart_Protocol_Check_OptionalParameters(Uart_Protocol_OptionalFunctionsParameters params)
+{
+    bool isEnableAck = true;
+    if (!params.GetTick)
+    {
+        LOG_INFO("GetTick function pointer is NULL. Time-based features will be disabled.");
+        isEnableAck = false;
+    }
+    if (!params.timeout_handler)
+    {
+        LOG_INFO("Timeout handler function pointer is NULL. Timeout handling will be disabled.");
+        isEnableAck = false;
+    }
+    return isEnableAck;
+}
+
+bool Uart_Protocol_Init(UART_protocol_t* protocol_instance,Uart_Protocol_FunctionsParameters RequiredParam,Uart_Protocol_OptionalFunctionsParameters OptionalParam)
+{
+    if (__Uart_Protocol_Check_isNULLPointer((void*)protocol_instance))
+    {
+        LOG_FATAL("Protocol instance pointer is NULL. Initialization failed.");
         return;
     }
-    g_protocol_context.G_UART_protocol_structure = UART_protocol_structure;
-    g_protocol_context.transmit_function = transmit_function;
-}
-
-
-void UART_Protocol_Register_Hander(CmdType cmd_type, FrameHandler handler,uint8_t pram_length)
-{
-    if ((size_t)cmd_type >= MAX_CMD_TYPE_HANDLERS) {
-        return;
+    if (__Uart_Protocol_Check_isFatalInputRequiredParameters(RequiredParam))
+    {
+        return false;
     }
-    if (pram_length >= MAX_PAYLOAD_LEN)
+    protocol_instance->Frame_Process_Type = UART_protocol_WaitingHeader1;                                       // 初始化状态机状态    
+    memset(protocol_instance->frame_payload, 0, sizeof(protocol_instance->frame_payload));       // 清空数据载荷缓冲区
+
+    protocol_instance->event_handler.current_event_mask = 0;                                                    // 初始化用户事件掩码
+    protocol_instance->event_handler.event_group = 0;                                                           // 初始化事件组标识
+    protocol_instance->event_handler.frame_received_handler = RequiredParam.frame_received_handler;             // 设置数据帧接收处理函数
+
+    protocol_instance->Send_Operations.transmit_function = RequiredParam.transmit_function;
+    protocol_instance->queue_ops = RequiredParam.queue_ops;                                                   // 设置串口数据队列操作函数集合
+
+    protocol_instance->hander_flags = (uint32_t)isNone;
+    if (__Uart_Protocol_Check_OptionalParameters(OptionalParam))
     {
-        return;
-    }
-    g_protocol_context.CmdHandlerTable[cmd_type].pram_length = pram_length;
-    g_protocol_context.CmdHandlerTable[cmd_type].cmd_type = cmd_type;
-    g_protocol_context.CmdHandlerTable[cmd_type].handler = handler;
-}
-
-
-void UART_Protocol_Transmit(prama_Cmd_packet* cmd_packet)
-{
-    if (cmd_packet == NULL) return;
-    if (!g_protocol_context.transmit_function) return;
-
-    uint8_t len = g_protocol_context.CmdHandlerTable[cmd_packet->cmd_type].pram_length;
-    uint8_t frame_buffer[MAX_PAYLOAD_LEN + 8];  // 至少 payload + 8
-    uint16_t index = 0;
-
-    // 帧头
-    frame_buffer[index++] = g_protocol_context.G_UART_protocol_structure.Headerframe1;
-    frame_buffer[index++] = g_protocol_context.G_UART_protocol_structure.Headerframe2;
-
-    // 类型与长度
-    frame_buffer[index++] = (uint8_t)cmd_packet->cmd_type;
-    frame_buffer[index++] = len;
-
-    // 载荷（发送侧应直接拷贝，不调用接收处理器）
-    if (len) 
-    {
-        memcpy(&frame_buffer[index], cmd_packet->param_value, len);
-        index += len;
-    }
-
-    // 校验（覆盖 CMD+LEN+PAYLOAD）
-    uint16_t check = calculateChecksum(&frame_buffer[2], 2 + len);
-    frame_buffer[index++] = (check >> 8) & 0xff;
-    frame_buffer[index++] = check & 0xff;
-
-    // 帧尾
-    frame_buffer[index++] = g_protocol_context.G_UART_protocol_structure.Tailframe1;
-    frame_buffer[index++] = g_protocol_context.G_UART_protocol_structure.Tailframe2;
-
-    // 发送
-    g_protocol_context.transmit_function(frame_buffer, index);
-}
-
-
-/**
- * @brief    环形缓冲区初始化
- * @param    rb        环形缓冲区指针
- */
-static void RingBuffer_Init(RingBuffer *rb)
-{
-    rb->head = 0;
-    rb->tail = 0;
-}
-
-/**
- * @brief    向环形缓冲区放置数据
- * @param    rb        环形缓冲区指针
- * @param    data      一个字节的二进制数据
- */
-static void RingBuffer_Put(RingBuffer *rb, uint8_t data)
-{
-    uint16_t next_head = (rb->head + 1) % sizeof(rb->buffer);   // 指向下一个区域的指针下标
-    if (next_head != rb->tail)                                  // 检查缓冲区是否已满
-    {
-        rb->buffer[rb->head] = data;                            // 放置数据
-        rb->head = next_head;                                   // 更改指针下标·
-    }
-}
-
-/**
- * @brief    从环形缓冲区获取一字节二进制数据
- * @param    rb        环形缓冲区指针
- * @param    data      接受数据的指针
- * @return   true      获取成功
- * @return   false     缓冲区为空，无法获取
- */
-static bool RingBuffer_Get(RingBuffer *rb, uint8_t *data)
-{
-    if (rb->head == rb->tail) // 检查缓冲区是否为空
-    {
-        return false;// 缓冲区为空
-    }
-    *data = rb->buffer[rb->tail];
-    rb->tail = (rb->tail + 1) % sizeof(rb->buffer);
-    return true; // 成功读取一个字节
-}
-
-/**
- * @brief    获取环形缓冲期指针
- * @return   UartFrame* 环形缓冲区指针
- */
-UartFrame* Get_Uart_Frame_Buffer(void)
-{
-    UartFrame* frame = &Receive_Uart_Frame_Buffer;
-    frame->Size = 0; 
-    RingBuffer_Init(&frame->ring_buffer);
-    return &Receive_Uart_Frame_Buffer;
-}
-
-/**
- * @brief    放置指定字节长度的二进制数据
- * @cite     RingBuffer_Put()
- * @param    frame     环形缓冲区的指针
- * @param    data      放置数据的缓冲区数组
- * @param    size      指定大小
- */
-void Uart_Buffer_Put_frame(UartFrame* frame,uint8_t* data,uint8_t size)
-{
-    frame->Size = size;
-    for(uint16_t i = 0; i < size; i++)
-    {
-        RingBuffer_Put(&frame->ring_buffer,data[i]);
-    }
-}
-
-/**
- * @brief    获取目前缓冲区存放的数据
- * @warning  注意缓冲区大小问题，请确保size大小的数据能完美的放在data数组内
- * @param    frame     环形缓冲区的指针
- * @param    data      用于接受数据的缓冲区指针
- */
-void Uart_Buffer_Get_frame(UartFrame* frame,uint8_t* data)
-{
-    uint8_t temp;
-    uint8_t count = 0;
-    while(RingBuffer_Get(&frame->ring_buffer,&temp) && count < frame->Size)
-    {
-        data[count++] = temp;
-    }
-}
-
-
-
-/**
- * @brief    处理数据帧函数
- * @details  处理规定帧头帧尾的数据帧
- * @param    UART_protocol_structure    帧头帧尾结构体数据
- * @param    data      存储数据帧的缓冲区指针
- * @param    size      数据帧大小
- */
-void Receive_Uart_Frame(UART_protocol UART_protocol_structure, uint8_t* data,uint16_t size)
-{
-    // 最小帧长度检查
-    if(size < 8)
-    {
-        LOG_DEBUG("Frame too short, size=%d", size);
-    }
-    // 检查头
-    if(data[0] != UART_protocol_structure.Headerframe1 ||
-       data[1] != UART_protocol_structure.Headerframe2)
-    {
-        LOG_DEBUG("Header mismatch: 0x%02X 0x%02X", data[0], data[1]);
-        return;
-    }
-    LOG_DEBUG("Header matched.");
-    uint8_t frame_type = data[2];
-    uint8_t frame_len  = data[3];
-
-    // 检查长度是否合理
-    if(size != (frame_len + 8) || frame_len > MAX_PAYLOAD_LEN)
-    {
-        LOG_DEBUG("Length mismatch: expected %d, got %d", frame_len + 8, size);
-        return;
-    } 
-    LOG_DEBUG("length matched.");
-    // 数据区
-    uint8_t *payload = &data[4];
-
-    // 校验
-    uint16_t recv_check = (data[frame_len + 4] << 8) | data[frame_len + 5];
-    uint16_t calc_check = calculateChecksum(&data[2], 2 + frame_len);
-    if(recv_check != calc_check)
-    {
-        LOG_DEBUG("Checksum error: expected 0x%04X, got 0x%04X", calc_check, recv_check);
-        return;
-    } 
-    LOG_DEBUG("checksum matched.");
-    // 检查尾
-    if(data[frame_len + 6] != UART_protocol_structure.Tailframe1 ||
-       data[frame_len + 7] != UART_protocol_structure.Tailframe2)
-    {
-        LOG_DEBUG("Tail mismatch: 0x%02X 0x%02X", data[frame_len + 6], data[frame_len + 7]);
-        return;
-    }
-    LOG_DEBUG("tail matched.");
-    LOG_DEBUG("the frame is valid: type=%d, len=%d", frame_type, frame_len);
-    // 解析数据
-    if(frame_type == g_protocol_context.CmdHandlerTable[frame_type].cmd_type && 
-       frame_len == g_protocol_context.CmdHandlerTable[frame_type].pram_length)
-    {
-        g_protocol_context.CmdHandlerTable[frame_type].handler(payload);
-        return;
+        protocol_instance->tickBased_timeout.tick = 0;
+        protocol_instance->tickBased_timeout.lastTick = 0;
+        protocol_instance->tickBased_timeout.timeout_threshold = DEFAULT_TIMEOUT_THRESHOLD_MS;
+        protocol_instance->tickBased_timeout.try_times = 0;
+        protocol_instance->tickBased_timeout.max_try_times = DEFALUT_TIMEOUT_MAX_RETRY_TIMES;
+        protocol_instance->tickBased_timeout.GetTick = OptionalParam.GetTick;
+        protocol_instance->tickBased_timeout.timeout_handler = OptionalParam.timeout_handler;
+        protocol_instance->hander_flags |= (uint32_t)isEnableAck;
     }
     else
     {
-        LOG_DEBUG("Unknown frame type: %d or invalid length: %d", frame_type, frame_len);
+        protocol_instance->hander_flags &= (uint32_t)~isEnableAck;
     }
+    protocol_instance->hander_flags &= (uint32_t)~isWatingForAck;    // 初始化时不等待ACK
+    protocol_instance->hander_flags |= (uint32_t)isInitialized;
+    return true;
+}
+    
+
+bool Uart_Protocol_ProcessReceivedData8bit(UART_protocol_t* protocol_instance, uint8_t data)
+{
+    if (!__Uart_Protocol_IsInitialized(protocol_instance))
+    {
+        LOG_FATAL("Protocol instance is not initialized. Call Uart_Protocol_Init first.");
+        return false;
+    }
+    return protocol_instance->queue_ops.Queue_pushback(protocol_instance->queue_ops.Queue_instance, data);
+}
+
+bool Uart_Protocol_ProcessReceivedDataBuffer(UART_protocol_t* protocol_instance, uint8_t* data,size_t len)
+{
+    if (!__Uart_Protocol_IsInitialized(protocol_instance))
+    {
+        LOG_FATAL("Protocol instance is not initialized. Call Uart_Protocol_Init first.");
+        return false;
+    }
+    bool result = true;
+    for (size_t i = 0; i < len && result; i++)
+    {
+        result = Uart_Protocol_ProcessReceivedData8bit(protocol_instance,data[i]);
+    }
+    return result;
 }
 

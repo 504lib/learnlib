@@ -1,0 +1,14 @@
+[
+{
+  "directory": "C:/learnlib/public_lib/protocol/build",
+  "command": "C:\\dev\\llvm-mingw\\bin\\clang.exe  @CMakeFiles/protocol.dir/includes_C.rsp -g -std=c11 -o CMakeFiles\\protocol.dir\\protocol.c.obj -c C:\\learnlib\\public_lib\\protocol\\protocol.c",
+  "file": "C:/learnlib/public_lib/protocol/protocol.c",
+  "output": "CMakeFiles/protocol.dir/protocol.c.obj"
+},
+{
+  "directory": "C:/learnlib/public_lib/protocol/build",
+  "command": "C:\\dev\\llvm-mingw\\bin\\clang.exe  @CMakeFiles/protocol.dir/includes_C.rsp -g -std=c11 -o CMakeFiles\\protocol.dir\\Log\\Log.c.obj -c C:\\learnlib\\public_lib\\protocol\\Log\\Log.c",
+  "file": "C:/learnlib/public_lib/protocol/Log/Log.c",
+  "output": "CMakeFiles/protocol.dir/Log/Log.c.obj"
+}
+]
