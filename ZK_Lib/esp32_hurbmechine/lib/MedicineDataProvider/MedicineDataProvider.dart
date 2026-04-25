@@ -24,6 +24,8 @@ import 'dart:math';
 //   }
 // }
 class Medicinedataprovider extends ChangeNotifier {
+  static const Duration _minimumFetchInterval = Duration(seconds: 1);
+
   String currentWeight = "0.0";              // 当前药物重量
   String targetWeight = "0.0";               // 目标药物重量
   String systemStatus = "等待中";            // 系统状态
@@ -42,13 +44,28 @@ class Medicinedataprovider extends ChangeNotifier {
   String? currentUser;                       // 当前用户         
 
   bool connected = true;
+  bool _isFetching = false;
+  DateTime? _lastFetchAt;
 
   Future<void> syncFromServer() async {
-    await fetchMedicineData();
+    await fetchMedicineData(force: true);
   }
 
-  Future<bool> fetchMedicineData() async {
+  Future<bool> fetchMedicineData({bool force = false}) async {
+    if (_isFetching) {
+      return connected;
+    }
+
+    final now = DateTime.now();
+    if (!force &&
+        _lastFetchAt != null &&
+        now.difference(_lastFetchAt!) < _minimumFetchInterval) {
+      return connected;
+    }
+
     bool isCanConnect = true;
+    _isFetching = true;
+    _lastFetchAt = now;
     try{
       final http.Response response = await HttpService().getRequest("/api/status").timeout(const Duration(seconds: 3));
       if(response.statusCode != 200){
@@ -76,6 +93,7 @@ class Medicinedataprovider extends ChangeNotifier {
       isCanConnect = false;
       return false;
     }finally{
+      _isFetching = false;
       connected = isCanConnect;
       notifyListeners();
     }

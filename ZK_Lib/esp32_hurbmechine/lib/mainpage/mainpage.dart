@@ -89,8 +89,12 @@ class _MainpageState extends State<Mainpage> {
                 // 回读同步（会根据服务端状态清理本地）
                 await provider.syncFromServer();
 
-                if (Navigator.canPop(loadingCtx)) Navigator.pop(loadingCtx);
-                if (Navigator.canPop(dialogCtx)) Navigator.pop(dialogCtx);
+                if (loadingCtx.mounted && Navigator.canPop(loadingCtx)) {
+                  Navigator.pop(loadingCtx);
+                }
+                if (dialogCtx.mounted && Navigator.canPop(dialogCtx)) {
+                  Navigator.pop(dialogCtx);
+                }
                 if (!context.mounted) return;
 
                 await showDialog(
@@ -196,8 +200,12 @@ class _MainpageState extends State<Mainpage> {
                 // 直接回读校验，以服务端为准
                 await provider.syncFromServer();
 
-                if (Navigator.canPop(loadingCtx)) Navigator.pop(loadingCtx);
-                if (Navigator.canPop(dialogCtx)) Navigator.pop(dialogCtx);
+                if (loadingCtx.mounted && Navigator.canPop(loadingCtx)) {
+                  Navigator.pop(loadingCtx);
+                }
+                if (dialogCtx.mounted && Navigator.canPop(dialogCtx)) {
+                  Navigator.pop(dialogCtx);
+                }
                 if (!context.mounted) return;
 
                 await showDialog(
@@ -227,7 +235,7 @@ class _MainpageState extends State<Mainpage> {
       (_) {
         final provider = context.read<Medicinedataprovider>();
         provider.fetchMedicineData();
-        _timer = Timer.periodic(const Duration(milliseconds: 200), (timer) {
+        _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
           provider.fetchMedicineData();
         });
       }

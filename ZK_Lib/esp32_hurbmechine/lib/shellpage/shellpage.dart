@@ -21,9 +21,8 @@ class ShellPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final int selectedIndex = selectedIndexForUri(GoRouterState.of(context).uri.toString());
     return NavigationView(
-      appBar: NavigationAppBar(
-        title: const Text("药物管理系统"),
-        automaticallyImplyLeading: false
+      titleBar: const TitleBar(
+        title: Text("药物管理系统"),
       ),
       paneBodyBuilder: (item, body) => child,
       pane:NavigationPane(
