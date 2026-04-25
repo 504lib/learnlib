@@ -3,6 +3,8 @@
 
 #define DEFAULT_TIMEOUT_THRESHOLD_MS        200
 #define DEFALUT_TIMEOUT_MAX_RETRY_TIMES     3
+#define UART_PROTOCOL_FRAME_OVERHEAD        8u
+#define UART_PROTOCOL_PAYLOAD_OFFSET        4u
 
 
 typedef enum
@@ -103,7 +105,7 @@ static inline bool __Uart_Protocol_Init_Frame_Process_Type(UART_protocol_t* prot
 
 static inline bool __Uart_Protocol_Init_CheckPayLoadLen()
 {
-    return (MAX_PAYLOAD_LEN > 0) && (MAX_PAYLOAD_LEN <= 255);    // 数据载荷长度必须大于0且不超过65535（因为长度字段为1字节）
+    return (UART_PROTOCOL_FRAME_BUFFER_LEN > 0) && (UART_PROTOCOL_FRAME_BUFFER_LEN <= 255);    // 整帧缓冲区长度必须大于0且不超过255（长度字段为1字节）
 }
 
 static inline bool __Uart_Protocol_Check_isNULLPointer(void* ptr)
@@ -147,10 +149,6 @@ static inline bool __Uart_Protocol_Check_isFatalInputRequiredParameters(Uart_Pro
         LOG_FATAL("Queue pushback function pointer is NULL. Initialization failed.");
         return true;
     }
-    if (!params.queue_ops.Queue_size)
-    {
-        LOG_INFO("If Queue push/pop operations is bases on size of Queue itself, Queue_size function pointer can be NULL. Initialization continues.");
-    }
     return false;
 }
 
@@ -170,6 +168,120 @@ static inline bool __Uart_Protocol_Check_OptionalParameters(Uart_Protocol_Option
     return isEnableAck;
 }
 
+static bool Uart_Protocol_Analysis(UART_protocol_t* protocol_instance)
+{
+    if (!__Uart_Protocol_IsInitialized(protocol_instance))
+    {
+        LOG_FATAL("Protocol instance is not initialized. Call Uart_Protocol_Init first.");
+        return false;
+    }
+    static size_t len = 0;
+    static size_t payload_index = 0;
+    uint8_t data;
+    void* queue_instance = protocol_instance->queue_ops.Queue_instance;
+    if (!protocol_instance->queue_ops.Queue_popfront(queue_instance,&data))
+    {
+        return true;  // 从队列获取数据失败,队列数据不存在稍后重试
+    }
+    switch (protocol_instance->Frame_Process_Type)
+    {
+    case UART_protocol_WaitingHeader1:
+        if (protocol_instance->uart_frame_struct.Headerframe1 != data)
+        {
+            LOG_DEBUG("Receive exception byte: 0x%02X while waiting for Headerframe1. Ignoring and continuing to wait.", data);
+            return false;   // 接收到的字节不匹配帧头一，继续等待
+        }
+        protocol_instance->frame_buffer[0] = data;    // 存储帧头一
+        protocol_instance->Frame_Process_Type = UART_protocol_WaitingHeader2;    // 转到等待帧头二的状态
+        break;
+    case UART_protocol_WaitingHeader2:
+        if (protocol_instance->uart_frame_struct.Headerframe2 != data)
+        {
+            LOG_DEBUG("Receive exception byte: 0x%02X while waiting for Headerframe2. Resetting to wait for Headerframe1.", data);
+            protocol_instance->Frame_Process_Type = UART_protocol_WaitingHeader1;    // 接收到的字节不匹配帧头二，重置状态机回到等待帧头一
+            return false;
+        }
+        protocol_instance->frame_buffer[1] = data;    // 存储帧头二
+        protocol_instance->Frame_Process_Type = UART_protocol_WaitingType;    // 转到等待帧类型的状态
+        break;
+    case UART_protocol_WaitingType:
+        protocol_instance->frame_buffer[2] = data;    // 存储帧类型
+        protocol_instance->Frame_Process_Type = UART_protocol_WaitingLength;    // 转到等待帧长度的状态
+        break;
+    case UART_protocol_WaitingLength:
+        len = (size_t)data;
+        if (len > UART_PROTOCOL_FRAME_BUFFER_LEN - UART_PROTOCOL_FRAME_OVERHEAD)  // 整帧缓存需要容纳帧头、类型、长度、校验和和帧尾
+        {
+            len = 0;
+            protocol_instance->Frame_Process_Type = UART_protocol_WaitingHeader1;
+            LOG_DEBUG("length byte indicates payload length %zu exceeds maximum. Resetting to wait for Headerframe1.", (size_t)data);
+            return false;   // 接收到的长度字节超过最大载荷长度，重置状态机回到等待帧头一
+        }
+        protocol_instance->frame_buffer[3] = data;    // 存储帧长度
+        payload_index = UART_PROTOCOL_PAYLOAD_OFFSET;    // 数据载荷从frame_buffer[4]开始存储
+        protocol_instance->Frame_Process_Type =
+            (len == 0) ? UART_protocol_WaitingChecksum1 : UART_protocol_ReceivingPayload;    // 零长度帧不应继续接收载荷
+        break;
+    case UART_protocol_ReceivingPayload:
+        protocol_instance->frame_buffer[payload_index++] = data;    // 存储数据载荷
+        if (payload_index >= len + UART_PROTOCOL_PAYLOAD_OFFSET)    // 已经接收了指定长度的数据载荷
+        {
+            protocol_instance->Frame_Process_Type = UART_protocol_WaitingChecksum1;    // 转到等待校验高字节的状态
+        }
+        break;
+    case UART_protocol_WaitingChecksum1:
+        protocol_instance->frame_buffer[payload_index++] = data;    // 存储校验高字节
+        protocol_instance->Frame_Process_Type = UART_protocol_WaitingChecksum2;    // 转到等待校验低字节的状态
+        break;
+    case UART_protocol_WaitingChecksum2:
+        protocol_instance->frame_buffer[payload_index++] = data;    // 存储校验低字节
+        protocol_instance->Frame_Process_Type = UART_protocol_WaitingTail1;    // 转到等待帧尾一的状态
+        break;
+    case UART_protocol_WaitingTail1:
+        if (protocol_instance->uart_frame_struct.Tailframe1 != data)
+        {
+            LOG_DEBUG("Receive exception byte: 0x%02X while waiting for Tailframe1. Resetting to wait for Headerframe1.", data);
+            protocol_instance->Frame_Process_Type = UART_protocol_WaitingHeader1;    // 接收到的字节不匹配帧尾一，重置状态机回到等待帧头一
+            return false;
+        }
+        protocol_instance->frame_buffer[payload_index++] = data;    // 存储帧尾一
+        protocol_instance->Frame_Process_Type = UART_protocol_WaitingTail2;    // 转到等待帧尾二的状态
+        break;
+    case UART_protocol_WaitingTail2:
+        if (protocol_instance->uart_frame_struct.Tailframe2 != data)
+        {
+            LOG_DEBUG("Receive exception byte: 0x%02X while waiting for Tailframe2. Resetting to wait for Headerframe1.", data);
+            protocol_instance->Frame_Process_Type = UART_protocol_WaitingHeader1;    // 接收到的字节不匹配帧尾二，重置状态机回到等待帧头一
+            return false;
+        }
+        protocol_instance->frame_buffer[payload_index++] = data;    // 存储帧尾二
+        // 已经接收完整帧，进行校验和验证
+        uint16_t received_checksum = ((uint16_t)protocol_instance->frame_buffer[len + UART_PROTOCOL_PAYLOAD_OFFSET] << 8) |
+                                      (uint16_t)protocol_instance->frame_buffer[len + UART_PROTOCOL_PAYLOAD_OFFSET + 1];
+        uint16_t calculated_checksum = calculateChecksum(&protocol_instance->frame_buffer[2], len + 2);
+        if (received_checksum == calculated_checksum)
+        {
+            // 校验成功，调用用户的帧接收处理函数
+            protocol_instance->event_handler.frame_received_handler(protocol_instance->frame_buffer, len + UART_PROTOCOL_FRAME_OVERHEAD);
+        }
+        else
+        {
+            LOG_DEBUG("Checksum mismatch: received 0x%04X but calculated 0x%04X. Discarding frame.", received_checksum, calculated_checksum);
+            // 校验失败，丢弃该帧（不调用用户处理函数）
+        }
+        len = 0;
+        payload_index = 0;
+        protocol_instance->Frame_Process_Type = UART_protocol_WaitingHeader1;    // 重置状态机回到等待帧头一
+        break;
+    default:
+        protocol_instance->Frame_Process_Type = UART_protocol_WaitingHeader1;    // 出现未知状态，重置状态机回到等待帧头一
+        LOG_WARN("Unknown frame processing state. Resetting to wait for Headerframe1.");
+        return false;
+        break;
+    }
+    return true;
+}
+
 bool Uart_Protocol_Init(UART_protocol_t* protocol_instance,Uart_Protocol_FunctionsParameters RequiredParam,Uart_Protocol_OptionalFunctionsParameters OptionalParam)
 {
     if (__Uart_Protocol_Check_isNULLPointer((void*)protocol_instance))
@@ -181,8 +293,8 @@ bool Uart_Protocol_Init(UART_protocol_t* protocol_instance,Uart_Protocol_Functio
     {
         return false;
     }
-    protocol_instance->Frame_Process_Type = UART_protocol_WaitingHeader1;                                       // 初始化状态机状态    
-    memset(protocol_instance->frame_payload, 0, sizeof(protocol_instance->frame_payload));       // 清空数据载荷缓冲区
+    protocol_instance->Frame_Process_Type = (uint8_t)UART_protocol_WaitingHeader1;                                       // 初始化状态机状态    
+    memset(protocol_instance->frame_buffer, 0, sizeof(protocol_instance->frame_buffer));       // 清空整帧接收缓冲区
 
     protocol_instance->event_handler.current_event_mask = 0;                                                    // 初始化用户事件掩码
     protocol_instance->event_handler.event_group = 0;                                                           // 初始化事件组标识
@@ -238,3 +350,11 @@ bool Uart_Protocol_ProcessReceivedDataBuffer(UART_protocol_t* protocol_instance,
     return result;
 }
 
+bool Uart_Protocol_Loop(UART_protocol_t* protocol_instance)
+{
+    if (!__Uart_Protocol_IsInitialized(protocol_instance))
+    {
+        LOG_FATAL("Protocol instance is not initialized. Call Uart_Protocol_Init first.");
+        return false;
+    }
+}

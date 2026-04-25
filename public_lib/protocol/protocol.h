@@ -10,8 +10,8 @@
  */
 #pragma once
 
-#ifndef MAX_PAYLOAD_LEN
-#define MAX_PAYLOAD_LEN 10
+#ifndef UART_PROTOCOL_FRAME_BUFFER_LEN
+#define UART_PROTOCOL_FRAME_BUFFER_LEN 10
 #endif
 
 #include <string.h>
@@ -35,16 +35,14 @@ typedef struct
   void* Queue_instance;                                           // 串口数据队列实例指针
   bool (*Queue_pushback)(void* Queue_instance, const uint8_t data); // 数据入队回调函数
   bool (*Queue_popfront)(void* Queue_instance, uint8_t* data);      // 数据出队回调函数
-  size_t (*Queue_size)(void* Queue_instance);                       // 获取队列当前大小回调函数
 }Queue_Operations;                                                // 串口数据队列操作函数集合
 
 typedef struct 
 {
   const Custom_Frame_HT_T uart_frame_struct;   // 帧结构定义
   uint32_t hander_flags;  
-  uint32_t Frame_Process_Type;                  // 数据帧处理状态枚举
-  uint8_t frame_payload[MAX_PAYLOAD_LEN];              // 数据载荷缓冲区
-                                                // 数据帧处理状态枚举
+  uint8_t Frame_Process_Type;                  // 数据帧处理状态枚举
+  uint8_t frame_buffer[UART_PROTOCOL_FRAME_BUFFER_LEN];       // 整帧接收缓冲区（帧头+类型+长度+载荷+校验+帧尾）
   struct
   {
     uint32_t current_event_mask;                                          // 当前事件掩码（bit位定义由用户决定，协议库不关心具体含义）
