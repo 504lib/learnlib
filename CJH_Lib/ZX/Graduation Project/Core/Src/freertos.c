@@ -349,48 +349,64 @@ void alarm_task_function(void *argument)
 {
   /* USER CODE BEGIN alarm_task_function */
     const uint32_t ALL_ALARMS = ALARM_PRESSURE | ALARM_VIBRATION;
+    const uint32_t AUDIO_PSC = 72 - 1;   // 计数频率 = 72MHz / 72 = 1MHz
+    uint32_t freq_low  = 1000;           // ARR=1000 → 1kHz
+    uint32_t freq_high = 500;            // ARR=500  → 2kHz
+    int32_t  dir = 1;
+    uint32_t arr_val = freq_low;
 
     for(;;)
     {
-//		__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, angle_to_ccr(25.0f));
-        // 第1步：阻塞等待任意传感器报警（不会自动清除）
+        // 1. 等待传感器报警
         osEventFlagsWait(alarm_eventHandle,
                          ALL_ALARMS,
                          osFlagsWaitAny | osFlagsNoClear,
                          osWaitForever);
 
-        // 第2步：激活所有报警器
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, 90);  // 舵机到90°
-        HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);         // LED亮
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, 1);                   // 蜂鸣器响
+        // 2. 激活舵机和LED
+        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, angle_to_ccr(90.0f));  // 舵机90°
+        HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);          // LED亮
 
-        // 第3步：阻塞等待按键确认（ACK标志）
-        osEventFlagsWait(alarm_eventHandle,
-                         ALARM_ACK,
-                         osFlagsWaitAny,
-                         osWaitForever);
+        /* ---------- 配置 TIM4 为音频输出 ---------- */
+        HAL_TIM_PWM_Stop(&htim4, TIM_CHANNEL_4);               // 先停止原 PWM
+        htim4.Init.Prescaler = AUDIO_PSC;                      // 1MHz
+        htim4.Init.Period    = freq_low - 1;
+        HAL_TIM_PWM_Init(&htim4);                              // 重新初始化
+        __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_4, (freq_low - 1) / 2); // 50%占空比
+        HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);              // 启动音频输出
 
-        // 第4步：解除报警
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, angle_to_ccr(0.0f));  // 舵机归零
-        HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);           // LED灭
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, 0);                   // 蜂鸣器关
+        /* ---------- 警报声扫频循环，直到按键按下 ---------- */
+        while (1)
+        {
+            // 检查按键确认标志
+            if (osEventFlagsGet(alarm_eventHandle) & ALARM_ACK)
+                break;
 
-        // 第5步：清除所有标志，准备下一次报警
+            // 更新频率：在 freq_low ~ freq_high 之间往复
+            if (arr_val >= freq_low)      dir = -1;
+            else if (arr_val <= freq_high) dir = 1;
+            arr_val += dir * 5;           // 每步改变5个ARR单位，控制扫频速度
+
+            // 直接写寄存器修改频率和占空比
+            TIM4->ARR  = arr_val - 1;
+            TIM4->CCR4 = (arr_val - 1) / 2;
+
+            osDelay(10);                  // 10ms 更新一次，听感流畅
+        }
+
+        /* ---------- 解除报警 ---------- */
+        // 关闭蜂鸣器
+        HAL_TIM_PWM_Stop(&htim4, TIM_CHANNEL_4);
+        // 舵机归零、LED灭
+        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, angle_to_ccr(0.0f));
+        HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+
+        // 清除所有报警标志，准备下一次触发
         osEventFlagsClear(alarm_eventHandle, ALL_ALARMS | ALARM_ACK);
-    }
-//    for(;;)
-//    {
-//        // 1. 阻塞等待任意报警事件置位
-//        flags = osEventFlagsWait(alarm_eventHandle,
-//                                 ALARM_PRESSURE | ALARM_VIBRATION,
-//                                 osFlagsNoClear,               // 任意一个标志置位即返回
-//                                 osWaitForever);
-//		HAL_GPIO_WritePin(LED_GPIO_Port,LED_Pin,GPIO_PIN_RESET);
-//			__HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_3,1);
-//        // 2. 报警处理循环（直到报警解除）
-//            osDelay(20);   // 20ms 周期
-//	}
-    
+
+        // 重置扫频起始值，为下次报警做准备
+        arr_val = freq_low;
+    }  
   /* USER CODE END alarm_task_function */
 }
 

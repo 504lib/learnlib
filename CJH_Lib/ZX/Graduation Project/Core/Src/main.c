@@ -119,16 +119,17 @@ int main(void)
   MX_USART1_UART_Init();
   MX_ADC1_Init();
   MX_TIM3_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);  // 舵机
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);  // 蜂鸣器
+  HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);  // 蜂鸣器
   
   __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, 0);   // 0° → 比较值 25
-  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, 0);    // 占空比 0% → 蜂鸣器不响
+  __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_4, 0);    // 占空比 0% → 蜂鸣器不响
 
   OLED_Init();
   OLED_Clear();
-  OLED_ShowString(0, 0,"test", 16, 1);
+//  OLED_ShowString(0, 0,"test", 16, 1);
   OLED_Refresh();
   /* USER CODE END 2 */
 
