@@ -43,11 +43,13 @@ typedef struct
   uint32_t hander_flags;  
   uint8_t Frame_Process_Type;                  // 数据帧处理状态枚举
   uint8_t frame_buffer[UART_PROTOCOL_FRAME_BUFFER_LEN];       // 整帧接收缓冲区（帧头+类型+长度+载荷+校验+帧尾）
+  size_t data_len;
+  size_t payload_index;                                   
   struct
   {
     uint32_t current_event_mask;                                          // 当前事件掩码（bit位定义由用户决定，协议库不关心具体含义）
     uint32_t event_group;                                         // bits事件组标识
-    void (*frame_received_handler)(const uint8_t* frame_data, uint16_t frame_len); // 数据帧接收处理函数
+    void (*frame_received_handler)(const uint8_t* frame_data, uint16_t frame_len,size_t event_bit_pos); // 数据帧接收处理函数
   }event_handler;                                                // 事件处理函数集合
   struct
   {
@@ -75,7 +77,7 @@ typedef struct
 {
     const Custom_Frame_HT_T Head_Tial_Frame_struct;                   // 帧结构定义
     const bool (*transmit_function)(const uint8_t* data, uint16_t len); // 数据发送函数
-    const void (*frame_received_handler)(const uint8_t* frame_data, uint16_t frame_len); // 数据帧接收处理函数
+    const void (*frame_received_handler)(const uint8_t* frame_data, uint16_t frame_len,size_t event_bit_pos); // 数据帧接收处理函数
     const Queue_Operations queue_ops;                                                // 串口数据队列操作函数集合
 }Uart_Protocol_FunctionsParameters;
 
@@ -108,6 +110,7 @@ bool Uart_Protocol_Init(UART_protocol_t* protocol_instance,
                         Uart_Protocol_OptionalFunctionsParameters OptionalParam);
 bool Uart_Protocol_ProcessReceivedData8bit(UART_protocol_t* protocol_instance, uint8_t data);
 bool Uart_Protocol_ProcessReceivedDataBuffer(UART_protocol_t* protocol_instance, uint8_t* data,size_t len);
+bool Uart_Protocol_RegisterEvent(UART_protocol_t* protocol_instance, uint32_t event_group);
 /************************ 发送/接受 *********************** */
 
 
