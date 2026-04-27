@@ -225,7 +225,7 @@ static bool Uart_Protocol_Analysis(UART_protocol_t* protocol_instance)
     case UART_protocol_ReceivingPayload:
         protocol_instance->frame_buffer[payload_index++] = data;    // 存储数据载荷
         if (payload_index >= len + UART_PROTOCOL_PAYLOAD_OFFSET)    // 已经接收了指定长度的数据载荷
-        {
+        {   
             protocol_instance->Frame_Process_Type = UART_protocol_WaitingChecksum1;    // 转到等待校验高字节的状态
         }
         break;
