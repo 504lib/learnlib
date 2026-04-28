@@ -11,7 +11,7 @@
 #pragma once
 
 #ifndef UART_PROTOCOL_FRAME_BUFFER_LEN
-#define UART_PROTOCOL_FRAME_BUFFER_LEN 10
+#define UART_PROTOCOL_FRAME_BUFFER_LEN 16
 #endif
 
 #include <string.h>
@@ -44,12 +44,11 @@ typedef struct
   uint8_t Frame_Process_Type;                  // 数据帧处理状态枚举
   uint8_t frame_buffer[UART_PROTOCOL_FRAME_BUFFER_LEN];       // 整帧接收缓冲区（帧头+类型+长度+载荷+校验+帧尾）
   size_t data_len;
-  size_t payload_index;                                   
+  size_t payload_index;
   struct
   {
-    uint32_t current_event_mask;                                          // 当前事件掩码（bit位定义由用户决定，协议库不关心具体含义）
-    uint32_t event_group;                                         // bits事件组标识
-    void (*frame_received_handler)(const uint8_t* frame_data, uint16_t frame_len,size_t event_bit_pos); // 数据帧接收处理函数
+    uint8_t current_frame_type;                                   // 当前接收到的帧类型
+    void (*frame_received_handler)(uint8_t frame_type, const uint8_t* frame_data, uint16_t frame_len); // 数据帧接收处理函数
   }event_handler;                                                // 事件处理函数集合
   struct
   {
@@ -62,7 +61,7 @@ typedef struct
     uint32_t timeout_threshold;                                   // 接收超时阈值（ms）
     size_t try_times;                                             // 接收重试次数
     size_t max_try_times;                                   // 最大重试次数（编译时常量）
-    void (*timeout_handler)(uint32_t current_event_mask);                          // 超时处理函数
+    void (*timeout_handler)(uint8_t current_frame_type);                          // 超时处理函数
     uint32_t (*GetTick)(void);
   }tickBased_timeout;                                                // 定时器相关配置和处理函数
 
@@ -77,7 +76,7 @@ typedef struct
 {
     const Custom_Frame_HT_T Head_Tial_Frame_struct;                   // 帧结构定义
     const bool (*transmit_function)(const uint8_t* data, uint16_t len); // 数据发送函数
-    const void (*frame_received_handler)(const uint8_t* frame_data, uint16_t frame_len,size_t event_bit_pos); // 数据帧接收处理函数
+    const void (*frame_received_handler)(uint8_t frame_type, const uint8_t* frame_data, uint16_t frame_len); // 数据帧接收处理函数
     const Queue_Operations queue_ops;                                                // 串口数据队列操作函数集合
 }Uart_Protocol_FunctionsParameters;
 
@@ -87,7 +86,7 @@ typedef struct
  */
 typedef struct
 {
-    const void (*timeout_handler)(uint32_t current_event_mask);                          // 超时处理函数
+    const void (*timeout_handler)(uint8_t current_frame_type);                          // 超时处理函数
     const uint32_t (*GetTick)(void);
 }Uart_Protocol_OptionalFunctionsParameters;
 
@@ -110,7 +109,7 @@ bool Uart_Protocol_Init(UART_protocol_t* protocol_instance,
                         Uart_Protocol_OptionalFunctionsParameters OptionalParam);
 bool Uart_Protocol_ProcessReceivedData8bit(UART_protocol_t* protocol_instance, uint8_t data);
 bool Uart_Protocol_ProcessReceivedDataBuffer(UART_protocol_t* protocol_instance, uint8_t* data,size_t len);
-bool Uart_Protocol_RegisterEvent(UART_protocol_t* protocol_instance, uint32_t event_group);
+bool Uart_Protocol_Transmit_Frame(UART_protocol_t* protocol_instance, const uint8_t* data, uint8_t type , uint8_t len);
 /************************ 发送/接受 *********************** */
 
 
