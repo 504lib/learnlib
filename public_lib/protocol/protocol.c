@@ -274,6 +274,8 @@ static bool Uart_Protocol_Analysis_WaitingTail2(UART_protocol_t* protocol_instan
             {
                 protocol_instance->hander_flags &= (uint32_t)~isWatingForAck;    // 收到ACK帧，退出等待ACK状态
                 LOG_DEBUG("Received ACK frame. Exiting waiting for ACK state.");
+                __Uart_Protocol_ResetReceiveState(protocol_instance);
+                return true;    // ACK帧不进入用户回调处理，直接返回
             }
             if (protocol_instance->hander_flags & isEnableAck )
             {
