@@ -268,9 +268,14 @@ static bool Uart_Protocol_Analysis_WaitingTail2(UART_protocol_t* protocol_instan
             (uint16_t)protocol_instance->frame_buffer[protocol_instance->data_len + UART_PROTOCOL_PAYLOAD_OFFSET + 1];
         const uint16_t calculated_checksum = calculateChecksum(&protocol_instance->frame_buffer[2], protocol_instance->data_len + 2);
 
-        if (received_checksum == calculated_checksum)
+        if (received_checksum == calculated_checksum )
         {
-            if (protocol_instance->hander_flags & isEnableAck)
+            if (protocol_instance->frame_buffer[2] == UART_PROTOCOL_ACK_TYPE && (protocol_instance->hander_flags & isWatingForAck) )
+            {
+                protocol_instance->hander_flags &= (uint32_t)~isWatingForAck;    // 收到ACK帧，退出等待ACK状态
+                LOG_DEBUG("Received ACK frame. Exiting waiting for ACK state.");
+            }
+            if (protocol_instance->hander_flags & isEnableAck )
             {
                 Uart_Protocol_TransmitAck(protocol_instance);
             }
@@ -436,7 +441,16 @@ static bool Uart_Protocol_TransmitData(UART_protocol_t* protocol_instance, const
     frame[UART_PROTOCOL_PAYLOAD_OFFSET + len + 1] = checksum & 0xFF;    // 校验低字节
     frame[UART_PROTOCOL_PAYLOAD_OFFSET + len + 2] = protocol_instance->uart_frame_struct.Tailframe1;    // 帧尾一
     frame[UART_PROTOCOL_PAYLOAD_OFFSET + len + 3] = protocol_instance->uart_frame_struct.Tailframe2;    // 帧尾二
-    return protocol_instance->Send_Operations.transmit_function(frame, len + UART_PROTOCOL_FRAME_OVERHEAD);
+    bool success =  protocol_instance->Send_Operations.transmit_function(frame, UART_PROTOCOL_FRAME_OVERHEAD + len);
+    if (!success)
+    {
+        LOG_WARN("Failed to transmit frame. Transmit function returned false.");
+    }
+    else if (type != UART_PROTOCOL_ACK_TYPE)
+    {
+        protocol_instance->hander_flags |= (uint32_t)isWatingForAck;    // 只有非ACK帧才进入等待ACK状态
+    }
+    return success;
 }
 
 bool Uart_Protocol_Transmit_Frame(UART_protocol_t* protocol_instance, const uint8_t* data, uint8_t type , uint8_t len)
