@@ -93,7 +93,18 @@ void wr_f32_be(uint8_t* p, float f)
     wr_u32_be(p, u);
 }
 
-
+static inline void __Uart_Protocol_WriteBitFlag(UART_protocol_t* protocol_instance, Flag_Type flag,bool value)
+{
+    if (value)
+    {
+        protocol_instance->hander_flags |= (uint32_t)flag;    // 设置标志位
+    }
+    else
+    {
+        protocol_instance->hander_flags &= (uint32_t)~flag;   // 清除标志位
+    }
+    
+}
 
 static inline bool __Uart_Protocol_IsInitialized(UART_protocol_t* protocol_instance)
 {
@@ -252,6 +263,39 @@ static bool Uart_Protocol_Analysis_WaitingTail1(UART_protocol_t* protocol_instan
     return true;
 }
 
+static bool Uart_Protocol_Analysis_DealFrame(UART_protocol_t* protocol_instance)
+{
+    if (!protocol_instance)
+    {
+        LOG_FATAL("Protocol instance pointer is NULL. Cannot process frame.");
+        return false;
+    }
+    if (protocol_instance->frame_buffer[2] == UART_PROTOCOL_ACK_TYPE 
+            && (protocol_instance->hander_flags & isWatingForAck) 
+            && (protocol_instance->hander_flags & isEnableAck) )
+    {
+        protocol_instance->hander_flags &= (uint32_t)~isWatingForAck;    // 收到ACK帧，退出等待ACK状态
+        LOG_DEBUG("Received ACK frame. Exiting waiting for ACK state.");
+        __Uart_Protocol_ResetReceiveState(protocol_instance);
+        return true;    // ACK帧不进入用户回调处理，直接返回
+    }
+    uint8_t buffer[UART_PROTOCOL_FRAME_BUFFER_LEN];
+    bool success = __Uart_Protocol_AckFraming(protocol_instance->uart_frame_struct,buffer,sizeof(buffer),UART_PROTOCOL_ACK_TYPE,NULL,0);
+    if (!success)
+    {
+       LOG_FATAL("Failed to frame data for transmission. Type: 0x%02X", UART_PROTOCOL_ACK_TYPE);
+    }    
+    protocol_instance->Send_Operations.transmit_function(buffer, UART_PROTOCOL_FRAME_OVERHEAD + 0);    // 发送ACK帧，通知对方已成功接收当前帧
+    if (protocol_instance->event_handler.frame_received_handler)
+    {
+        protocol_instance->event_handler.frame_received_handler(
+            protocol_instance->event_handler.current_frame_type,
+            &protocol_instance->frame_buffer[UART_PROTOCOL_PAYLOAD_OFFSET],
+            protocol_instance->data_len);
+    }
+    return true;
+}
+
 static bool Uart_Protocol_Analysis_WaitingTail2(UART_protocol_t* protocol_instance, uint8_t data)
 {
     if (protocol_instance->uart_frame_struct.Tailframe2 != data)
@@ -270,24 +314,7 @@ static bool Uart_Protocol_Analysis_WaitingTail2(UART_protocol_t* protocol_instan
 
         if (received_checksum == calculated_checksum )
         {
-            if (protocol_instance->frame_buffer[2] == UART_PROTOCOL_ACK_TYPE && (protocol_instance->hander_flags & isWatingForAck) )
-            {
-                protocol_instance->hander_flags &= (uint32_t)~isWatingForAck;    // 收到ACK帧，退出等待ACK状态
-                LOG_DEBUG("Received ACK frame. Exiting waiting for ACK state.");
-                __Uart_Protocol_ResetReceiveState(protocol_instance);
-                return true;    // ACK帧不进入用户回调处理，直接返回
-            }
-            if (protocol_instance->hander_flags & isEnableAck )
-            {
-                Uart_Protocol_TransmitAck(protocol_instance);
-            }
-            if (protocol_instance->event_handler.frame_received_handler)
-            {
-                protocol_instance->event_handler.frame_received_handler(
-                    protocol_instance->event_handler.current_frame_type,
-                    &protocol_instance->frame_buffer[UART_PROTOCOL_PAYLOAD_OFFSET],
-                    protocol_instance->data_len);
-            }
+            Uart_Protocol_Analysis_DealFrame(protocol_instance);
         }
         else
         {
@@ -298,6 +325,7 @@ static bool Uart_Protocol_Analysis_WaitingTail2(UART_protocol_t* protocol_instan
     __Uart_Protocol_ResetReceiveState(protocol_instance);
     return true;
 }
+
 
 static const Uart_Protocol_Analysis_hander Uart_Protocol_Analysis_hander_state[UART_protocol_WaitingTail2 + 1] = {
     Uart_Protocol_Analysis_WaitingHeader1,
@@ -407,6 +435,80 @@ bool Uart_Protocol_ProcessReceivedDataBuffer(UART_protocol_t* protocol_instance,
     return result;
 }
 
+static bool __Uart_Protocol_Backup_LastTransmitData(UART_protocol_t* protocol_instance, const uint8_t* data, size_t len)
+{
+    if ((data == NULL) && len > 0)
+    {
+        LOG_FATAL("Data pointer is NULL while length is %zu. Cannot backup data.", len);
+        return false;
+    }
+    if ((protocol_instance->hander_flags & isEnableAck) == 0 && (protocol_instance->hander_flags & isWatingForAck) == 0)
+    {
+        LOG_INFO("ACK mechanism is not enabled or currently not waiting for ACK. No need to backup data.");
+        return true;    // ACK机制未启用或当前不等待ACK，无需备份数据
+    }
+    if (len > UART_PROTOCOL_FRAME_BUFFER_LEN)
+    {
+        LOG_FATAL("Data length %zu exceeds backup buffer size. Cannot backup data.", len);
+        return false;
+    }
+    memcpy(protocol_instance->tickBased_timeout.temp_transmit_buffer, data, len);
+    protocol_instance->tickBased_timeout.temp_buffer_len = len;
+    return true;
+}
+
+static size_t __Uart_Protocol_Framing(Custom_Frame_HT_T HT,uint8_t* buffer,size_t buffer_size,uint8_t type,const uint8_t* data ,uint8_t payload_size)        
+{
+    if ((buffer == NULL) || (buffer_size < UART_PROTOCOL_FRAME_OVERHEAD + payload_size))
+    {
+        LOG_FATAL("Buffer is NULL or too small. Required size: %zu. Cannot frame data.", UART_PROTOCOL_FRAME_OVERHEAD + payload_size);
+        return 0;
+    }
+    if ((data == NULL) && (payload_size > 0))
+    {
+        LOG_FATAL("Data pointer is NULL while payload size is %u. Cannot frame data.", payload_size);
+        return 0;
+    }
+    buffer[0] = HT.Headerframe1;
+    buffer[1] = HT.Headerframe2;
+    buffer[2] = type;    // 帧类型
+    buffer[3] = payload_size;    // 帧长度
+    if (payload_size > 0)
+    {
+        memcpy(&buffer[UART_PROTOCOL_PAYLOAD_OFFSET], data, payload_size);    // 数据载荷
+    }
+    buffer[UART_PROTOCOL_PAYLOAD_OFFSET + payload_size] = (calculateChecksum(&buffer[2], payload_size + 2) >> 8) & 0xFF;    // 校验高字节
+    buffer[UART_PROTOCOL_PAYLOAD_OFFSET + payload_size + 1] = calculateChecksum(&buffer[2], payload_size + 2) & 0xFF;    // 校验低字节
+    buffer[UART_PROTOCOL_PAYLOAD_OFFSET + payload_size + 2] = HT.Tailframe1;    // 帧尾一
+    buffer[UART_PROTOCOL_PAYLOAD_OFFSET + payload_size + 3] = HT.Tailframe2;    // 帧尾二
+    return UART_PROTOCOL_FRAME_OVERHEAD + payload_size;
+}
+
+static bool __Uart_Protocol_AckFraming(Custom_Frame_HT_T HT,uint8_t* buffer,size_t buffer_size,uint8_t type,const uint8_t* data ,uint8_t payload_size)
+{
+    return __Uart_Protocol_Framing(HT, buffer, buffer_size, UART_PROTOCOL_ACK_TYPE, NULL, 0) > 0;
+}
+
+static bool __Uart_Protocol_TransmitRawData(UART_protocol_t* protocol_instance, const uint8_t* data, uint16_t len)
+{
+    if (!__Uart_Protocol_IsInitialized(protocol_instance))
+    {
+        LOG_FATAL("Protocol instance is not initialized. Call Uart_Protocol_Init first.");
+        return false;
+    }
+    if ((data == NULL) && (len > 0))
+    {
+        LOG_FATAL("Data pointer is NULL while length is %u. Cannot transmit data.", len);
+        return false;
+    }
+    if (!protocol_instance->Send_Operations.transmit_function)
+    {
+        LOG_FATAL("Transmit function pointer is NULL. Cannot transmit data.");
+        return false;
+    }
+    return protocol_instance->Send_Operations.transmit_function(data, len);
+}
+
 static bool Uart_Protocol_TransmitData(UART_protocol_t* protocol_instance, const uint8_t* data, uint8_t type , uint8_t len)
 {
     if (!__Uart_Protocol_IsInitialized(protocol_instance))
@@ -430,30 +532,68 @@ static bool Uart_Protocol_TransmitData(UART_protocol_t* protocol_instance, const
         return false;
     }
     uint8_t frame[UART_PROTOCOL_FRAME_BUFFER_LEN];
-    frame[0] = protocol_instance->uart_frame_struct.Headerframe1;
-    frame[1] = protocol_instance->uart_frame_struct.Headerframe2;   
-    frame[2] = type;    // 帧类型
-    frame[3] = len;    // 帧长度
-    if (len > 0)
+    bool success = false;
+    if (type == UART_PROTOCOL_ACK_TYPE)
     {
-        memcpy(&frame[UART_PROTOCOL_PAYLOAD_OFFSET], data, len);    // 数据载荷
+        success = __Uart_Protocol_AckFraming(protocol_instance->uart_frame_struct, frame, sizeof(frame), type, data, len);
     }
-    uint16_t checksum = calculateChecksum(&frame[2], len + 2);    // 计算帧类型、帧长度和数据载荷的校验和
-    frame[UART_PROTOCOL_PAYLOAD_OFFSET + len] = (checksum >> 8) & 0xFF;    // 校验高字节
-    frame[UART_PROTOCOL_PAYLOAD_OFFSET + len + 1] = checksum & 0xFF;    // 校验低字节
-    frame[UART_PROTOCOL_PAYLOAD_OFFSET + len + 2] = protocol_instance->uart_frame_struct.Tailframe1;    // 帧尾一
-    frame[UART_PROTOCOL_PAYLOAD_OFFSET + len + 3] = protocol_instance->uart_frame_struct.Tailframe2;    // 帧尾二
-    bool success =  protocol_instance->Send_Operations.transmit_function(frame, UART_PROTOCOL_FRAME_OVERHEAD + len);
+    else
+    {
+        success = __Uart_Protocol_Framing(protocol_instance->uart_frame_struct, frame, sizeof(frame), type, data, len) > 0;
+    }
     if (!success)
     {
-        LOG_WARN("Failed to transmit frame. Transmit function returned false.");
+        LOG_FATAL("Failed to frame data for transmission. Type: 0x%02X, Length: %u.", type, len);
+        __Uart_Protocol_WriteBitFlag(protocol_instance, isWatingForAck, false);    // 发送失败，退出等待ACK状态
+        return false;   
     }
-    else if (type != UART_PROTOCOL_ACK_TYPE)
-    {
-        protocol_instance->hander_flags |= (uint32_t)isWatingForAck;    // 只有非ACK帧才进入等待ACK状态
-    }
+    success = protocol_instance->Send_Operations.transmit_function(frame, UART_PROTOCOL_FRAME_OVERHEAD + len);
+    __Uart_Protocol_WriteBitFlag(protocol_instance, isWatingForAck, success && (type != UART_PROTOCOL_ACK_TYPE) && (protocol_instance->hander_flags & isEnableAck));    // 只有非ACK帧且启用ACK机制时才进入等待ACK状态
+    (void)__Uart_Protocol_Backup_LastTransmitData(protocol_instance,frame, UART_PROTOCOL_FRAME_OVERHEAD + len);
     return success;
 }
+
+static bool __Uart_Protocol_Retry(UART_protocol_t* protocol_instance)
+{
+    if (protocol_instance->tickBased_timeout.try_times < protocol_instance->tickBased_timeout.max_try_times)
+    {
+        protocol_instance->tickBased_timeout.try_times++;
+        return __Uart_Protocol_TransmitRawData(protocol_instance, protocol_instance->tickBased_timeout.temp_transmit_buffer, protocol_instance->tickBased_timeout.temp_buffer_len);    // 重传上次发送的数据，假设是ACK帧
+    }
+    else
+    {
+        protocol_instance->hander_flags &= (uint32_t)~isWatingForAck;    // 超过最大重试次数，退出等待ACK状态
+        LOG_WARN("Exceeded maximum retry attempts for ACK. Exiting waiting for ACK state.");
+        if (protocol_instance->tickBased_timeout.timeout_handler)
+        {
+            protocol_instance->tickBased_timeout.timeout_handler(protocol_instance->event_handler.current_frame_type);    // 调用用户定义的超时处理函数
+        }
+        return false;
+    }
+}
+
+static bool __Uart_Protocol_ElapsedTimeExceeded(UART_protocol_t* protocol_instance)
+{
+    if ((protocol_instance->hander_flags & isEnableAck) == 0 || (protocol_instance->hander_flags & isWatingForAck) == 0 )
+    {
+        return false;   // ACK机制未启用或当前不等待ACK，无需检查时间
+    }
+    if (!protocol_instance->tickBased_timeout.GetTick)
+    {
+        LOG_FATAL("GetTick function pointer is NULL. Cannot check elapsed time.");
+        return false;
+    }
+    uint32_t current_tick = protocol_instance->tickBased_timeout.GetTick();
+    uint32_t elapsed = current_tick - protocol_instance->tickBased_timeout.lastTick;
+    if (elapsed > protocol_instance->tickBased_timeout.timeout_threshold)
+    {
+        protocol_instance->tickBased_timeout.lastTick = current_tick;    // 更新上次记录的tick
+        LOG_DEBUG("Elapsed time %u ms exceeded threshold. Attempting to retry transmission. Try times: %u.", elapsed, protocol_instance->tickBased_timeout.try_times);   
+        return __Uart_Protocol_Retry(protocol_instance);
+    }
+    return false;
+}
+
 
 bool Uart_Protocol_Transmit_Frame(UART_protocol_t* protocol_instance, const uint8_t* data, uint8_t type , uint8_t len)
 {
@@ -491,6 +631,10 @@ bool Uart_Protocol_Loop(UART_protocol_t* protocol_instance)
     {
         LOG_FATAL("Protocol instance is not initialized. Call Uart_Protocol_Init first.");
         return false;
+    }
+    if (__Uart_Protocol_ElapsedTimeExceeded(protocol_instance))
+    {
+
     }
     return Uart_Protocol_Analysis(protocol_instance);
 }

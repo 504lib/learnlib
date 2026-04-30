@@ -56,6 +56,8 @@ typedef struct
   }Send_Operations;                                                  // 数据发送函数集合
   struct
   {
+    uint8_t temp_transmit_buffer[UART_PROTOCOL_FRAME_BUFFER_LEN];    // 临时发送缓冲区（帧头+类型+长度+载荷+校验+帧尾）
+    size_t temp_buffer_len;
     uint32_t tick;                                                // 定时器周期（ms）
     uint32_t lastTick;                                      
     uint32_t timeout_threshold;                                   // 接收超时阈值（ms）
@@ -110,7 +112,9 @@ bool Uart_Protocol_Init(UART_protocol_t* protocol_instance,
 bool Uart_Protocol_ProcessReceivedData8bit(UART_protocol_t* protocol_instance, uint8_t data);
 bool Uart_Protocol_ProcessReceivedDataBuffer(UART_protocol_t* protocol_instance, uint8_t* data,size_t len);
 bool Uart_Protocol_Transmit_Frame(UART_protocol_t* protocol_instance, const uint8_t* data, uint8_t type , uint8_t len);
+bool Uart_Protocol_Loop(UART_protocol_t* protocol_instance);
 /************************ 发送/接受 *********************** */
+
 
 
 
