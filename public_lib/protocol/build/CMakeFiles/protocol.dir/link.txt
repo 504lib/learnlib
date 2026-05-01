@@ -1,0 +1,2 @@
+C:\dev\llvm-mingw\bin\llvm-ar.exe qc libprotocol.a CMakeFiles/protocol.dir/protocol.c.obj CMakeFiles/protocol.dir/Log/Log.c.obj
+C:\dev\llvm-mingw\bin\llvm-ranlib.exe libprotocol.a
