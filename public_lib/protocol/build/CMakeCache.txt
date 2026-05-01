@@ -216,6 +216,9 @@ CMAKE_TAPI:FILEPATH=CMAKE_TAPI-NOTFOUND
 // Studio IDE projects all commands are done without /nologo.
 CMAKE_VERBOSE_MAKEFILE:BOOL=FALSE
 
+//Build protocol standalone tests
+PROTOCOL_BUILD_TESTS:BOOL=OFF
+
 //Value Computed by CMake
 protocol_BINARY_DIR:STATIC=C:/learnlib/public_lib/protocol/build
 

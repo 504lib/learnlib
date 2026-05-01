@@ -1182,6 +1182,18 @@
 			"value" : "FALSE"
 		},
 		{
+			"name" : "PROTOCOL_BUILD_TESTS",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Build protocol standalone tests"
+				}
+			],
+			"type" : "BOOL",
+			"value" : "OFF"
+		},
+		{
 			"name" : "protocol_BINARY_DIR",
 			"properties" : 
 			[

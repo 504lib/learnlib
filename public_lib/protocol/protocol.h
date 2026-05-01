@@ -39,7 +39,7 @@ typedef struct
 
 typedef struct 
 {
-  const Custom_Frame_HT_T uart_frame_struct;   // 帧结构定义
+  Custom_Frame_HT_T uart_frame_struct;   // 帧结构定义
   uint32_t hander_flags;  
   uint8_t Frame_Process_Type;                  // 数据帧处理状态枚举
   uint8_t frame_buffer[UART_PROTOCOL_FRAME_BUFFER_LEN];       // 整帧接收缓冲区（帧头+类型+长度+载荷+校验+帧尾）
@@ -77,8 +77,8 @@ typedef struct
 typedef struct
 {
     const Custom_Frame_HT_T Head_Tial_Frame_struct;                   // 帧结构定义
-    const bool (*transmit_function)(const uint8_t* data, uint16_t len); // 数据发送函数
-    const void (*frame_received_handler)(uint8_t frame_type, const uint8_t* frame_data, uint16_t frame_len); // 数据帧接收处理函数
+  bool (*transmit_function)(const uint8_t* data, uint16_t len); // 数据发送函数
+  void (*frame_received_handler)(uint8_t frame_type, const uint8_t* frame_data, uint16_t frame_len); // 数据帧接收处理函数
     const Queue_Operations queue_ops;                                                // 串口数据队列操作函数集合
 }Uart_Protocol_FunctionsParameters;
 
@@ -88,8 +88,8 @@ typedef struct
  */
 typedef struct
 {
-    const void (*timeout_handler)(uint8_t current_frame_type);                          // 超时处理函数
-    const uint32_t (*GetTick)(void);
+  void (*timeout_handler)(uint8_t current_frame_type);                          // 超时处理函数
+  uint32_t (*GetTick)(void);
 }Uart_Protocol_OptionalFunctionsParameters;
 
 // 序列化工具（线上统一采用大端序 BE）
