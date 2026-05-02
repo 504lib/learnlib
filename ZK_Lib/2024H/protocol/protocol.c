@@ -384,6 +384,7 @@ bool Uart_Protocol_Init(UART_protocol_t* protocol_instance, Uart_Protocol_Functi
     protocol_instance->hander_flags = (uint32_t)isNone;
     if (__Uart_Protocol_Check_OptionalParameters(OptionalParam))
     {
+        protocol_instance->tickBased_timeout.pending_frame_type = 0;
         protocol_instance->tickBased_timeout.tick = 0;
         protocol_instance->tickBased_timeout.lastTick = 0;
         protocol_instance->tickBased_timeout.timeout_threshold = DEFAULT_TIMEOUT_THRESHOLD_MS;
@@ -465,6 +466,7 @@ static void __Uart_Protocol_StopWaitingForAck(UART_protocol_t* protocol_instance
     __Uart_Protocol_WriteBitFlag(protocol_instance, isWatingForAck, false);
     protocol_instance->tickBased_timeout.try_times = 0;
     protocol_instance->tickBased_timeout.temp_buffer_len = 0;
+    protocol_instance->tickBased_timeout.pending_frame_type = 0;
     memset(protocol_instance->tickBased_timeout.temp_transmit_buffer, 0, sizeof(protocol_instance->tickBased_timeout.temp_transmit_buffer));
 }
 
@@ -576,6 +578,7 @@ static bool Uart_Protocol_TransmitData(UART_protocol_t* protocol_instance, const
 
     if (type != UART_PROTOCOL_ACK_TYPE)
     {
+        protocol_instance->tickBased_timeout.pending_frame_type = type;
         __Uart_Protocol_BeginWaitingForAck(protocol_instance);
         (void)__Uart_Protocol_Backup_LastTransmitData(protocol_instance, frame, UART_PROTOCOL_FRAME_OVERHEAD + len);
     }
@@ -592,11 +595,12 @@ static bool __Uart_Protocol_Retry(UART_protocol_t* protocol_instance)
     }
     else
     {
+        const uint8_t pending_frame_type = protocol_instance->tickBased_timeout.pending_frame_type;
         __Uart_Protocol_StopWaitingForAck(protocol_instance);
         LOG_WARN("Exceeded maximum retry attempts for ACK. Exiting waiting for ACK state.");
         if (protocol_instance->tickBased_timeout.timeout_handler)
         {
-            protocol_instance->tickBased_timeout.timeout_handler(protocol_instance->event_handler.current_frame_type);
+            protocol_instance->tickBased_timeout.timeout_handler(pending_frame_type);
         }
         return false;
     }

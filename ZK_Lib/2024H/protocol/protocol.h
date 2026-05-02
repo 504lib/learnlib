@@ -55,6 +55,7 @@ typedef struct
     {
         uint8_t temp_transmit_buffer[UART_PROTOCOL_FRAME_BUFFER_LEN];
         size_t temp_buffer_len;
+        uint8_t pending_frame_type;
         uint32_t tick;
         uint32_t lastTick;
         uint32_t timeout_threshold;

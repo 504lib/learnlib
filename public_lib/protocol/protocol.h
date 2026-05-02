@@ -58,6 +58,7 @@ typedef struct
   {
     uint8_t temp_transmit_buffer[UART_PROTOCOL_FRAME_BUFFER_LEN];    // 临时发送缓冲区（帧头+类型+长度+载荷+校验+帧尾）
     size_t temp_buffer_len;
+    uint8_t pending_frame_type;
     uint32_t tick;                                                // 定时器周期（ms）
     uint32_t lastTick;                                      
     uint32_t timeout_threshold;                                   // 接收超时阈值（ms）
