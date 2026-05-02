@@ -26,18 +26,18 @@ void MulitKey_Scan(MulitKey_t* key)
             if((key->Border_trigger == RISE_BORDER_TRIGGER && pin_state) || (key->Border_trigger == FALL_BORDER_TRIGGER && !pin_state))
             {
                 key->state = KEY_DEBOUNCE;
-                key->press_last_time = GetTick();
+                key->press_last_time = MULTIKEY_GET_TICK();
             }
             break;
         case KEY_DEBOUNCE:
             if((key->Border_trigger == RISE_BORDER_TRIGGER && pin_state) || (key->Border_trigger == FALL_BORDER_TRIGGER && !pin_state))
             {
 
-                if(GetTick() - key->press_last_time > Key_Debounce_Time) 
+                if(MULTIKEY_GET_TICK() - key->press_last_time > Key_Debounce_Time)
                 {
                     key->state = KEY_PRESSED;
                     if(key->onPressed) key->onPressed(key);
-                    key->press_last_time = GetTick();
+                    key->press_last_time = MULTIKEY_GET_TICK();
                 }
             }
             else
@@ -48,11 +48,11 @@ void MulitKey_Scan(MulitKey_t* key)
         case KEY_PRESSED:
             if((key->Border_trigger == RISE_BORDER_TRIGGER && pin_state) || (key->Border_trigger == FALL_BORDER_TRIGGER && !pin_state))
             {
-                if(GetTick() - key->press_last_time >= Key_LongPress_Time) //
+                if(MULTIKEY_GET_TICK() - key->press_last_time >= Key_LongPress_Time)
                 {
                     key->state = KEY_LONGPRESS;
                     if(key->onLongPressed) key->onLongPressed(key);
-                    key->press_last_time = GetTick();
+                    key->press_last_time = MULTIKEY_GET_TICK();
                 }
             }
             else
@@ -67,10 +67,10 @@ void MulitKey_Scan(MulitKey_t* key)
             }
             else
             {
-                if(GetTick() - key->press_last_time >= Key_LongPress_Repeat_Time) //
+                if(MULTIKEY_GET_TICK() - key->press_last_time >= Key_LongPress_Repeat_Time)
                 {
                     if(key->onLongPressed) key->onLongPressed(key);
-                    key->press_last_time = GetTick();
+                    key->press_last_time = MULTIKEY_GET_TICK();
                 }
             } 
             break;

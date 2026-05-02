@@ -8,20 +8,20 @@
 #if defined(MENU_USE_CMSIS_OS2)
     #include "cmsis_os2.h"
     #include "FreeRTOS.h"
-    #define GetTick osKernelGetTickCount
+    #define MULTIKEY_GET_TICK osKernelGetTickCount
 #elif defined(MENU_USE_BARE_METAL)
     #include "main.h"
-    #define GetTick HAL_GetTick
+    #define MULTIKEY_GET_TICK HAL_GetTick
 #elif defined(MENU_USE_CUSTOM)
     //请加入宏定义
-    #if !defined(GetTick)
+    #if !defined(MULTIKEY_GET_TICK)
         #error "MENU_USE_CUSTOM is defined but the GetTick function are not defined! Please define _disable_interrupt_func and _enable_interrupt_func."
     #endif
 #else
     #error "Please define the target platform!!!"
 #endif
 
-#if !defined(GetTick)
+#if !defined(MULTIKEY_GET_TICK)
     #error "Atomic operation macros are not correctly defined! Please check the platform configuration."
 #endif
 
