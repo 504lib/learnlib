@@ -46,6 +46,7 @@ add_subdirectory(SPI_OLED)
 add_subdirectory(Motor_AT4950)
 add_subdirectory(MPU_9250)
 add_subdirectory(Tasks)
+add_subdirectory(protocol)
 
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
@@ -85,6 +86,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     SPI_OLED
     Motor_AT4950
     MPU_9250
+    protocol
     ${TOOLCHAIN_LINK_LIBRARIES}
     # Add user defined libraries
 )

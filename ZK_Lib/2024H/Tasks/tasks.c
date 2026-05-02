@@ -102,9 +102,10 @@ void SerialTask(Protothread_t* pt)
 {
     PT_BEGIN(pt);
     while(1){
-        LOG_DEBUG("Yaw: %.2f, Pitch: %.2f, Roll: %.2f", mpu_data->yaw, mpu_data->pitch, mpu_data->roll);
-        LOG_DEBUG("gz: %.2f", mpu_data->phys.gz);
+        // LOG_DEBUG("Yaw: %.2f, Pitch: %.2f, Roll: %.2f", mpu_data->yaw, mpu_data->pitch, mpu_data->roll);
+        // LOG_DEBUG("gz: %.2f", mpu_data->phys.gz);
         PT_WAIT_TICK(pt, 100); // 每隔100毫秒执行一次
     }
     PT_END(pt);
 }
+

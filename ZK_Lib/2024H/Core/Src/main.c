@@ -29,6 +29,7 @@
 #include <stdio.h>
 #include "Protothreads.h"
 #include "Log.h"
+#include "protocol.h"
 #include "static_queue.h"
 #include "multikey.h"
 #include "oled.h"
@@ -52,6 +53,65 @@
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 
+DECLARE_STATIC_QUEUE(UART_Protocol_Frame_Buffer, uint8_t, UART_PROTOCOL_FRAME_BUFFER_LEN * 2);
+
+bool Uart_Protocol_Tranmsit_ForHal(const uint8_t* data, uint16_t len)
+{
+    return HAL_UART_Transmit(&huart3, (uint8_t*)data, len, 100) == HAL_OK;
+}
+
+
+void frame_received_handler_Fucntion(uint8_t frame_type, const uint8_t* frame_data, uint16_t frame_len)
+{
+    LOG_INFO("Received frame of type 0x%02X with length %u. Data:", frame_type, frame_len);
+    for (uint16_t i = 0; i < frame_len; i++)
+    {
+        LOG_INFO("  Byte %u: 0x%02X", i, frame_data[i]);
+    }
+}
+
+
+bool Uart_Protocol_Queue_pushback(void* Queue_instance, const uint8_t data)
+{
+    UART_Protocol_Frame_Buffer_t* queue = (UART_Protocol_Frame_Buffer_t*)Queue_instance;
+    return UART_Protocol_Frame_Buffer_PUSH(queue, data);
+}
+
+bool Uart_Protocol_Queue_popfront(void* Queue_instance, uint8_t* data)
+{
+    UART_Protocol_Frame_Buffer_t* queue = (UART_Protocol_Frame_Buffer_t*)Queue_instance;
+    return UART_Protocol_Frame_Buffer_POP(queue, data);
+}
+
+
+void Uart_protocol_timeout_handler(uint8_t current_frame_type)
+{
+  LOG_WARN("Timeout occurred while waiting for ACK of frame type 0x%02X. Handling timeout.", current_frame_type);
+}
+
+static void RunAckWaitTest(UART_protocol_t* protocol_instance)
+{
+  static uint32_t last_test_tick = 0;
+  static uint8_t test_counter = 0;
+  uint8_t payload;
+
+  if ((HAL_GetTick() - last_test_tick) < 2000U)
+  {
+    return;
+  }
+
+  last_test_tick = HAL_GetTick();
+  payload = test_counter++;
+
+  if (Uart_Protocol_Transmit_Frame(protocol_instance, &payload, 0x21, 1))
+  {
+    LOG_INFO("ACK test frame sent. type=0x21 payload=0x%02X", payload);
+  }
+  else
+  {
+    LOG_WARN("Failed to send ACK test frame.");
+  }
+}
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -63,6 +123,31 @@ Protothread_t SerialTask_handle;
 MulitKey_t key1;
 MulitKey_t key2;
 MotorAT4950 motor1;
+UART_protocol_t uart_protocol_instance;
+UART_Protocol_Frame_Buffer_t uart_frame_buffer;
+uint8_t receive_buffer[UART_PROTOCOL_FRAME_BUFFER_LEN];
+
+Uart_Protocol_FunctionsParameters RequiredParam = {
+  .Head_Tial_Frame_struct = {
+    .Headerframe1 = 0xAA,
+    .Headerframe2 = 0x55,
+    .Tailframe1 = 0x55,
+    .Tailframe2 = 0xAA
+  },
+  .transmit_function = Uart_Protocol_Tranmsit_ForHal,
+  .frame_received_handler = frame_received_handler_Fucntion,
+  .queue_ops = {
+    .Queue_instance = (void*)&uart_frame_buffer, // 这里需要替换为实际的队列实例
+    .Queue_pushback = Uart_Protocol_Queue_pushback, // 这里需要替换为实际的函数指针
+    .Queue_popfront = Uart_Protocol_Queue_popfront  // 这里需要替换为实际的函数指针
+  }
+};
+
+Uart_Protocol_OptionalFunctionsParameters OptionalParam = {
+  .GetTick = HAL_GetTick,
+  .timeout_handler = Uart_protocol_timeout_handler // 如果不需要超时处理，可以设置为NULL
+};
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -119,6 +204,7 @@ int main(void)
   MX_SPI3_Init();
   MX_I2C1_Init();
   MX_TIM1_Init();
+  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
   OLED_Init();
   OLED_Clear(); 
@@ -132,9 +218,13 @@ int main(void)
   PT_INIT(&IMU_Task);
   MulitKey_Init(&key1,ReadKey1Pin,Key1PressedCallback,Key1PressedCallback,RISE_BORDER_TRIGGER);
   MulitKey_Init(&key2,ReadKey2Pin,Key2PressedCallback,Key2PressedCallback,RISE_BORDER_TRIGGER);
+
+  UART_Protocol_Frame_Buffer_INIT(&uart_frame_buffer);
+  Uart_Protocol_Init(&uart_protocol_instance, RequiredParam, OptionalParam);
   MotorInit_AT46950(&motor1, SetMotor1ComparePWM, SetMotor1Level, 1000);
   SetDefaultDirection(&motor1, High_Level);
   HAL_TIM_Base_Start_IT(&htim1);
+  HAL_UARTEx_ReceiveToIdle_IT(&huart3,receive_buffer, sizeof(receive_buffer));
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
   Motor_setSpeed(&motor1, 500); // 设置电机以50%的占空比正向旋转
   /* USER CODE END 2 */
@@ -151,6 +241,8 @@ int main(void)
     OLED_ShowPage2(&OLED_ShowPage2_Task);
     OLED_ShowPage3(&OLED_ShowPage3_Task);
     SerialTask(&SerialTask_handle);
+    Uart_Protocol_Loop(&uart_protocol_instance);
+    RunAckWaitTest(&uart_protocol_instance);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -216,6 +308,17 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
       // printf("Counter: %lu\n", counter);
     }
     
+  }
+  
+}
+
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
+{
+  if (huart->Instance == USART3)
+  {
+    Uart_Protocol_ProcessReceivedDataBuffer(&uart_protocol_instance, receive_buffer, Size);
+    // LOG_DEBUG("Received %u bytes on USART3. Data:%*s", Size, Size,receive_buffer);
+    HAL_UARTEx_ReceiveToIdle_IT(&huart3, receive_buffer, sizeof(receive_buffer));
   }
   
 }
