@@ -91,8 +91,10 @@ typedef struct
 } Uart_Protocol_OptionalFunctionsParameters;
 
 uint32_t rd_u32_be(const uint8_t* p);
+int16_t rd_i16_be(const uint8_t* p);
 float rd_f32_be(const uint8_t* p);
 void wr_u32_be(uint8_t* p, uint32_t v);
+void wr_i16_be(uint8_t* p, int16_t v);
 void wr_f32_be(uint8_t* p, float f);
 
 bool Uart_Protocol_Init(UART_protocol_t* protocol_instance,

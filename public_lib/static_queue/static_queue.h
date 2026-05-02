@@ -44,7 +44,6 @@
     static inline void NAME##_INIT(NAME##_t* q)\
     {\
         LOG_ASSERT(q != NULL);\
-        LOG_ASSERT(!NAME##_IS_INIT(q));\
         q->head = 0U;\
         q->tail = 0U;\
         q->initialized = true;\

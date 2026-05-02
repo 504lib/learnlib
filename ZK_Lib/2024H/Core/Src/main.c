@@ -53,6 +53,9 @@
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 
+int16_t test_num = 0; // 作为测试的全局变量，观察协议发送和接收的正确性
+uint8_t protocol_value_dirty = 0;
+
 DECLARE_STATIC_QUEUE(UART_Protocol_Frame_Buffer, uint8_t, UART_PROTOCOL_FRAME_BUFFER_LEN * 2);
 
 bool Uart_Protocol_Tranmsit_ForHal(const uint8_t* data, uint16_t len)
@@ -68,6 +71,13 @@ void frame_received_handler_Fucntion(uint8_t frame_type, const uint8_t* frame_da
     {
         LOG_INFO("  Byte %u: 0x%02X", i, frame_data[i]);
     }
+    if (frame_type == 0x10 && frame_len >= 2)
+    {
+      test_num = rd_i16_be(frame_data);
+      protocol_value_dirty = 1;
+      LOG_INFO("Decoded int16 payload: %d", test_num);
+    }
+    
 }
 
 
@@ -111,6 +121,21 @@ static void RunAckWaitTest(UART_protocol_t* protocol_instance)
   {
     LOG_WARN("Failed to send ACK test frame.");
   }
+}
+
+static void RenderProtocolValue(void)
+{
+  char buffer[24];
+
+  if (protocol_value_dirty == 0U)
+  {
+    return;
+  }
+
+  snprintf(buffer, sizeof(buffer), "RX16:%6d    ", test_num);
+  OLED_ShowString(0, 16, (uint8_t*)buffer, 16, 1);
+  OLED_Refresh();
+  protocol_value_dirty = 0;
 }
 /* USER CODE END PM */
 
@@ -242,7 +267,8 @@ int main(void)
     OLED_ShowPage3(&OLED_ShowPage3_Task);
     SerialTask(&SerialTask_handle);
     Uart_Protocol_Loop(&uart_protocol_instance);
-    RunAckWaitTest(&uart_protocol_instance);
+    RenderProtocolValue();
+    // RunAckWaitTest(&uart_protocol_instance);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

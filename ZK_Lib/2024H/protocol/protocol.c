@@ -53,12 +53,24 @@ uint32_t rd_u32_be(const uint8_t* p)
            (uint32_t)p[3];
 }
 
+int16_t rd_i16_be(const uint8_t* p)
+{
+    return (int16_t)(((uint16_t)p[0] << 8) | (uint16_t)p[1]);
+}
+
 void wr_u32_be(uint8_t* p, uint32_t v)
 {
     p[0] = (uint8_t)((v >> 24) & 0xFF);
     p[1] = (uint8_t)((v >> 16) & 0xFF);
     p[2] = (uint8_t)((v >> 8) & 0xFF);
     p[3] = (uint8_t)(v & 0xFF);
+}
+
+void wr_i16_be(uint8_t* p, int16_t v)
+{
+    uint16_t u = (uint16_t)v;
+    p[0] = (uint8_t)((u >> 8) & 0xFF);
+    p[1] = (uint8_t)(u & 0xFF);
 }
 
 float rd_f32_be(const uint8_t* p)

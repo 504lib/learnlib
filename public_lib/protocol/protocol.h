@@ -96,10 +96,12 @@ typedef struct
 // 序列化工具（线上统一采用大端序 BE）
 // 反序列化：从字节数组（BE）读取为本机数值
 uint32_t rd_u32_be(const uint8_t* p);   // 大端 → 本机 uint32_t
+int16_t  rd_i16_be(const uint8_t* p);   // 大端 → 本机 int16_t
 float    rd_f32_be(const uint8_t* p);   // 大端 → 本机 float
 
 // 序列化：将本机数值写成字节数组（BE）用于发送
 void     wr_u32_be(uint8_t* p, uint32_t v); // 本机 → 大端 uint32_t
+void     wr_i16_be(uint8_t* p, int16_t v);  // 本机 → 大端 int16_t
 void     wr_f32_be(uint8_t* p, float f);    // 本机 → 大端 float
 
 
