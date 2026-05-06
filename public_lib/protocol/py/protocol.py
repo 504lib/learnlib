@@ -106,7 +106,7 @@ class UartProtocol:
             self.queue_pop = lambda: queue_pop(self.queue)
         else:
             # 默认 deque 操作
-            self.queue_push = lambda data: self._default_queue_push(data)
+            self.queue_push = self._default_queue_push
             self.queue_pop = self._default_queue_pop
 
         # 可选功能
