@@ -523,7 +523,7 @@ if __name__ == "__main__":
     # 2) 测试发送和 ACK 机制（无对端，会超时）
     proto.transmit_frame(0x20, b'\xAA\xBB')
     # 模拟时间流逝，触发重传
-    for i in range(10):
+    for _ in range(10):
         tick[0] += 220  # 超过阈值 200ms
         proto.loop()
     # 应看到重传尝试，最终超时回调
