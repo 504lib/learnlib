@@ -38,6 +38,8 @@
 #include "./multikey/multikey.h"
 #include "./Protothreads/Protothreads.h"
 #include "./Motor/Motor_AT4950.h"
+#include "./grayscale/grayscale.h"
+#include "./PID_Node/PID_Node.h"
 // #include "./Protothreads/"
 
 
@@ -75,71 +77,59 @@ MulitKey_t key;
 void Motor_Set_PWM(int pwma, int pwmb)
 {
     // 电机1（左）
-    if (pwma > 0) {
-        DL_GPIO_setPins(TB6612_AIN1_PORT, TB6612_AIN1_PIN);
-        DL_GPIO_clearPins(TB6612_AIN2_PORT, TB6612_AIN2_PIN);
-        DL_TimerG_setCaptureCompareValue(PWM_0_INST, ABS(pwma), GPIO_PWM_0_C0_IDX);
-    } else if (pwma < 0) {
-        DL_GPIO_clearPins(TB6612_AIN1_PORT, TB6612_AIN1_PIN);
-        DL_GPIO_setPins(TB6612_AIN2_PORT, TB6612_AIN2_PIN);
-        DL_TimerG_setCaptureCompareValue(PWM_0_INST, ABS(pwma), GPIO_PWM_0_C0_IDX);
-    } else {
-        DL_GPIO_clearPins(TB6612_AIN1_PORT, TB6612_AIN1_PIN);
-        DL_GPIO_clearPins(TB6612_AIN2_PORT, TB6612_AIN2_PIN);
-        DL_TimerG_setCaptureCompareValue(PWM_0_INST, 0, GPIO_PWM_0_C0_IDX);
-    }
+    // if (pwma > 0) {
+    //     DL_GPIO_setPins(TB6612_AIN1_PORT, TB6612_AIN1_PIN);
+    //     DL_GPIO_clearPins(TB6612_AIN2_PORT, TB6612_AIN2_PIN);
+    //     DL_TimerG_setCaptureCompareValue(PWM_0_INST, ABS(pwma), GPIO_PWM_0_C0_IDX);
+    // } else if (pwma < 0) {
+    //     DL_GPIO_clearPins(TB6612_AIN1_PORT, TB6612_AIN1_PIN);
+    //     DL_GPIO_setPins(TB6612_AIN2_PORT, TB6612_AIN2_PIN);
+    //     DL_TimerG_setCaptureCompareValue(PWM_0_INST, ABS(pwma), GPIO_PWM_0_C0_IDX);
+    // } else {
+    //     DL_GPIO_clearPins(TB6612_AIN1_PORT, TB6612_AIN1_PIN);
+    //     DL_GPIO_clearPins(TB6612_AIN2_PORT, TB6612_AIN2_PIN);
+    //     DL_TimerG_setCaptureCompareValue(PWM_0_INST, 0, GPIO_PWM_0_C0_IDX);
+    // }
 
-    // 电机2（右）
-    if (pwmb > 0) {
-        DL_GPIO_setPins(TB6612_BIN1_PORT, TB6612_BIN1_PIN);
-        DL_GPIO_clearPins(TB6612_BIN2_PORT, TB6612_BIN2_PIN);
-        DL_TimerG_setCaptureCompareValue(PWM_0_INST, ABS(pwmb), GPIO_PWM_0_C1_IDX);
-    } else if (pwmb < 0) {
-        DL_GPIO_clearPins(TB6612_BIN1_PORT, TB6612_BIN1_PIN);
-        DL_GPIO_setPins(TB6612_BIN2_PORT, TB6612_BIN2_PIN);
-        DL_TimerG_setCaptureCompareValue(PWM_0_INST, ABS(pwmb), GPIO_PWM_0_C1_IDX);
-    } else {
-        DL_GPIO_clearPins(TB6612_BIN1_PORT, TB6612_BIN1_PIN);
-        DL_GPIO_clearPins(TB6612_BIN2_PORT, TB6612_BIN2_PIN);
-        DL_TimerG_setCaptureCompareValue(PWM_0_INST, 0, GPIO_PWM_0_C1_IDX);
-    }
+    // // 电机2（右）
+    // if (pwmb > 0) {
+    //     DL_GPIO_setPins(TB6612_BIN1_PORT, TB6612_BIN1_PIN);
+    //     DL_GPIO_clearPins(TB6612_BIN2_PORT, TB6612_BIN2_PIN);
+    //     DL_TimerG_setCaptureCompareValue(PWM_0_INST, ABS(pwmb), GPIO_PWM_0_C1_IDX);
+    // } else if (pwmb < 0) {
+    //     DL_GPIO_clearPins(TB6612_BIN1_PORT, TB6612_BIN1_PIN);
+    //     DL_GPIO_setPins(TB6612_BIN2_PORT, TB6612_BIN2_PIN);
+    //     DL_TimerG_setCaptureCompareValue(PWM_0_INST, ABS(pwmb), GPIO_PWM_0_C1_IDX);
+    // } else {
+    //     DL_GPIO_clearPins(TB6612_BIN1_PORT, TB6612_BIN1_PIN);
+    //     DL_GPIO_clearPins(TB6612_BIN2_PORT, TB6612_BIN2_PIN);
+    //     DL_TimerG_setCaptureCompareValue(PWM_0_INST, 0, GPIO_PWM_0_C1_IDX);
+    // }
 }
 // 底层 PWM/GPIO 回调实现（新增）
 // 电机1方向控制：同时控制 AIN1 和 AIN2
 void SetMotor1IN1(uint8_t level) {
-    if (level) {
-        // 正转：AIN1=1, AIN2=0
-        DL_GPIO_setPins(TB6612_AIN1_PORT, TB6612_AIN1_PIN);
-        DL_GPIO_clearPins(TB6612_AIN2_PORT, TB6612_AIN2_PIN);
-    } else {
-        // 反转：AIN1=0, AIN2=1
-        DL_GPIO_clearPins(TB6612_AIN1_PORT, TB6612_AIN1_PIN);
-        DL_GPIO_setPins(TB6612_AIN2_PORT, TB6612_AIN2_PIN);
-    }
+    if (level)
+        DL_GPIO_setPins(A4950_PORT, A4950_AIN1_PIN);
+    else
+        DL_GPIO_clearPins(A4950_PORT, A4950_AIN1_PIN);
 }
 
 // 电机2方向控制：同时控制 BIN1 和 BIN2
 void SetMotor2IN1(uint8_t level) {
-    if (level) {
-        DL_GPIO_setPins(TB6612_BIN1_PORT, TB6612_BIN1_PIN);
-        DL_GPIO_clearPins(TB6612_BIN2_PORT, TB6612_BIN2_PIN);
-    } else {
-        DL_GPIO_clearPins(TB6612_BIN1_PORT, TB6612_BIN1_PIN);
-        DL_GPIO_setPins(TB6612_BIN2_PORT, TB6612_BIN2_PIN);
-    }
+    if (level)
+        DL_GPIO_setPins(A4950_PORT, A4950_BIN1_PIN);
+    else
+        DL_GPIO_clearPins(A4950_PORT, A4950_BIN1_PIN);
 }
 
-// // 电机停止（两引脚均拉低，刹车）
-// void Motor1Stop(void) {
-//     DL_GPIO_clearPins(TB6612_AIN1_PORT, TB6612_AIN1_PIN);
-//     DL_GPIO_clearPins(TB6612_AIN2_PORT, TB6612_AIN2_PIN);
-//     SetMotor1PWM(0);
-// }
-// void Motor2Stop(void) {
-//     DL_GPIO_clearPins(TB6612_BIN1_PORT, TB6612_BIN1_PIN);
-//     DL_GPIO_clearPins(TB6612_BIN2_PORT, TB6612_BIN2_PIN);
-//     SetMotor2PWM(0);
-// }
+void SetMotor1PWM(uint16_t ccr) {
+    DL_TimerG_setCaptureCompareValue(PWM_0_INST, ccr, GPIO_PWM_0_C0_IDX);
+}
+void SetMotor2PWM(uint16_t ccr) {
+    DL_TimerG_setCaptureCompareValue(PWM_0_INST, ccr, GPIO_PWM_0_C1_IDX);
+}
+
 void uart0_send_char(char ch); //串口0发送单个字符
 void uart0_send_string(char* str); //串口0发送字符串
 
@@ -174,10 +164,10 @@ uint8_t Key1ReadPinCallback(MulitKey_t* key)
 
 void Key1PressdCallback(MulitKey_t* key)
 {
-    static bool isMotorOn = false;
-    isMotorOn = !isMotorOn;
-    DL_GPIO_togglePins(LED1_PORT, LED1_PIN_22_PIN);
-    Motor_Set_PWM((isMotorOn) ? 2000 : 0, (isMotorOn) ? 2000 : 0);  // 左电机正转，右电机反转
+    // static bool isMotorOn = false;
+    // isMotorOn = !isMotorOn;
+    // DL_GPIO_togglePins(LED1_PORT, LED1_PIN_22_PIN);
+    // Motor_Set_PWM((isMotorOn) ? 2000 : 0, (isMotorOn) ? 2000 : 0);  // 左电机正转，右电机反转
     
 }
 
@@ -229,23 +219,28 @@ int main(void)
     printf("编码器初始化完成\n");
     DL_TimerA_startCounter(TIMER_1_INST);// 启动 TIMER_1
     
+
     OLED_Init();
     OLED_Clear();
     OLED_DisPlay_On();
     OLED_ShowString(0, 0, (uint8_t*)"test", 16, 1);
     OLED_Refresh();
     printf("屏幕初始化完成\n");
-    
-    // MotorInit_AT4950(&motor1, SetMotor1PWM, SetMotor1IN1, 100);
-    // MotorInit_AT4950(&motor2, SetMotor2PWM, SetMotor2IN1, 100);
-    // SetDefaultDirection(&motor1, High_Level);
-    // SetDefaultDirection(&motor2, High_Level);
-    
+    // 初始化 A4950 电机（Auto_Reload = 10000 - 1 = 9999，与 PWM timerCount=10000 对应）
+    MotorInit_AT46950(&motor1, SetMotor1PWM, SetMotor1IN1, 9999);
+    MotorInit_AT46950(&motor2, SetMotor2PWM, SetMotor2IN1, 9999);
+    SetDefaultDirection(&motor1, Low_Level);
+    SetDefaultDirection(&motor2, High_Level);
+    Motor_setSpeed(&motor1, 200);  
+    Motor_setSpeed(&motor2, 100);
+    // DL_GPIO_setPins(A4950_PORT, A4950_BIN1_PIN);               // 方向
+    // DL_TimerG_setCaptureCompareValue(PWM_0_INST, 8000, GPIO_PWM_0_C0_IDX); // PWM
     MulitKey_Init(&key,Key1ReadPinCallback,Key1PressdCallback,Key1PressdCallback,FALL_BORDER_TRIGGER);
     // volatile uint32_t cnt = 0;
     PT_INIT(&task1_pt);
     uart0_send_string("uart0 start work\r\n");
     printf("测试\n");
+    // Motor_Set_PWM(-3000, -3000);
     // DL_TimerG_setCaptureCompareValue(PWM_0_INST, 3000, GPIO_PWM_0_C1_IDX);
     while (1)
     {
@@ -253,6 +248,11 @@ int main(void)
         // delay_cycles(CPUCLK_FREQ / 2);
         MulitKey_Scan(&key);
         task1(&task1_pt);
+        static uint32_t last_enc_print = 0;
+        if (DL_GetTick() - last_enc_print >= 1000) {
+            printf("E1_raw=%ld, E2_raw=%ld\n", encoder1_raw, encoder2_raw);
+            last_enc_print = DL_GetTick();
+        }
     }
 }
 

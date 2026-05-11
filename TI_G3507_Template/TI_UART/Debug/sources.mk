@@ -120,7 +120,10 @@ GEN_OPTS__QUOTED :=
 SUBDIRS := \
 . \
 DL_GetTick_Folder \
+Log \
 Motor \
+PID_Node \
 SPI_OLED \
+grayscale \
 multikey \
 
