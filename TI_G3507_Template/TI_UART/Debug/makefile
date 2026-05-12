@@ -14,8 +14,11 @@ ORDERED_OBJS += \
 "./ti_msp_dl_config.o" \
 "./startup_mspm0g350x_ticlang.o" \
 "./DL_GetTick_Folder/DL_Tick.o" \
+"./Log/Log.o" \
 "./Motor/Motor_AT4950.o" \
+"./PID_Node/PID_Node.o" \
 "./SPI_OLED/oled.o" \
+"./grayscale/grayscale.o" \
 "./multikey/multikey.o" \
 $(GEN_CMDS__FLAG) \
 -Wl,-ldevice.cmd.genlibs \
@@ -30,13 +33,19 @@ RMDIR := RMDIR /S/Q
 -include sources.mk
 -include subdir_vars.mk
 -include DL_GetTick_Folder/subdir_vars.mk
+-include Log/subdir_vars.mk
 -include Motor/subdir_vars.mk
+-include PID_Node/subdir_vars.mk
 -include SPI_OLED/subdir_vars.mk
+-include grayscale/subdir_vars.mk
 -include multikey/subdir_vars.mk
 -include subdir_rules.mk
 -include DL_GetTick_Folder/subdir_rules.mk
+-include Log/subdir_rules.mk
 -include Motor/subdir_rules.mk
+-include PID_Node/subdir_rules.mk
 -include SPI_OLED/subdir_rules.mk
+-include grayscale/subdir_rules.mk
 -include multikey/subdir_rules.mk
 -include objects.mk
 
@@ -148,8 +157,8 @@ TI_UART.out: $(OBJS) $(GEN_CMDS)
 # Other Targets
 clean:
 	-$(RM) $(GEN_MISC_FILES__QUOTED)$(GEN_FILES__QUOTED)$(EXE_OUTPUTS__QUOTED)
-	-$(RM) "empty.o" "ti_msp_dl_config.o" "startup_mspm0g350x_ticlang.o" "DL_GetTick_Folder\DL_Tick.o" "Motor\Motor_AT4950.o" "SPI_OLED\oled.o" "multikey\multikey.o" 
-	-$(RM) "empty.d" "ti_msp_dl_config.d" "startup_mspm0g350x_ticlang.d" "DL_GetTick_Folder\DL_Tick.d" "Motor\Motor_AT4950.d" "SPI_OLED\oled.d" "multikey\multikey.d" 
+	-$(RM) "empty.o" "ti_msp_dl_config.o" "startup_mspm0g350x_ticlang.o" "DL_GetTick_Folder\DL_Tick.o" "Log\Log.o" "Motor\Motor_AT4950.o" "PID_Node\PID_Node.o" "SPI_OLED\oled.o" "grayscale\grayscale.o" "multikey\multikey.o" 
+	-$(RM) "empty.d" "ti_msp_dl_config.d" "startup_mspm0g350x_ticlang.d" "DL_GetTick_Folder\DL_Tick.d" "Log\Log.d" "Motor\Motor_AT4950.d" "PID_Node\PID_Node.d" "SPI_OLED\oled.d" "grayscale\grayscale.d" "multikey\multikey.d" 
 	-@echo ' '
 
 .PHONY: all clean dependents
