@@ -40,7 +40,9 @@
 #include "./Motor/Motor_AT4950.h"
 #include "./grayscale/grayscale.h"
 #include "./PID_Node/PID_Node.h"
+#include "./Control_Speed/Control_Speed.h"
 // #include "./Protothreads/"
+
 
 
 // volatile uint32_t test_tick = 0;
@@ -66,49 +68,18 @@ Protothread_t task1_pt = {0};
 volatile unsigned char uart_data = 0;
 char buffuer[256] = {0};
 MulitKey_t key;
-/******************************************************************
- * 函 数 名 称：Motor_Set_PWM
- * 函 数 说 明：左右电机速度控制
- * 函 数 形 参：pwma左电机PWM值	pwmb右电机PWM值
- * 函 数 返 回：无
- * 作       者：LCKFB
- * 备       注：PWM值范围0-9999
-******************************************************************/
-void Motor_Set_PWM(int pwma, int pwmb)
-{
-    // 电机1（左）
-    // if (pwma > 0) {
-    //     DL_GPIO_setPins(TB6612_AIN1_PORT, TB6612_AIN1_PIN);
-    //     DL_GPIO_clearPins(TB6612_AIN2_PORT, TB6612_AIN2_PIN);
-    //     DL_TimerG_setCaptureCompareValue(PWM_0_INST, ABS(pwma), GPIO_PWM_0_C0_IDX);
-    // } else if (pwma < 0) {
-    //     DL_GPIO_clearPins(TB6612_AIN1_PORT, TB6612_AIN1_PIN);
-    //     DL_GPIO_setPins(TB6612_AIN2_PORT, TB6612_AIN2_PIN);
-    //     DL_TimerG_setCaptureCompareValue(PWM_0_INST, ABS(pwma), GPIO_PWM_0_C0_IDX);
-    // } else {
-    //     DL_GPIO_clearPins(TB6612_AIN1_PORT, TB6612_AIN1_PIN);
-    //     DL_GPIO_clearPins(TB6612_AIN2_PORT, TB6612_AIN2_PIN);
-    //     DL_TimerG_setCaptureCompareValue(PWM_0_INST, 0, GPIO_PWM_0_C0_IDX);
-    // }
 
-    // // 电机2（右）
-    // if (pwmb > 0) {
-    //     DL_GPIO_setPins(TB6612_BIN1_PORT, TB6612_BIN1_PIN);
-    //     DL_GPIO_clearPins(TB6612_BIN2_PORT, TB6612_BIN2_PIN);
-    //     DL_TimerG_setCaptureCompareValue(PWM_0_INST, ABS(pwmb), GPIO_PWM_0_C1_IDX);
-    // } else if (pwmb < 0) {
-    //     DL_GPIO_clearPins(TB6612_BIN1_PORT, TB6612_BIN1_PIN);
-    //     DL_GPIO_setPins(TB6612_BIN2_PORT, TB6612_BIN2_PIN);
-    //     DL_TimerG_setCaptureCompareValue(PWM_0_INST, ABS(pwmb), GPIO_PWM_0_C1_IDX);
-    // } else {
-    //     DL_GPIO_clearPins(TB6612_BIN1_PORT, TB6612_BIN1_PIN);
-    //     DL_GPIO_clearPins(TB6612_BIN2_PORT, TB6612_BIN2_PIN);
-    //     DL_TimerG_setCaptureCompareValue(PWM_0_INST, 0, GPIO_PWM_0_C1_IDX);
-    // }
-}
+// void PID_Node_Initization()
+// {
+// }
+
 // 底层 PWM/GPIO 回调实现（新增）
 // 电机1方向控制：同时控制 AIN1 和 AIN2
 void SetMotor1IN1(uint8_t level) {
+    if (level)
+        DL_GPIO_setPins(A4950_PORT, A4950_AIN1_PIN);
+    else
+        DL_GPIO_clearPins(A4950_PORT, A4950_AIN1_PIN);
     if (level)
         DL_GPIO_setPins(A4950_PORT, A4950_AIN1_PIN);
     else
@@ -117,6 +88,19 @@ void SetMotor1IN1(uint8_t level) {
 
 // 电机2方向控制：同时控制 BIN1 和 BIN2
 void SetMotor2IN1(uint8_t level) {
+    if (level)
+        DL_GPIO_setPins(A4950_PORT, A4950_BIN1_PIN);
+    else
+        DL_GPIO_clearPins(A4950_PORT, A4950_BIN1_PIN);
+}
+
+void SetMotor1PWM(uint16_t ccr) {
+    DL_TimerG_setCaptureCompareValue(PWM_0_INST, ccr, GPIO_PWM_0_C0_IDX);
+}
+void SetMotor2PWM(uint16_t ccr) {
+    DL_TimerG_setCaptureCompareValue(PWM_0_INST, ccr, GPIO_PWM_0_C1_IDX);
+}
+
     if (level)
         DL_GPIO_setPins(A4950_PORT, A4950_BIN1_PIN);
     else
@@ -144,10 +128,27 @@ void task1(Protothread_t* pt)
         // printf("times:%u\n",times++);
         // printf("%d,%d\n",encoder1_speed,encoder2_speed);
         // printf("testtick = %u\n",DL_GetTick());
-        printf("encoder1_speed:%d\t",encoder1_speed);
-        printf("encoder2_speed:%d\n",encoder2_speed);
+        // printf("encoder1_speed:%d\t",encoder1_speed);
+        // printf("encoder2_speed:%d\n",encoder2_speed);
+        
+        // PID_Node* node1 = Control_Speed_PID_Hander(CONTROL_SPEED1_OBJECT);
+        // PID_Node* node2 = Control_Speed_PID_Hander(CONTROL_SPEED2_OBJECT);
+        // printf("M1 targ:%.2f act:%.2f out:%.1f | M2 targ:%.2f act:%.2f out:%.1f\n",
+        //        node1->setpoint, node1->measured_value, node1->output,
+        //        node2->setpoint, node2->measured_value, node2->output);
+        // 获取设定值（两个电机相同，取任意一个即可）
+        PID_Node* node1 = Control_Speed_PID_Hander(CONTROL_SPEED1_OBJECT);
+        float setpoint = node1->setpoint;
+        // 获取两个电机的实际速度
+        // float act1 = Control_Speed_GetActualSpeed(CONTROL_SPEED1_OBJECT);
+        // float act2 = Control_Speed_GetActualSpeed(CONTROL_SPEED2_OBJECT);
+        // SerialPlot 格式：设定值, 电机1实际, 电机2实际
+        // printf("%.3f,%.3f,%.3f\n", setpoint, act1, act2);
+        float Actual_Speed_A = Control_Speed_GetActualSpeed(CONTROL_SPEED1_OBJECT);
+        float Actual_Speed_B = Control_Speed_GetActualSpeed(CONTROL_SPEED2_OBJECT);
+        printf("%.3f,%.3f,%.3f\n", setpoint, Actual_Speed_A, Actual_Speed_B);
         OLED_Refresh();  
-        PT_WAIT_TICK(pt,200);
+        PT_WAIT_TICK(pt,100);
     }
     PT_END(pt);
 }
@@ -218,7 +219,7 @@ int main(void)
     NVIC_EnableIRQ(ENCODER_INT_IRQN);
     printf("编码器初始化完成\n");
     DL_TimerA_startCounter(TIMER_1_INST);// 启动 TIMER_1
-    
+    DL_TimerG_startCounter(TIMER_0_INST);
 
     OLED_Init();
     OLED_Clear();
@@ -231,10 +232,18 @@ int main(void)
     MotorInit_AT46950(&motor2, SetMotor2PWM, SetMotor2IN1, 9999);
     SetDefaultDirection(&motor1, Low_Level);
     SetDefaultDirection(&motor2, High_Level);
-    Motor_setSpeed(&motor1, 200);  
-    Motor_setSpeed(&motor2, 100);
+    // 改为0，让PID从零开始闭环控制
+    // Motor_setSpeed(&motor1, 1000);
+    // Motor_setSpeed(&motor2, 1000);
     // DL_GPIO_setPins(A4950_PORT, A4950_BIN1_PIN);               // 方向
     // DL_TimerG_setCaptureCompareValue(PWM_0_INST, 8000, GPIO_PWM_0_C0_IDX); // PWM
+    // 初始化速度环，传入电机句柄
+    Control_Init(&motor1, &motor2);
+    Control_Speed_SetPID(CONTROL_SPEED1_OBJECT, 700.0f, 2.5f, 0.0f);
+    Control_Speed_SetPID(CONTROL_SPEED2_OBJECT, 700.0f, 2.5f, 0.0f);
+    Control_Speed_SetSetPoint(CONTROL_SPEED1_OBJECT, 0.3f);
+    Control_Speed_SetSetPoint(CONTROL_SPEED2_OBJECT, 0.3f);
+    
     MulitKey_Init(&key,Key1ReadPinCallback,Key1PressdCallback,Key1PressdCallback,FALL_BORDER_TRIGGER);
     // volatile uint32_t cnt = 0;
     PT_INIT(&task1_pt);
@@ -249,8 +258,16 @@ int main(void)
         MulitKey_Scan(&key);
         task1(&task1_pt);
         static uint32_t last_enc_print = 0;
+        static bool isReverse = false;
         if (DL_GetTick() - last_enc_print >= 1000) {
-            printf("E1_raw=%ld, E2_raw=%ld\n", encoder1_raw, encoder2_raw);
+            // printf("E1_raw=%ld, E2_raw=%ld\n", encoder1_raw, encoder2_raw);
+            if (isReverse) {
+                DL_GPIO_clearPins(LED_PORT, LED_LED_2_PIN);
+            }
+            else {
+                DL_GPIO_setPins(LED_PORT, LED_LED_2_PIN);
+            }
+            isReverse = !isReverse;
             last_enc_print = DL_GetTick();
         }
     }
@@ -286,7 +303,7 @@ void UART_0_INST_IRQHandler(void)
             uart_data = DL_UART_Main_receiveData(UART_0_INST);
             //将保存的数据再发送出去
             // uart0_send_char(uart_data);
-            printf("receive data:%c\n",uart_data);
+            // printf("receive data:%c\n",uart_data);
             break;
 
         default://其他的串口中断
@@ -294,9 +311,9 @@ void UART_0_INST_IRQHandler(void)
     }
 }
 
-void TIMER_1_INST_IRQHandler(void)
-{
-    if (DL_TimerG_getPendingInterrupt(TIMER_1_INST) == DL_TIMER_IIDX_ZERO) {
+// void TIMER_1_INST_IRQHandler(void)
+// {
+//     if (DL_TimerG_getPendingInterrupt(TIMER_1_INST) == DL_TIMER_IIDX_ZERO) {
         // 读取当前原始计数值
         // int32_t curr1 = encoder1_raw;
         // int32_t curr2 = encoder2_raw;
@@ -312,8 +329,8 @@ void TIMER_1_INST_IRQHandler(void)
         // 可选：调用您的控制函数
         // Control_UpdateSpeedFeedback(encoder1_speed, encoder2_speed, 20);
         // 或者直接在这里使用 Motor_setSpeed 进行 PID 控制
-    }
-}
+//     }
+// }
 
 
 
@@ -330,23 +347,24 @@ void TIMER_0_INST_IRQHandler(void)
             if (count % 20 == 0) {
                 int32_t curr1 = encoder1_raw;
                 int32_t curr2 = encoder2_raw;
-
-                // 计算增量（20ms 内的脉冲数）
                 encoder1_speed = curr1 - last_enc1;
                 encoder2_speed = curr2 - last_enc2;
-
-                // 更新上一次计数值
                 last_enc1 = curr1;
                 last_enc2 = curr2;
+                // --- 速度环计算 (20ms) ---
+                // 调用统一的速度环更新函数
+                // Control_UpdateSpeedPID(encoder1_speed, encoder2_speed, 20.0f);
+                UpdateSpeedFeedback(encoder1_speed,encoder2_speed,20.0f);
             }
-            if (count % 50 == 0) {
-                // last_enc1 = 0;
-                // last_enc2 = 0;
-                // encoder1_raw = 0;
-                // encoder2_raw = 0;
-                // encoder1_speed = 0;
-                // encoder2_speed = 0;
-                // printf("zero excute\n");
+            if (count % 4 == 0) {
+                // 调用统一的速度环更新函数
+                Control_UpdateSpeedPID(encoder1_speed, encoder2_speed, 4.0f);                
+			// int32_t current_A = (int16_t)__HAL_TIM_GET_COUNTER(&htim2);
+			// int32_t current_B = (int32_t)(int16_t)__HAL_TIM_GET_COUNTER(&htim3);
+		    // int32_t diff_A = current_A - last_A;
+		    // int32_t diff_B = current_B - last_B;
+		    // last_A = current_A;
+		    // last_B = current_B;
             }
 
             //将LED灯的状态翻转

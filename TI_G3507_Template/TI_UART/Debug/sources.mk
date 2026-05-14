@@ -119,6 +119,7 @@ GEN_OPTS__QUOTED :=
 # Every subdirectory with source files must be described here
 SUBDIRS := \
 . \
+Control_Speed \
 DL_GetTick_Folder \
 Log \
 Motor \
