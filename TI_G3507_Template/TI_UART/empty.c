@@ -80,10 +80,27 @@ void SetMotor1IN1(uint8_t level) {
         DL_GPIO_setPins(A4950_PORT, A4950_AIN1_PIN);
     else
         DL_GPIO_clearPins(A4950_PORT, A4950_AIN1_PIN);
+    if (level)
+        DL_GPIO_setPins(A4950_PORT, A4950_AIN1_PIN);
+    else
+        DL_GPIO_clearPins(A4950_PORT, A4950_AIN1_PIN);
 }
 
 // 电机2方向控制：同时控制 BIN1 和 BIN2
 void SetMotor2IN1(uint8_t level) {
+    if (level)
+        DL_GPIO_setPins(A4950_PORT, A4950_BIN1_PIN);
+    else
+        DL_GPIO_clearPins(A4950_PORT, A4950_BIN1_PIN);
+}
+
+void SetMotor1PWM(uint16_t ccr) {
+    DL_TimerG_setCaptureCompareValue(PWM_0_INST, ccr, GPIO_PWM_0_C0_IDX);
+}
+void SetMotor2PWM(uint16_t ccr) {
+    DL_TimerG_setCaptureCompareValue(PWM_0_INST, ccr, GPIO_PWM_0_C1_IDX);
+}
+
     if (level)
         DL_GPIO_setPins(A4950_PORT, A4950_BIN1_PIN);
     else
