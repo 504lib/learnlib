@@ -1,6 +1,8 @@
 #include "../lib/main.hpp"
 #include "../lib/mqtt_to_onenet.hpp"
 #include <Preferences.h>
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
 
 
 void wifi_connect();
@@ -327,6 +329,7 @@ void callback(char* topic,byte* payload,unsigned int length){
 
 void setup() 
 {
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);delay(1000);
   dataTicker.start();
   wifiTicker.start();
   Serial.begin(115200);
@@ -472,15 +475,16 @@ void Get_data()
     }
 
     uint32_t now_ms = millis();
-    bool mq4_warmed = (now_ms - mq4_warmup_start_ms) >= MQ4_WARMUP_MS;
-    if (!mq4_warmed && !mq4WarmupLogged) {
-      Serial.println("[MQ4] warming up, ppm protection enabled");
-      mq4WarmupLogged = true;
-    }
+    // bool mq4_warmed = (now_ms - mq4_warmup_start_ms) >= MQ4_WARMUP_MS;
+    // if (!mq4_warmed && !mq4WarmupLogged) {
+    //   Serial.println("[MQ4] warming up, ppm protection enabled");
+    //   mq4WarmupLogged = true;
+    // }
 
     float resistance = readMQ135Resistance(MQ4_AO_PIN);                                         // 读取MQ-4电阻值
     float mq4_ppm_raw = calculatePPM(resistance);                                                // 计算MQ-4的ppm值
-    bool mq4_valid = mq4_warmed && isfinite(mq4_ppm_raw) && mq4_ppm_raw >= 0.0f && mq4_ppm_raw <= MQ4_MAX_VALID_PPM;
+    bool mq4_signal_ready = isfinite(mq4_ppm_raw) && mq4_ppm_raw >= 0.0f;
+    bool mq4_valid = mq4_signal_ready && mq4_ppm_raw <= MQ4_MAX_VALID_PPM;
     data_monitor.light_adc = analogRead(Photosensitive_RESISTOR_PIN);                           // 读取光敏电阻 ADC 原始值
     // Serial.println("current light adc value is " + String(data_monitor.light_adc));
     if (mq4_valid) {
@@ -490,7 +494,8 @@ void Get_data()
         mq4InvalidLogged = false;
       }
     } else {
-      if (mq4_warmed && !mq4InvalidLogged) {
+      data_monitor.mq4_ppm = MQ4_MAX_VALID_PPM / 2;
+      if (!mq4InvalidLogged) {
         Serial.printf("[MQ4] invalid reading ignored raw=%.1f\n", mq4_ppm_raw);
         mq4InvalidLogged = true;
       }
@@ -498,7 +503,7 @@ void Get_data()
 
     alarm_flag.hum_alarm = (data_monitor.humidity >= threshold.hum_threshold);              // 更新湿度预警标志
     alarm_flag.temp_alarm = (data_monitor.temperature >= threshold.temp_threshold);        // 更新温度预警标志
-    alarm_flag.mq4_alarm = mq4_valid && (data_monitor.mq4_ppm >= threshold.mq4_threshold); // 更新MQ-4预警标志
+    alarm_flag.mq4_alarm = mq4_signal_ready && (data_monitor.mq4_ppm >= threshold.mq4_threshold); // 更新MQ-4预警标志
     bool alarm_on = alarm_flag.hum_alarm || alarm_flag.temp_alarm || alarm_flag.mq4_alarm;    // 计算总预警状态
 
     bool motor_is_high = (digitalRead(MOTOR_PIN) == HIGH);

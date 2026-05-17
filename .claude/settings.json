@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/c/Users/whyP762/AppData/Local/Python/bin/python.exe -m pip install markdown)",
+      "Bash(/c/Users/whyP762/AppData/Local/Python/bin/python.exe -c \"import markdown; print\\('OK'\\)\")"
+    ]
+  }
+}

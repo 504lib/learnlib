@@ -1,0 +1,7 @@
+# ninja log v5
+49	592	8007305479944140	CMakeFiles/finite_state_machine.dir/Finite_State_Machine.cpp.obj	8481399c992f2437
+42	504	8007305904656808	CMakeFiles/finite_state_machine.dir/Finite_State_Machine.cpp.obj	8481399c992f2437
+43	182	8007306314746458	CMakeFiles/finite_state_machine_test.dir/tests/fsm_test.cpp.obj	d6d044626034cef5
+37	509	8007306317968653	CMakeFiles/finite_state_machine.dir/Finite_State_Machine.cpp.obj	8481399c992f2437
+510	884	8007306320154078	libfinite_state_machine.a	b86cf2a7900197c7
+884	1050	8007306323513846	finite_state_machine_test.exe	8ec1529819547cff

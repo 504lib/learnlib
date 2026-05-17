@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash(pandoc --version)",
+      "Bash(npx --version)",
+      "Bash(/c/Users/whyP762/AppData/Local/Python/bin/python.exe -m pip install markdown weasyprint)"
+    ]
+  }
+}

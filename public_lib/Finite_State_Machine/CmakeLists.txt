@@ -1,0 +1,46 @@
+cmake_minimum_required(VERSION 3.16)
+
+project(Finite_State_Machine LANGUAGES C CXX)
+
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS OFF)
+
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+option(FSM_BUILD_TESTS "Build Finite_State_Machine standalone tests" OFF)
+
+add_library(finite_state_machine STATIC
+    Finite_State_Machine.cpp
+)
+
+add_library(Finite_State_Machine::finite_state_machine ALIAS finite_state_machine)
+
+target_include_directories(finite_state_machine
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../Log
+)
+
+if(FSM_BUILD_TESTS)
+    enable_testing()
+
+    add_executable(finite_state_machine_test
+        tests/fsm_test.cpp
+    )
+
+    target_link_libraries(finite_state_machine_test PRIVATE
+        finite_state_machine
+    )
+
+    add_test(NAME fsm_test_start_entry_action COMMAND finite_state_machine_test 1)
+    add_test(NAME fsm_test_nullable_entry_exit COMMAND finite_state_machine_test 2)
+    add_test(NAME fsm_test_transition_order COMMAND finite_state_machine_test 4)
+    add_test(NAME fsm_test_queue_single_slot COMMAND finite_state_machine_test 8)
+    add_test(NAME fsm_test_data_package_fifo COMMAND finite_state_machine_test 16)
+    add_test(NAME fsm_test_invalid_inputs COMMAND finite_state_machine_test 32)
+    add_test(NAME fsm_test_all COMMAND finite_state_machine_test all)
+endif()

@@ -678,7 +678,36 @@ void loop() {
     Serial.print(realCO2);
     Serial.println(" ppm");
   }
+    const float V_REF = 3.3;        // ESP32-C3的ADC参考电压为3.3V
 
+    const float V_NO_DUST = 0.9;     // 规格书: 清洁空气中输出电压典型值为0.9V
+    const float K = 0.5;             // 规格书: 灵敏度 0.5V/(0.1mg/m³) => 5V/(mg/m³)
+
+  digitalWrite(DUST_LED_PIN, HIGH);
+  // 步骤2: 等待280us让LED稳定
+  delayMicroseconds(280);
+  
+  // 步骤3: 在正确的时间点采样ADC
+uint16_t voMeasured = analogRead(DUST_AO_PIN);
+  
+  // 步骤4: 等待40us后，拉低LED引脚，结束脉冲
+  delayMicroseconds(40);
+  digitalWrite(DUST_LED_PIN, LOW);
+  
+  delayMicroseconds(9680); // 步骤5: 等待剩余时间，完成整个10ms的采样周期
+  // 步骤5: 在剩余的9.68ms内，处理数据并延时
+  // 5.1 将ADC原始值转换为电压
+  float calcVoltage = voMeasured * (V_REF / 4095.0) * 2; // 12位ADC，最大值4095
+  
+  // 5.2 计算灰尘浓度 (单位: mg/m³)
+  // 公式: 浓度 = (测量电压 - 无尘电压) / 灵敏度
+  float dustDensity = calcVoltage * 1000.0;
+  
+  // 5.3 确保浓度不为负数 (因噪声可能出现微小负值)
+  if (dustDensity < 0) {
+    dustDensity = 0.0;
+  }
+  realDust = dustDensity;
   // 读取 MQ135 传感器数据
   float resistance = readMQ135Resistance();
   mq135PPM = calculatePPM(resistance);
@@ -704,10 +733,10 @@ void loop() {
   }
 
     // 读取粉尘传感器
-  realDust = readDustDensity();
-  Serial.print("粉尘浓度: ");
-  Serial.print(realDust);
-  Serial.println(" µg/m³");
+//   realDust = readDustDensity();
+//   Serial.print("粉尘浓度: ");
+//   Serial.print(realDust);
+//   Serial.println(" µg/m³");
 
   // 报警逻辑 - 根据模式选择数据源
 float currentCO2, currentTemp, currentHum, currentMQ135, currentDust;
@@ -750,36 +779,7 @@ if (isSimData) {
   }
 
 
-    const float V_REF = 3.3;        // ESP32-C3的ADC参考电压为3.3V
 
-    const float V_NO_DUST = 0.9;     // 规格书: 清洁空气中输出电压典型值为0.9V
-    const float K = 0.5;             // 规格书: 灵敏度 0.5V/(0.1mg/m³) => 5V/(mg/m³)
-
-  digitalWrite(DUST_LED_PIN, HIGH);
-  // 步骤2: 等待280us让LED稳定
-  delayMicroseconds(280);
-  
-  // 步骤3: 在正确的时间点采样ADC
-uint16_t voMeasured = analogRead(DUST_AO_PIN);
-  
-  // 步骤4: 等待40us后，拉低LED引脚，结束脉冲
-  delayMicroseconds(40);
-  digitalWrite(DUST_LED_PIN, LOW);
-  
-  delayMicroseconds(9680); // 步骤5: 等待剩余时间，完成整个10ms的采样周期
-  // 步骤5: 在剩余的9.68ms内，处理数据并延时
-  // 5.1 将ADC原始值转换为电压
-  float calcVoltage = voMeasured * (V_REF / 4095.0) * 2; // 12位ADC，最大值4095
-  
-  // 5.2 计算灰尘浓度 (单位: mg/m³)
-  // 公式: 浓度 = (测量电压 - 无尘电压) / 灵敏度
-  float dustDensity = calcVoltage * 1000.0;
-  
-  // 5.3 确保浓度不为负数 (因噪声可能出现微小负值)
-  if (dustDensity < 0) {
-    dustDensity = 0.0;
-  }
-  realDust = dustDensity;
   // 5.4 打印结果到串口
   Serial.print("Raw ADC: ");
   Serial.print(voMeasured);
