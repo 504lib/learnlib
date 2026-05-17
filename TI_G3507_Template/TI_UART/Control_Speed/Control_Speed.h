@@ -34,4 +34,9 @@ float Control_Speed_GetActualSpeed(Control_Speed_Select_Object_Option option);
 // void Control_UpdateSpeedPID(float dt);
 void Control_UpdateSpeedPID(int32_t diff_A, int32_t diff_B, float dt);
 void UpdateSpeedFeedback(int32_t diff_A, int32_t diff_B, float dt);
+
+void Control_SetGrayTarget(float gray_error);
+float Control_Gray_Update(float gray_error, float dt);
+void Control_SetBaseSpeed(float speed);
+
 #endif
