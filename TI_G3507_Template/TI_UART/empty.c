@@ -41,6 +41,9 @@
 #include "./grayscale/grayscale.h"
 #include "./PID_Node/PID_Node.h"
 #include "./Control_Speed/Control_Speed.h"
+// #include "./MPU_6050/mpu6050_user.h"
+// #include "./MPU_6050/mpu6050.h"
+// #include "./MPU_6050/MadgwickAHRS.h"
 // #include "./Protothreads/"
 
 
@@ -59,10 +62,14 @@ volatile int32_t encoder2_speed = 0;
 static int32_t last_enc1 = 0;
 static int32_t last_enc2 = 0;
 
+//灰度值全局变量
+volatile uint8_t gray_byte = 0;
+volatile float gray_error = 0.0f;
+
 MotorAT4950 motor1;
 MotorAT4950 motor2;
 
-#define ABS(a)      (a>0 ? a:(-a))
+// #define ABS(a)      (a>0 ? a:(-a))
 
 Protothread_t task1_pt = {0};
 volatile unsigned char uart_data = 0;
@@ -80,27 +87,10 @@ void SetMotor1IN1(uint8_t level) {
         DL_GPIO_setPins(A4950_PORT, A4950_AIN1_PIN);
     else
         DL_GPIO_clearPins(A4950_PORT, A4950_AIN1_PIN);
-    if (level)
-        DL_GPIO_setPins(A4950_PORT, A4950_AIN1_PIN);
-    else
-        DL_GPIO_clearPins(A4950_PORT, A4950_AIN1_PIN);
 }
 
 // 电机2方向控制：同时控制 BIN1 和 BIN2
 void SetMotor2IN1(uint8_t level) {
-    if (level)
-        DL_GPIO_setPins(A4950_PORT, A4950_BIN1_PIN);
-    else
-        DL_GPIO_clearPins(A4950_PORT, A4950_BIN1_PIN);
-}
-
-void SetMotor1PWM(uint16_t ccr) {
-    DL_TimerG_setCaptureCompareValue(PWM_0_INST, ccr, GPIO_PWM_0_C0_IDX);
-}
-void SetMotor2PWM(uint16_t ccr) {
-    DL_TimerG_setCaptureCompareValue(PWM_0_INST, ccr, GPIO_PWM_0_C1_IDX);
-}
-
     if (level)
         DL_GPIO_setPins(A4950_PORT, A4950_BIN1_PIN);
     else
@@ -233,16 +223,17 @@ int main(void)
     SetDefaultDirection(&motor1, Low_Level);
     SetDefaultDirection(&motor2, High_Level);
     // 改为0，让PID从零开始闭环控制
-    // Motor_setSpeed(&motor1, 1000);
-    // Motor_setSpeed(&motor2, 1000);
+    // Motor_setSpeed(&motor1, 0);
+    // Motor_setSpeed(&motor2, 0);
     // DL_GPIO_setPins(A4950_PORT, A4950_BIN1_PIN);               // 方向
     // DL_TimerG_setCaptureCompareValue(PWM_0_INST, 8000, GPIO_PWM_0_C0_IDX); // PWM
     // 初始化速度环，传入电机句柄
     Control_Init(&motor1, &motor2);
-    Control_Speed_SetPID(CONTROL_SPEED1_OBJECT, 700.0f, 2.5f, 0.0f);
-    Control_Speed_SetPID(CONTROL_SPEED2_OBJECT, 700.0f, 2.5f, 0.0f);
-    Control_Speed_SetSetPoint(CONTROL_SPEED1_OBJECT, 0.3f);
-    Control_Speed_SetSetPoint(CONTROL_SPEED2_OBJECT, 0.3f);
+    Control_SetBaseSpeed(0.35f);
+    // Control_Speed_SetPID(CONTROL_SPEED1_OBJECT, 700.0f, 2.5f, 0.0f);
+    // Control_Speed_SetPID(CONTROL_SPEED2_OBJECT, 700.0f, 2.5f, 0.0f);
+    // Control_Speed_SetSetPoint(CONTROL_SPEED1_OBJECT, 0.3f);
+    // Control_Speed_SetSetPoint(CONTROL_SPEED2_OBJECT, 0.3f);
     
     MulitKey_Init(&key,Key1ReadPinCallback,Key1PressdCallback,Key1PressdCallback,FALL_BORDER_TRIGGER);
     // volatile uint32_t cnt = 0;
@@ -332,48 +323,47 @@ void UART_0_INST_IRQHandler(void)
 //     }
 // }
 
-
-
-
 //定时器的中断服务函数 已配置为1秒的周期
 void TIMER_0_INST_IRQHandler(void)
 {
     static uint32_t count = 0;
-    //如果产生了定时器中断
-    switch( DL_TimerG_getPendingInterrupt(TIMER_0_INST) )
+    switch (DL_TimerG_getPendingInterrupt(TIMER_0_INST))
     {
-        case DL_TIMER_IIDX_ZERO://如果是0溢出中断
+        case DL_TIMER_IIDX_ZERO:
             count++;
+
+            // ---------- 每 4ms：速度环 PID + PWM 输出 ----------
+            if (count % 4 == 0) {
+                Control_UpdateSpeedPID(0, 0, 4.0f);   // 使用固定 dt=4，内部只用 Actual_Speed_A/B
+            }
+
+            // ---------- 每 20ms：更新速度反馈 + 灰度环 ----------
             if (count % 20 == 0) {
+                // 计算 20ms 编码器增量（此时的 last_enc 还是 20ms 前的值）
                 int32_t curr1 = encoder1_raw;
                 int32_t curr2 = encoder2_raw;
-                encoder1_speed = curr1 - last_enc1;
+                encoder1_speed = curr1 - last_enc1;   // 保留此变量供调试打印
                 encoder2_speed = curr2 - last_enc2;
                 last_enc1 = curr1;
                 last_enc2 = curr2;
-                // --- 速度环计算 (20ms) ---
-                // 调用统一的速度环更新函数
-                // Control_UpdateSpeedPID(encoder1_speed, encoder2_speed, 20.0f);
-                UpdateSpeedFeedback(encoder1_speed,encoder2_speed,20.0f);
-            }
-            if (count % 4 == 0) {
-                // 调用统一的速度环更新函数
-                Control_UpdateSpeedPID(encoder1_speed, encoder2_speed, 4.0f);                
-			// int32_t current_A = (int16_t)__HAL_TIM_GET_COUNTER(&htim2);
-			// int32_t current_B = (int32_t)(int16_t)__HAL_TIM_GET_COUNTER(&htim3);
-		    // int32_t diff_A = current_A - last_A;
-		    // int32_t diff_B = current_B - last_B;
-		    // last_A = current_A;
-		    // last_B = current_B;
-            }
 
-            //将LED灯的状态翻转
+                // 1. 更新实际速度（使用 20ms 增量）
+                UpdateSpeedFeedback(encoder1_speed, encoder2_speed, 20.0f);
+
+                // 2. 读取灰度并计算误差
+                gray_byte = DL_GPIO_readPins(GPIOB, 0xFF) & 0xFF;
+                gray_error = CalculateGrayError_Advanced(gray_byte);
+
+                // 3. 灰度环计算并设定新目标
+                Control_SetGrayTarget(gray_error);
+            }
             break;
 
-        default://其他的定时器中断
+        default:
             break;
     }
 }
+
     volatile bool Enc1A_edgeFlag = true;  // true:等待上升沿, 0:等待下降沿
     volatile bool Enc1B_edgeFlag = true;
     volatile bool Enc2A_edgeFlag = true;
