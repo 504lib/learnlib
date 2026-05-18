@@ -12,8 +12,15 @@ DECLARE_STATIC_QUEUE(NextStateQueue,uint8_t,1);
 constexpr uint8_t Invalid_State_ID = 0xFFu;                 // 无效状态ID
 constexpr uint8_t MAX_State_Number = MAX_STATE_NUM;                      // 最大状态数量
 
-enum class Current_action 
-{ 
+/**
+ * @brief    当前动作类型枚举
+ *
+ * Action - 状态执行动作，每周期循环执行
+ * Entry  - 进入状态时执行一次
+ * Exit   - 退出状态时执行一次
+ */
+enum class Current_action
+{
     Action,
     Entry,
     Exit
@@ -21,13 +28,19 @@ enum class Current_action
 
 
 
+/**
+ * @brief    状态机节点，存储状态ID及其对应的动作函数集
+ */
 struct FSM_Node
 {
     uint8_t        state_id = Invalid_State_ID;                               // 状态ID
-    FSM_Function    function;                                                   // 状态转
+    FSM_Function   function;                                                   // 状态转换函数集（action/entry/exit）
 };
 
 
+/**
+ * @brief    有限状态机结构，管理状态表、状态切换、数据包队列及主循环处理
+ */
 class FSM_Structure
 {
 private:
@@ -57,6 +70,11 @@ public:
     void FSM_Process(void);
 };
 
+
+/**
+ * @brief    Construct a new fsm structure::fsm structure object
+ * 
+ */
 FSM_Structure::FSM_Structure()
 {
     this->current_state_id = Invalid_State_ID;   // 初始化当前状态ID为无效状态
@@ -72,13 +90,23 @@ FSM_Structure::FSM_Structure()
 
 }
 
+/**
+ * @brief    Destroy the fsm structure::fsm structure object
+ * 
+ */
 FSM_Structure::~FSM_Structure()
 {
     this->initialized = false;                  // 标记为未初始化
 }
 
 
-
+/**
+ * @brief    启动状态机,设置初始状态并准备进入初始状态
+ * 
+ * @param    first_state_id  初始状态ID
+ * @return   true      成功启动状态机，设置初始状态并准备进入初始状态
+ * @return   false     状态机未初始化，或初始状态ID不存在，启动失败
+ */
 bool FSM_Structure::FSM_Start(uint8_t first_state_id)
 {
     if (!this->isinitialized())
@@ -97,12 +125,25 @@ bool FSM_Structure::FSM_Start(uint8_t first_state_id)
     return true;
 }
 
-
+/**
+ * @brief    返回是否初始化
+ * 
+ * @return   true      对象已经初始化 
+ * @return   false     对象未初始化
+ */
 bool FSM_Structure::isinitialized(void)
 {
     return this->initialized;
 }
 
+
+/**
+ * @brief    是否存在对应状态ID
+ * 
+ * @param    state_id  状态ID
+ * @return   true      存在
+ * @return   false     不存在
+ */
 bool FSM_Structure::isExistStateID(uint8_t state_id)
 {
     for (const auto& node : state_table)
@@ -117,6 +158,13 @@ bool FSM_Structure::isExistStateID(uint8_t state_id)
 
 
 
+/**
+ * @brief    转换状态
+ * 
+ * @param    state_id  唯一状态ID,即目标状态
+ * @return   true      待切换成功,已经推到队列
+ * @return   false     待切换失败,可能是状态机未初始化,状态ID不存在,或状态队列已满
+ */
 bool FSM_Structure::FSM_State_Transition(uint8_t state_id)
 {
     if (!this->isinitialized())
@@ -139,6 +187,11 @@ bool FSM_Structure::FSM_State_Transition(uint8_t state_id)
     return true;
 }
 
+/**
+ * @brief    内部函数::搜索空闲状态块
+ * 
+ * @return   uint8_t   返回对应空闲块索引,若没有返回无效状态ID
+ */
 uint8_t FSM_Structure::Search_IDLE_State_Block()
 {
     uint8_t index = 0;
@@ -153,6 +206,15 @@ uint8_t FSM_Structure::Search_IDLE_State_Block()
     return Invalid_State_ID;                   // 没有找到空闲状态块，返回无效状态ID
 }
 
+
+/**
+ * @brief    添加状态到状态表
+ * 
+ * @param    state_id  唯一状态ID,即目标状态
+ * @param    function  状态函数，包括状态转换的动作函数、进入状态的动作函数和退出状态的动作函数
+ * @return   true      成功添加状态到状态表
+ * @return   false     状态机未初始化，或状态ID无效，或状态ID已存在，或没有空闲状态块可用，添加失败
+ */
 bool FSM_Structure::FSM_Add_State(uint8_t state_id, FSM_Function function)
 {
     if (!this->isinitialized())
@@ -182,7 +244,13 @@ bool FSM_Structure::FSM_Add_State(uint8_t state_id, FSM_Function function)
 }
 
 
-
+/**
+ * @brief    向数据包队列中推送数据包，供状态机的action函数使用
+ *
+ * @param    data_package  待推送的数据包
+ * @return   true          推送成功
+ * @return   false         状态机未初始化，或队列已满
+ */
 bool FSM_Structure::FSM_Push_Data_Package(DataPackage data_package)
 {
     if (!this->isinitialized())
@@ -194,6 +262,13 @@ bool FSM_Structure::FSM_Push_Data_Package(DataPackage data_package)
 }
 
 
+/**
+ * @brief    从数据包队列中取出一个数据包（FIFO顺序）
+ *
+ * @param    data_package  数据包指针，用于接收弹出的数据包
+ * @return   true          获取成功
+ * @return   false         状态机未初始化，或队列为空
+ */
 bool FSM_Structure::FSM_Get_Data_Package(DataPackage* data_package)
 {
     if (!this->isinitialized())
@@ -204,6 +279,11 @@ bool FSM_Structure::FSM_Get_Data_Package(DataPackage* data_package)
     return DataPackageQueue_POP(&data_package_queue, data_package);  // 从数据包队列中弹出一个数据包
 }
 
+/**
+ * @brief    设置状态机的使能状态，禁用后FSM_Process将跳过处理
+ *
+ * @param    enable  true为使能，false为禁用
+ */
 void FSM_Structure::FSM_Set_Enable(bool enable)
 {
     if (!this->isinitialized())
@@ -215,6 +295,12 @@ void FSM_Structure::FSM_Set_Enable(bool enable)
 }
 
 
+/**
+ * @brief    内部函数::根据状态ID查找其在状态表中的索引
+ *
+ * @param    state_id  状态ID
+ * @return   uint8_t   状态表中对应的索引，若不存在则返回Invalid_State_ID
+ */
 uint8_t FSM_Structure::get_State_Index(uint8_t state_id)
 {
     uint8_t index = 0;
@@ -235,11 +321,25 @@ uint8_t FSM_Structure::get_State_Index(uint8_t state_id)
 }
 
 
+/**
+ * @brief    内部函数::切换当前动作类型
+ *
+ * @param    action  目标动作类型（Action / Entry / Exit）
+ */
 void FSM_Structure::Transimit_action(Current_action action)
 {
     this->current_action = action;              // 更新当前动作类型    
 }
 
+/**
+ * @brief    状态机主处理函数，每个周期调用一次，根据当前动作类型执行相应操作
+ *
+ * 处理流程：
+ * - Action：循环执行当前状态的action函数
+ * - Entry ：执行当前状态的entry函数，完成后自动切换到Action
+ * - Exit  ：执行当前状态的exit函数，从状态队列弹出下一个状态ID并切换到Entry；
+ *           若队列为空则保持在当前状态的Action
+ */
 void FSM_Structure::FSM_Process(void)
 {
     if (!this->isinitialized())
@@ -309,6 +409,13 @@ void FSM_Structure::FSM_Process(void)
 }
 
 extern "C" {
+
+/**
+ * @brief    C接口::在预分配的内存上构造状态机实例
+ *
+ * @param    memory           调用者提供的对齐内存块，大小至少为FSM_STORAGE_SIZE
+ * @return   FSM_Structure*   成功返回状态机指针，失败（memory为nullptr）返回nullptr
+ */
     FSM_Structure* FSM_Create(FMS_MEMORY* memory)
     {
         if (memory == nullptr)
@@ -320,6 +427,11 @@ extern "C" {
         return new(memory->storage) FSM_Structure();
     }
 
+/**
+ * @brief    C接口::销毁状态机实例，调用析构函数后释放资源
+ *
+ * @param    fsm  状态机指针，为nullptr时直接返回
+ */
     void FSM_Destroy(FSM_Structure* fsm)
     {
         if (fsm == nullptr)
@@ -328,6 +440,9 @@ extern "C" {
         }
         fsm->~FSM_Structure(); // 显式调用析构函数
     }
+/**
+ * @brief    C接口::添加状态到状态表
+ */
     bool FSM_Add_State(FSM_Structure* fsm, uint8_t state_id, FSM_Function function)
     {
         if (fsm == nullptr)
@@ -336,6 +451,9 @@ extern "C" {
         }
         return fsm->FSM_Add_State(state_id, function);
     }
+/**
+ * @brief    C接口::向数据包队列推送数据包
+ */
     bool FSM_Push_Data_Package(FSM_Structure* fsm, DataPackage data_package)
     {
         if (fsm == nullptr)
@@ -344,6 +462,9 @@ extern "C" {
         }
         return fsm->FSM_Push_Data_Package(data_package);
     }
+/**
+ * @brief    C接口::从数据包队列取出数据包
+ */
     bool FSM_Get_Data_Package(FSM_Structure* fsm, DataPackage* data_package)
     {
         if (fsm == nullptr)
@@ -352,6 +473,9 @@ extern "C" {
         }
         return fsm->FSM_Get_Data_Package(data_package);
     }
+/**
+ * @brief    C接口::启动状态机，设置初始状态并进入Entry
+ */
     bool FSM_Start(FSM_Structure* fsm, uint8_t first_state_id)
     {
         if (fsm == nullptr)
@@ -360,6 +484,9 @@ extern "C" {
         }
         return fsm->FSM_Start(first_state_id);
     }
+/**
+ * @brief    C接口::设置状态机使能状态
+ */
     void FSM_Set_Enable(FSM_Structure* fsm, bool enable)
     {
         if (fsm == nullptr)
@@ -368,6 +495,9 @@ extern "C" {
         }
         fsm->FSM_Set_Enable(enable);
     }
+/**
+ * @brief    C接口::状态机主处理函数，每个周期调用一次
+ */
     void FSM_Process(FSM_Structure* fsm)
     {
         if (fsm == nullptr)
@@ -376,6 +506,9 @@ extern "C" {
         }
         fsm->FSM_Process();
     }
+/**
+ * @brief    C接口::触发状态转换，将目标状态ID推入队列
+ */
     bool FSM_State_Transition(FSM_Structure* fsm, uint8_t state_id)
     {
         if (fsm == nullptr)
