@@ -51,30 +51,10 @@ typedef struct FSM_Function
     void (*entry)(void);                          // 进入状态时的动作函数指针
     void (*exit)(void);                           // 退出状态时的动作函数指针
 }FSM_Function;
-typedef struct DataPackage
-{
-    uint8_t    target_ID;                      // 目标状态ID
-    union
-    {
-        uint32_t    data_u32;                  // 32位无符号整数数据
-        int32_t     data_i32;                  // 32位有符号整数数据
-        float       data_f32;                  // 32位浮点数数据
-        double      data_f64;                  // 64位浮点数数据
-        uint8_t     data_u8[4];                // 4字节无符号整数数据
-        int8_t      data_i8[4];                // 4字节有符号整数数据
-        uint16_t    data_u16[2];               // 2字节无符号整数数据
-        int16_t     data_i16[2];               // 2字节有符号整数数据
-    } data;
-    size_t     data_size;                      // 数据大小
-}DataPackage;
-
-
 
 FSM_Structure* FSM_Create(FMS_MEMORY* memory);
 void FSM_Destroy(FSM_Structure* fsm);
 bool FSM_Add_State(FSM_Structure* fsm, uint8_t state_id, FSM_Function function);
-bool FSM_Push_Data_Package(FSM_Structure* fsm, DataPackage data_package);
-bool FSM_Get_Data_Package(FSM_Structure* fsm, DataPackage* data_package);
 bool FSM_Start(FSM_Structure* fsm, uint8_t first_state_id);
 void FSM_Set_Enable(FSM_Structure* fsm, bool enable);
 void FSM_Process(FSM_Structure* fsm);

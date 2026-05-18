@@ -1,5 +1,9 @@
 #include "Finite_State_Machine.h"
 
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,7 +15,7 @@ enum
     TEST_NULLABLE_ENTRY_EXIT = 1 << 1,
     TEST_TRANSITION_ORDER = 1 << 2,
     TEST_QUEUE_SINGLE_SLOT = 1 << 3,
-    TEST_DATA_PACKAGE_FIFO = 1 << 4,
+    TEST_ENABLE_WINDOW = 1 << 4,
     TEST_INVALID_INPUTS = 1 << 5,
     TEST_ALL = (1 << 6) - 1
 };
@@ -26,13 +30,84 @@ typedef struct
     int state2_exit_count;
     int sequence[16];
     int sequence_count;
+    int first_transition_result;
+    int second_transition_result;
 } CallbackRecorder;
 
+typedef struct
+{
+    FSM_Structure* fsm;
+    DWORD step_ms;
+    DWORD elapsed_ms;
+    DWORD transition_at_ms;
+    DWORD disable_at_ms;
+    DWORD enable_at_ms;
+    int transition_requested;
+    int attempt_double_transition;
+    int disable_applied;
+    int enable_applied;
+} SoftwareClock;
+
 static CallbackRecorder g_recorder;
+static SoftwareClock g_clock;
 
 static void reset_recorder(void)
 {
     memset(&g_recorder, 0, sizeof(g_recorder));
+}
+
+static void reset_software_clock(FSM_Structure* fsm, DWORD step_ms)
+{
+    memset(&g_clock, 0, sizeof(g_clock));
+    g_clock.fsm = fsm;
+    g_clock.step_ms = step_ms;
+}
+
+static void run_software_clock(unsigned int cycle_count)
+{
+    unsigned int cycle;
+
+    for (cycle = 0; cycle < cycle_count; ++cycle)
+    {
+        /*
+         * 这里使用固定步进的软件时间，Sleep 只负责模拟节拍，
+         * 真正的判定基准由 cycle * step_ms 决定，避免系统调度抖动。
+         */
+        g_clock.elapsed_ms = cycle * g_clock.step_ms;
+
+        /*
+         * 用软件时钟模拟主循环外部事件：先改使能，再推进 FSM，
+         * 这样可以覆盖“同一拍进入处理前系统被外部逻辑改变”的场景。
+         */
+        if (!g_clock.disable_applied && g_clock.disable_at_ms > 0U && g_clock.elapsed_ms >= g_clock.disable_at_ms)
+        {
+            FSM_Set_Enable(g_clock.fsm, false);
+            g_clock.disable_applied = 1;
+        }
+        if (!g_clock.enable_applied && g_clock.enable_at_ms > 0U && g_clock.elapsed_ms >= g_clock.enable_at_ms)
+        {
+            FSM_Set_Enable(g_clock.fsm, true);
+            g_clock.enable_applied = 1;
+        }
+
+        FSM_Process(g_clock.fsm);
+
+        if ((cycle + 1U) < cycle_count)
+        {
+            Sleep(g_clock.step_ms);
+        }
+    }
+}
+
+static void assert_sequence(const int* expected, size_t expected_count)
+{
+    size_t index;
+
+    assert(g_recorder.sequence_count == (int)expected_count);
+    for (index = 0; index < expected_count; ++index)
+    {
+        assert(g_recorder.sequence[index] == expected[index]);
+    }
 }
 
 static void record_event(int event_id)
@@ -51,6 +126,21 @@ static void state1_action(void)
 {
     g_recorder.state1_action_count += 1;
     record_event(12);
+
+    /*
+     * 这里用时间阈值触发状态切换，模拟主循环运行一段时间后
+     * 由业务逻辑发起转换请求。
+     */
+    if (!g_clock.transition_requested && g_clock.transition_at_ms > 0U && g_clock.elapsed_ms >= g_clock.transition_at_ms)
+    {
+        g_recorder.first_transition_result = FSM_State_Transition(g_clock.fsm, 2U) ? 1 : 0;
+        g_clock.transition_requested = 1;
+
+        if (g_clock.attempt_double_transition)
+        {
+            g_recorder.second_transition_result = FSM_State_Transition(g_clock.fsm, 1U) ? 1 : 0;
+        }
+    }
 }
 
 static void state1_exit(void)
@@ -97,6 +187,7 @@ static void test_start_entry_action(void)
 {
     FMS_MEMORY memory = {0};
     FSM_Structure* fsm;
+    const int expected_sequence[] = {11, 12};
 
     reset_recorder();
     fsm = create_fsm(&memory);
@@ -104,15 +195,16 @@ static void test_start_entry_action(void)
     assert(FSM_Add_State(fsm, 1U, make_callbacks(state1_action, state1_entry, state1_exit)));
     assert(FSM_Start(fsm, 1U));
 
-    FSM_Process(fsm);
+    reset_software_clock(fsm, 5U);
+    run_software_clock(1U);
+
     assert(g_recorder.state1_entry_count == 1);
     assert(g_recorder.state1_action_count == 0);
 
-    FSM_Process(fsm);
+    /* 第二拍后进入稳定态 action。 */
+    run_software_clock(1U);
     assert(g_recorder.state1_action_count == 1);
-    assert(g_recorder.sequence_count == 2);
-    assert(g_recorder.sequence[0] == 11);
-    assert(g_recorder.sequence[1] == 12);
+    assert_sequence(expected_sequence, sizeof(expected_sequence) / sizeof(expected_sequence[0]));
 
     FSM_Destroy(fsm);
 }
@@ -121,6 +213,7 @@ static void test_nullable_entry_exit(void)
 {
     FMS_MEMORY memory = {0};
     FSM_Structure* fsm;
+    const int expected_sequence[] = {12};
 
     reset_recorder();
     fsm = create_fsm(&memory);
@@ -128,14 +221,13 @@ static void test_nullable_entry_exit(void)
     assert(FSM_Add_State(fsm, 1U, make_callbacks(state1_action, NULL, NULL)));
     assert(FSM_Start(fsm, 1U));
 
-    FSM_Process(fsm);
-    FSM_Process(fsm);
+    reset_software_clock(fsm, 5U);
+    run_software_clock(2U);
 
     assert(g_recorder.state1_entry_count == 0);
     assert(g_recorder.state1_exit_count == 0);
     assert(g_recorder.state1_action_count == 1);
-    assert(g_recorder.sequence_count == 1);
-    assert(g_recorder.sequence[0] == 12);
+    assert_sequence(expected_sequence, sizeof(expected_sequence) / sizeof(expected_sequence[0]));
 
     FSM_Destroy(fsm);
 }
@@ -144,6 +236,7 @@ static void test_transition_order(void)
 {
     FMS_MEMORY memory = {0};
     FSM_Structure* fsm;
+    const int expected_sequence[] = {11, 12, 13, 21, 22};
 
     reset_recorder();
     fsm = create_fsm(&memory);
@@ -152,20 +245,12 @@ static void test_transition_order(void)
     assert(FSM_Add_State(fsm, 2U, make_callbacks(state2_action, state2_entry, state2_exit)));
     assert(FSM_Start(fsm, 1U));
 
-    FSM_Process(fsm);
-    FSM_Process(fsm);
-    assert(FSM_State_Transition(fsm, 2U));
+    reset_software_clock(fsm, 5U);
+    g_clock.transition_at_ms = 5U;
+    run_software_clock(5U);
 
-    FSM_Process(fsm);
-    FSM_Process(fsm);
-    FSM_Process(fsm);
-
-    assert(g_recorder.sequence_count == 5);
-    assert(g_recorder.sequence[0] == 11);
-    assert(g_recorder.sequence[1] == 12);
-    assert(g_recorder.sequence[2] == 13);
-    assert(g_recorder.sequence[3] == 21);
-    assert(g_recorder.sequence[4] == 22);
+    assert(g_recorder.first_transition_result == 1);
+    assert_sequence(expected_sequence, sizeof(expected_sequence) / sizeof(expected_sequence[0]));
 
     FSM_Destroy(fsm);
 }
@@ -182,45 +267,37 @@ static void test_queue_single_slot(void)
     assert(FSM_Add_State(fsm, 2U, make_callbacks(state2_action, NULL, NULL)));
     assert(FSM_Start(fsm, 1U));
 
-    FSM_Process(fsm);
-    assert(FSM_State_Transition(fsm, 2U));
-    assert(!FSM_State_Transition(fsm, 1U));
+    reset_software_clock(fsm, 5U);
+    g_clock.transition_at_ms = 5U;
+    g_clock.attempt_double_transition = 1;
+    run_software_clock(2U);
+
+    assert(g_recorder.first_transition_result == 1);
+    assert(g_recorder.second_transition_result == 0);
 
     FSM_Destroy(fsm);
 }
 
-static void test_data_package_fifo(void)
+static void test_enable_window(void)
 {
     FMS_MEMORY memory = {0};
     FSM_Structure* fsm;
-    DataPackage in_first = {0};
-    DataPackage in_second = {0};
-    DataPackage out = {0};
+    const int expected_sequence[] = {12, 12};
 
+    reset_recorder();
     fsm = create_fsm(&memory);
 
-    in_first.target_ID = 1U;
-    in_first.data.data_u32 = 0x12345678U;
-    in_first.data_size = sizeof(in_first.data.data_u32);
+    assert(FSM_Add_State(fsm, 1U, make_callbacks(state1_action, NULL, NULL)));
+    assert(FSM_Start(fsm, 1U));
 
-    in_second.target_ID = 2U;
-    in_second.data.data_i16[0] = -12;
-    in_second.data.data_i16[1] = 34;
-    in_second.data_size = sizeof(in_second.data.data_i16);
+    reset_software_clock(fsm, 5U);
+    g_clock.disable_at_ms = 5U;
+    g_clock.enable_at_ms = 20U;
+    run_software_clock(6U);
 
-    assert(FSM_Push_Data_Package(fsm, in_first));
-    assert(FSM_Push_Data_Package(fsm, in_second));
-
-    assert(FSM_Get_Data_Package(fsm, &out));
-    assert(out.target_ID == 1U);
-    assert(out.data.data_u32 == 0x12345678U);
-    assert(out.data_size == sizeof(in_first.data.data_u32));
-
-    assert(FSM_Get_Data_Package(fsm, &out));
-    assert(out.target_ID == 2U);
-    assert(out.data.data_i16[0] == -12);
-    assert(out.data.data_i16[1] == 34);
-    assert(out.data_size == sizeof(in_second.data.data_i16));
+    /* 禁用窗口内 FSM_Process 为 no-op，恢复后 action 再继续累计。 */
+    assert(g_recorder.state1_action_count == 2);
+    assert_sequence(expected_sequence, sizeof(expected_sequence) / sizeof(expected_sequence[0]));
 
     FSM_Destroy(fsm);
 }
@@ -240,8 +317,6 @@ static void test_invalid_inputs(void)
     assert(!FSM_Add_State(NULL, 1U, invalid_callbacks));
     assert(!FSM_Start(NULL, 1U));
     assert(!FSM_State_Transition(NULL, 1U));
-    assert(!FSM_Push_Data_Package(NULL, (DataPackage){0}));
-    assert(!FSM_Get_Data_Package(NULL, NULL));
     FSM_Process(NULL);
     FSM_Set_Enable(NULL, true);
     FSM_Destroy(NULL);
@@ -263,7 +338,7 @@ static const TestCase kTests[] = {
     {TEST_NULLABLE_ENTRY_EXIT, "nullable_entry_exit", test_nullable_entry_exit},
     {TEST_TRANSITION_ORDER, "transition_order", test_transition_order},
     {TEST_QUEUE_SINGLE_SLOT, "queue_single_slot", test_queue_single_slot},
-    {TEST_DATA_PACKAGE_FIFO, "data_package_fifo", test_data_package_fifo},
+    {TEST_ENABLE_WINDOW, "enable_window", test_enable_window},
     {TEST_INVALID_INPUTS, "invalid_inputs", test_invalid_inputs},
 };
 

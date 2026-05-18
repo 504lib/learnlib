@@ -6,7 +6,6 @@
 #define NO_LOG_ASSERT
 #include "./static_queue/static_queue.h"
 
-DECLARE_STATIC_QUEUE(DataPackageQueue,DataPackage,16);
 DECLARE_STATIC_QUEUE(NextStateQueue,uint8_t,1);
 
 constexpr uint8_t Invalid_State_ID = 0xFFu;                 // 无效状态ID
@@ -50,7 +49,6 @@ private:
     Current_action          current_action;                                 // 当前动作类型
     bool                    initialized;                                          // 是否初始化
     bool                    isEnable;                                            // 是否使能
-    DataPackageQueue_t      data_package_queue;                                   // 数据包队列    
     NextStateQueue_t        next_state_queue;                                         // 状态队列
     bool                    isExistStateID(uint8_t state_id);                    // 检查状态ID是否存在
     uint8_t                 get_State_Index(uint8_t state_id);                    // 获取状态ID对应的索引
@@ -63,8 +61,6 @@ public:
     ~FSM_Structure();
     bool FSM_State_Transition(uint8_t state_id);
     bool FSM_Add_State(uint8_t state_id, FSM_Function function);
-    bool FSM_Push_Data_Package(DataPackage data_package);
-    bool FSM_Get_Data_Package(DataPackage* data_package);
     bool FSM_Start(uint8_t first_state_id);
     void FSM_Set_Enable(bool enable);
     void FSM_Process(void);
@@ -82,11 +78,9 @@ FSM_Structure::FSM_Structure()
     this->current_state_index = Invalid_State_ID;  // 初始化当前状态索引为无效状态
     this->current_action = Current_action::Entry;              // 初始化当前动作类型为Entry
     this->isEnable = true;                   // 初始化FSM为使能状态
-    this->data_package_queue = {0};            // 初始化数据包队列
     this->next_state_queue = {0};                     // 初始化状态队列
     this->initialized = true;                   // 标记为已初始化
     NextStateQueue_INIT(&this->next_state_queue);                     // 初始化状态队列
-    DataPackageQueue_INIT(&this->data_package_queue);            // 初始化数据包队列
 
 }
 
@@ -244,40 +238,6 @@ bool FSM_Structure::FSM_Add_State(uint8_t state_id, FSM_Function function)
 }
 
 
-/**
- * @brief    向数据包队列中推送数据包，供状态机的action函数使用
- *
- * @param    data_package  待推送的数据包
- * @return   true          推送成功
- * @return   false         状态机未初始化，或队列已满
- */
-bool FSM_Structure::FSM_Push_Data_Package(DataPackage data_package)
-{
-    if (!this->isinitialized())
-    {
-        LOG_WARN("FSM is not initialized.");
-        return false;
-    }
-    return DataPackageQueue_PUSH(&data_package_queue, data_package);  // 将数据包推入数据包队列
-}
-
-
-/**
- * @brief    从数据包队列中取出一个数据包（FIFO顺序）
- *
- * @param    data_package  数据包指针，用于接收弹出的数据包
- * @return   true          获取成功
- * @return   false         状态机未初始化，或队列为空
- */
-bool FSM_Structure::FSM_Get_Data_Package(DataPackage* data_package)
-{
-    if (!this->isinitialized())
-    {
-        LOG_WARN("FSM is not initialized.");
-        return false;
-    }
-    return DataPackageQueue_POP(&data_package_queue, data_package);  // 从数据包队列中弹出一个数据包
-}
 
 /**
  * @brief    设置状态机的使能状态，禁用后FSM_Process将跳过处理
@@ -450,28 +410,6 @@ extern "C" {
             return false;
         }
         return fsm->FSM_Add_State(state_id, function);
-    }
-/**
- * @brief    C接口::向数据包队列推送数据包
- */
-    bool FSM_Push_Data_Package(FSM_Structure* fsm, DataPackage data_package)
-    {
-        if (fsm == nullptr)
-        {
-            return false;
-        }
-        return fsm->FSM_Push_Data_Package(data_package);
-    }
-/**
- * @brief    C接口::从数据包队列取出数据包
- */
-    bool FSM_Get_Data_Package(FSM_Structure* fsm, DataPackage* data_package)
-    {
-        if (fsm == nullptr)
-        {
-            return false;
-        }
-        return fsm->FSM_Get_Data_Package(data_package);
     }
 /**
  * @brief    C接口::启动状态机，设置初始状态并进入Entry

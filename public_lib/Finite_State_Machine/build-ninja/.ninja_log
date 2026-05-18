@@ -1,7 +1,11 @@
 # ninja log v5
-49	592	8007305479944140	CMakeFiles/finite_state_machine.dir/Finite_State_Machine.cpp.obj	8481399c992f2437
-42	504	8007305904656808	CMakeFiles/finite_state_machine.dir/Finite_State_Machine.cpp.obj	8481399c992f2437
-43	182	8007306314746458	CMakeFiles/finite_state_machine_test.dir/tests/fsm_test.cpp.obj	d6d044626034cef5
 37	509	8007306317968653	CMakeFiles/finite_state_machine.dir/Finite_State_Machine.cpp.obj	8481399c992f2437
+43	182	8007306314746458	CMakeFiles/finite_state_machine_test.dir/tests/fsm_test.cpp.obj	d6d044626034cef5
 510	884	8007306320154078	libfinite_state_machine.a	b86cf2a7900197c7
 884	1050	8007306323513846	finite_state_machine_test.exe	8ec1529819547cff
+48	760	8007959682784444	CMakeFiles/finite_state_machine_test.dir/tests/fsm_test.cpp.obj	d6d044626034cef5
+43	891	8007959683868589	CMakeFiles/finite_state_machine.dir/Finite_State_Machine.cpp.obj	8481399c992f2437
+892	1064	8007959685654975	libfinite_state_machine.a	b86cf2a7900197c7
+1064	1231	8007959687532419	finite_state_machine_test.exe	8ec1529819547cff
+41	659	8007960505732676	CMakeFiles/finite_state_machine_test.dir/tests/fsm_test.cpp.obj	d6d044626034cef5
+660	833	8007960507601337	finite_state_machine_test.exe	8ec1529819547cff

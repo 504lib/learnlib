@@ -6,15 +6,15 @@
 
 - 最多 16 个状态（`MAX_STATE_NUM` 可配置），每个状态绑定 action / entry / exit 三个回调
 - 状态转换通过单槽队列串行化，避免重入问题
-- 16 槽 FIFO 数据包队列，支持状态间数据传递
 - Placement new 方式构造，用户提供对齐内存，无堆分配
-- C 与 C++ 均可调用（C++ 项目建议直接使用 `.h` 中的 class 接口）
+- C 与 C++ 均可调用
 
 ## 目录结构
 
 - [Finite_State_Machine.h](Finite_State_Machine.h)：类型定义与 C 接口声明
 - [Finite_State_Machine.cpp](Finite_State_Machine.cpp)：核心实现
 - [static_queue/](static_queue/)：依赖的静态队列库
+- [Log/](Log/)：日志模块依赖
 - [tests/](tests/)：单元测试
 
 ## 核心概念
@@ -152,30 +152,7 @@ void FSM_Process(FSM_Structure* fsm);
 void FSM_Set_Enable(FSM_Structure* fsm, bool enable);
 ```
 
-使能 / 暂停状态机。暂停后 `FSM_Process()` 为 no-op，但状态和数据队列保持不变。
-
-### FSM_Push_Data_Package / FSM_Get_Data_Package
-
-```c
-bool FSM_Push_Data_Package(FSM_Structure* fsm, DataPackage data_package);
-bool FSM_Get_Data_Package(FSM_Structure* fsm, DataPackage* data_package);
-```
-
-16 槽 FIFO 数据队列的读写接口，用于状态间传递数据。`DataPackage` 通过 `target_ID` 字段标识目标状态，`data` 联合体支持多种数据类型。
-
-```c
-DataPackage pkg = {0};
-pkg.target_ID = 2;
-pkg.data.data_f32 = 3.14f;
-pkg.data_size = sizeof(float);
-FSM_Push_Data_Package(fsm, pkg);
-
-// 在状态回调中取出
-DataPackage received;
-if (FSM_Get_Data_Package(fsm, &received)) {
-    float value = received.data.data_f32;
-}
-```
+使能 / 暂停状态机。暂停后 `FSM_Process()` 为 no-op，但状态保持不变。`FSM_State_Transition` 在暂停期间仍可正常调用。
 
 ## 注意事项
 
@@ -191,30 +168,11 @@ if (FSM_Get_Data_Package(fsm, &received)) {
 
 6. **内存由调用者管理**：`FMS_MEMORY` 必须是 8 字节对齐的 1024 字节缓冲区。放在栈上、全局区或静态区均可，但生命周期必须覆盖状态机的整个使用期。`FSM_Destroy` 只调用析构函数，不释放内存。
 
-7. **使能标志只影响 Process**：`FSM_Set_Enable(false)` 暂停后，`FSM_Push_Data_Package` 和 `FSM_State_Transition` 仍可正常调用，只是 `FSM_Process` 不会推进状态机。
+7. **使能标志只影响 Process**：`FSM_Set_Enable(false)` 暂停后，`FSM_State_Transition` 仍可正常调用，只是 `FSM_Process` 不会推进状态机。
 
-8. **LOG 依赖**：状态机内部使用了 `LOG_WARN`、`LOG_INFO`、`LOG_FATAL` 宏，依赖 `Log.h`。如果未定义 `NO_LOG_ASSERT`，`static_queue` 也会链接到 `Log.h` 的 `LOG_ASSERT`。
+8. **LOG 依赖**：状态机内部使用了 `LOG_WARN`、`LOG_INFO`、`LOG_FATAL` 宏，依赖 [Log/Log.h](Log/Log.h)。如果未定义 `NO_LOG_ASSERT`，`static_queue` 也会链接到 `Log.h` 的 `LOG_ASSERT`。
 
 ## 典型模式
-
-### 状态间传递数据
-
-在状态 A 的 action 中推送数据包，触发转换后，在状态 B 的 entry 中取出：
-
-```c
-void stateA_action(void) {
-    DataPackage pkg = {.target_ID = 2, .data.data_u32 = 42, .data_size = 4};
-    FSM_Push_Data_Package(g_fsm, pkg);
-    FSM_State_Transition(g_fsm, 2);
-}
-
-void stateB_entry(void) {
-    DataPackage pkg;
-    if (FSM_Get_Data_Package(g_fsm, &pkg)) {
-        uint32_t val = pkg.data.data_u32; // 42
-    }
-}
-```
 
 ### 条件转换
 
@@ -246,7 +204,6 @@ FSM_Set_Enable(fsm, true);
 |---|---|---|
 | `MAX_STATE_NUM` | 16 | 最大状态数量，可在编译时通过 `-D` 覆盖 |
 | `FSM_STORAGE_SIZE` | 1024 | FSM 对象所需内存大小 |
-| `STATIC_QUEUE_MAX_CAPACITY` | 64 | 数据包队列最大容量 |
 
 ## 测试
 
@@ -256,7 +213,7 @@ FSM_Set_Enable(fsm, true);
 - NULL entry/exit 的容许
 - 状态转换顺序（Entry → Action → Exit → Entry → Action）
 - 转换队列单槽限制
-- 数据包 FIFO 顺序
+- 使能 / 禁用窗口
 - 各类非法输入（NULL 指针、无效 ID、空回调等）
 
 构建运行：
