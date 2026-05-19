@@ -122,6 +122,7 @@ SUBDIRS := \
 Control_Speed \
 DL_GetTick_Folder \
 Log \
+MPU_6050 \
 Motor \
 PID_Node \
 SPI_OLED \

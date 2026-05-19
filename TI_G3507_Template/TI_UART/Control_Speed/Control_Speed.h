@@ -38,5 +38,8 @@ void UpdateSpeedFeedback(int32_t diff_A, int32_t diff_B, float dt);
 void Control_SetGrayTarget(float gray_error);
 float Control_Gray_Update(float gray_error, float dt);
 void Control_SetBaseSpeed(float speed);
+float Control_UpdateAngle(float current_yaw, float dt);
+void Control_ApplyAngleSteering(float steering);
+void Control_SetAngleTarget(float target_deg);
 
 #endif

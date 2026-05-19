@@ -16,6 +16,10 @@ ORDERED_OBJS += \
 "./Control_Speed/Control_Speed.o" \
 "./DL_GetTick_Folder/DL_Tick.o" \
 "./Log/Log.o" \
+"./MPU_6050/MadgwickAHRS.o" \
+"./MPU_6050/mpu6050.o" \
+"./MPU_6050/mpu6050_i2c_ti.o" \
+"./MPU_6050/mpu6050_user.o" \
 "./Motor/Motor_AT4950.o" \
 "./PID_Node/PID_Node.o" \
 "./SPI_OLED/oled.o" \
@@ -36,6 +40,7 @@ RMDIR := RMDIR /S/Q
 -include Control_Speed/subdir_vars.mk
 -include DL_GetTick_Folder/subdir_vars.mk
 -include Log/subdir_vars.mk
+-include MPU_6050/subdir_vars.mk
 -include Motor/subdir_vars.mk
 -include PID_Node/subdir_vars.mk
 -include SPI_OLED/subdir_vars.mk
@@ -45,6 +50,7 @@ RMDIR := RMDIR /S/Q
 -include Control_Speed/subdir_rules.mk
 -include DL_GetTick_Folder/subdir_rules.mk
 -include Log/subdir_rules.mk
+-include MPU_6050/subdir_rules.mk
 -include Motor/subdir_rules.mk
 -include PID_Node/subdir_rules.mk
 -include SPI_OLED/subdir_rules.mk
@@ -160,8 +166,8 @@ TI_UART.out: $(OBJS) $(GEN_CMDS)
 # Other Targets
 clean:
 	-$(RM) $(GEN_MISC_FILES__QUOTED)$(GEN_FILES__QUOTED)$(EXE_OUTPUTS__QUOTED)
-	-$(RM) "empty.o" "ti_msp_dl_config.o" "startup_mspm0g350x_ticlang.o" "Control_Speed\Control_Speed.o" "DL_GetTick_Folder\DL_Tick.o" "Log\Log.o" "Motor\Motor_AT4950.o" "PID_Node\PID_Node.o" "SPI_OLED\oled.o" "grayscale\grayscale.o" "multikey\multikey.o" 
-	-$(RM) "empty.d" "ti_msp_dl_config.d" "startup_mspm0g350x_ticlang.d" "Control_Speed\Control_Speed.d" "DL_GetTick_Folder\DL_Tick.d" "Log\Log.d" "Motor\Motor_AT4950.d" "PID_Node\PID_Node.d" "SPI_OLED\oled.d" "grayscale\grayscale.d" "multikey\multikey.d" 
+	-$(RM) "empty.o" "ti_msp_dl_config.o" "startup_mspm0g350x_ticlang.o" "Control_Speed\Control_Speed.o" "DL_GetTick_Folder\DL_Tick.o" "Log\Log.o" "MPU_6050\MadgwickAHRS.o" "MPU_6050\mpu6050.o" "MPU_6050\mpu6050_i2c_ti.o" "MPU_6050\mpu6050_user.o" "Motor\Motor_AT4950.o" "PID_Node\PID_Node.o" "SPI_OLED\oled.o" "grayscale\grayscale.o" "multikey\multikey.o" 
+	-$(RM) "empty.d" "ti_msp_dl_config.d" "startup_mspm0g350x_ticlang.d" "Control_Speed\Control_Speed.d" "DL_GetTick_Folder\DL_Tick.d" "Log\Log.d" "MPU_6050\MadgwickAHRS.d" "MPU_6050\mpu6050.d" "MPU_6050\mpu6050_i2c_ti.d" "MPU_6050\mpu6050_user.d" "Motor\Motor_AT4950.d" "PID_Node\PID_Node.d" "SPI_OLED\oled.d" "grayscale\grayscale.d" "multikey\multikey.d" 
 	-@echo ' '
 
 .PHONY: all clean dependents
