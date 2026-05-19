@@ -2,16 +2,25 @@
 #include <math.h>
 
 // ---- 内部静态变量 ----
-static PID_Node Speed_PID_node1, Speed_PID_node2;
-static PID_Node pidGrayscale;                    // 灰度 PID 节点
+static PID_Node Speed_PID_node1, Speed_PID_node2; // 速度 PID 节点
+static PID_Node pidGrayscale;                     // 灰度 PID 节点
+static PID_Node pidAngle;                         // 角度 PID 节点
 static float Actual_Speed_A = 0.0f;
 static float Actual_Speed_B = 0.0f;
 static float total_distance_traveled = 0.0f;
 static MotorAT4950* motor1_ptr = NULL;
 static MotorAT4950* motor2_ptr = NULL;
 
-static float base_speed = 0.15f;                // 基础巡线速度 m/s
+static float base_speed = 0.15f;                  // 基础巡线速度 m/s
 
+/* 角度误差计算：处理 ±180° 回绕 */
+static float AngleErrorCallback(float setpoint, float measured)
+{
+    float err = setpoint - measured;
+    if (err > 180.0f) err -= 360.0f;
+    if (err < -180.0f) err += 360.0f;
+    return err;
+}
 
 // // 电机句柄（由 Control_Init 传入）
 // static MotorAT4950* motor1_ptr = NULL;
@@ -26,16 +35,22 @@ void Control_Init(MotorAT4950* m1, MotorAT4950* m2)
     PID_Node_Init(&Speed_PID_node1, "speed_node1", 700.0f, 2.5f, 0.0f);
     PID_Node_Init(&Speed_PID_node2, "speed_node2", 700.0f, 2.5f, 0.0f);
     PID_Node_Init(&pidGrayscale, "Grayscale", 0.055f, 0.0001f, 1.0f);
-    
+    PID_Node_Init(&pidAngle, "Angle", 100.0f, 0.1f, 0.0f);
+
     PID_Node_SetEnabled(&Speed_PID_node1, true);
     PID_Node_SetEnabled(&Speed_PID_node2, true);
     PID_Node_SetEnabled(&pidGrayscale, true);
-    // PID_Node_SetSetpoint(&pidAngle, 0.0f);   // 目标角度为0度（保持当前航向）
-    
+    PID_Node_SetEnabled(&pidAngle, true);
+
+    PID_Node_SetSetpoint(&pidAngle, 0.0f);   // 目标角度为0度（保持当前航向）
+    PID_Node_SetCustomCallback(&pidAngle, (PID_Custom_Functions){
+        .custom_error_calculation = AngleErrorCallback
+    });
+
     PID_Node_SetIntegralAttenuationKp(&Speed_PID_node1, 0.97f);
     PID_Node_SetIntegralAttenuationKp(&Speed_PID_node2, 0.97f);
     PID_Node_SetIntegralAttenuationKp(&pidGrayscale, 0.95f);
-    // PID_Node_SetIntegralAttenuationKp(&pidAngle, 0.98f);
+    PID_Node_SetIntegralAttenuationKp(&pidAngle, 0.98f);
     //速度环限制
     PID_Node_SetLimit(&Speed_PID_node1, (PID_Limit){
         .deadband = 0.0f,
@@ -71,19 +86,19 @@ void Control_Init(MotorAT4950* m1, MotorAT4950* m2)
 		.input_max = 1000.0f,
 		.derivative_max = 20.0f
 	};
-	// PID_Node_SetLimit(&pidGrayscale, gray_limit);
-    // 	PID_Limit angle_limit = {
-	// 	.setpoint_min = -180.0f, 
-	// 	.setpoint_max = 180.0f,
-	// 	.input_min = -180.0f, 
-	// 	.input_max = 180.0f,
-	// 	.output_max = 0.2f,      // 最大转向补偿速度差（m/s），根据base_speed调整
-	// 	.output_min = -0.2f,
-	// 	.integral_max = 20.0f,
-	// 	.derivative_max = 20.0f,
-	// 	.deadband = 1.0f          
-	// };
-    // PID_Node_SetLimit(&pidAngle, angle_limit);
+	PID_Node_SetLimit(&pidGrayscale, gray_limit);
+    	PID_Limit angle_limit = {
+		.setpoint_min = -180.0f, 
+		.setpoint_max = 180.0f,
+		.input_min = -180.0f, 
+		.input_max = 180.0f,
+		.output_max = 0.2f,      // 最大转向补偿速度差（m/s），根据base_speed调整
+		.output_min = -0.2f,
+		.integral_max = 20.0f,
+		.derivative_max = 20.0f,
+		.deadband = 1.0f          
+	};
+    PID_Node_SetLimit(&pidAngle, angle_limit);
 }
 
 /* 获取节点指针 */
@@ -173,6 +188,25 @@ void Control_SetGrayTarget(float gray_error)
     if (target_A < 0.0f) target_A = 0.0f;
     if (target_B < 0.0f) target_B = 0.0f;
     // 设定新目标（速度环在 4ms 调用时会读取）
+    PID_Node_SetSetpoint(&Speed_PID_node1, target_A);
+    PID_Node_SetSetpoint(&Speed_PID_node2, target_B);
+}
+
+/* 角度环更新（每 20ms 调用，与灰度环并列） */
+float Control_UpdateAngle(float current_yaw, float dt)
+{
+    PID_Node_UpdateMeasurement(&pidAngle, current_yaw);
+    PID_ExecuteNode(&pidAngle, dt);
+    return pidAngle.output;   // 返回转向补偿速度差 (m/s)
+}
+
+/* 将角度环输出的 steering 叠加到左右轮目标速度 */
+void Control_ApplyAngleSteering(float steering)
+{
+    float target_A = base_speed - steering;
+    float target_B = base_speed + steering;
+    if (target_A < 0.0f) target_A = 0.0f;
+    if (target_B < 0.0f) target_B = 0.0f;
     PID_Node_SetSetpoint(&Speed_PID_node1, target_A);
     PID_Node_SetSetpoint(&Speed_PID_node2, target_B);
 }

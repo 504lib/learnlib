@@ -449,7 +449,17 @@ SYSCONFIG_WEAK void SYSCFG_DL_I2C_6050_init(void) {
         DL_I2C_ANALOG_GLITCH_FILTER_WIDTH_50NS);
     DL_I2C_enableAnalogGlitchFilter(I2C_6050_INST);
 
+    /* Configure Controller Mode */
+    DL_I2C_resetControllerTransfer(I2C_6050_INST);
+    /* Set frequency to 400000 Hz*/
+    DL_I2C_setTimerPeriod(I2C_6050_INST, 7);
+    DL_I2C_setControllerTXFIFOThreshold(I2C_6050_INST, DL_I2C_TX_FIFO_LEVEL_EMPTY);
+    DL_I2C_setControllerRXFIFOThreshold(I2C_6050_INST, DL_I2C_RX_FIFO_LEVEL_BYTES_1);
+    DL_I2C_enableControllerClockStretching(I2C_6050_INST);
 
+
+    /* Enable module */
+    DL_I2C_enableController(I2C_6050_INST);
 
 
 }

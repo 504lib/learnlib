@@ -41,9 +41,9 @@
 #include "./grayscale/grayscale.h"
 #include "./PID_Node/PID_Node.h"
 #include "./Control_Speed/Control_Speed.h"
-// #include "./MPU_6050/mpu6050_user.h"
-// #include "./MPU_6050/mpu6050.h"
-// #include "./MPU_6050/MadgwickAHRS.h"
+#include "./MPU_6050/mpu6050_user.h"
+#include "./MPU_6050/mpu6050.h"
+#include "./MPU_6050/MadgwickAHRS.h"
 // #include "./Protothreads/"
 
 
@@ -113,31 +113,24 @@ void task1(Protothread_t* pt)
     static uint32_t times = 0;
     PT_BEGIN(pt);
     while (1) {
+        // 显示 yaw 角
+        MPU6050_Data_t* mpu = MPU6050_GetHandle();
+        snprintf(buffuer, sizeof(buffuer), "yaw:%.1f", mpu->yaw);
+        OLED_ShowString(0, 32, (uint8_t*)buffuer, 16, 1);
         snprintf(buffuer, sizeof(buffuer), "times:%u",times++);
-        OLED_ShowString(0, 16, (uint8_t*)buffuer, 16, 1);     
-        // printf("times:%u\n",times++);
-        // printf("%d,%d\n",encoder1_speed,encoder2_speed);
-        // printf("testtick = %u\n",DL_GetTick());
-        // printf("encoder1_speed:%d\t",encoder1_speed);
-        // printf("encoder2_speed:%d\n",encoder2_speed);
-        
+        OLED_ShowString(0, 16, (uint8_t*)buffuer, 16, 1);  
+        // // 显示左右轮实际速度
+        // float Actual_Speed_A = Control_Speed_GetActualSpeed(CONTROL_SPEED1_OBJECT);
+        // float Actual_Speed_B = Control_Speed_GetActualSpeed(CONTROL_SPEED2_OBJECT);
+        // snprintf(buffuer, sizeof(buffuer), "L:%.3f R:%.3f", Actual_Speed_A, Actual_Speed_B);
+        // OLED_ShowString(0, 16, (uint8_t*)buffuer, 16, 1);
+        // snprintf(buffuer, sizeof(buffuer), "times:%u",times++);
+        // OLED_ShowString(0, 32, (uint8_t*)buffuer, 16, 1);     
+
+        // 串口输出 SerialPlot 格式
         // PID_Node* node1 = Control_Speed_PID_Hander(CONTROL_SPEED1_OBJECT);
-        // PID_Node* node2 = Control_Speed_PID_Hander(CONTROL_SPEED2_OBJECT);
-        // printf("M1 targ:%.2f act:%.2f out:%.1f | M2 targ:%.2f act:%.2f out:%.1f\n",
-        //        node1->setpoint, node1->measured_value, node1->output,
-        //        node2->setpoint, node2->measured_value, node2->output);
-        // 获取设定值（两个电机相同，取任意一个即可）
-        PID_Node* node1 = Control_Speed_PID_Hander(CONTROL_SPEED1_OBJECT);
-        float setpoint = node1->setpoint;
-        // 获取两个电机的实际速度
-        // float act1 = Control_Speed_GetActualSpeed(CONTROL_SPEED1_OBJECT);
-        // float act2 = Control_Speed_GetActualSpeed(CONTROL_SPEED2_OBJECT);
-        // SerialPlot 格式：设定值, 电机1实际, 电机2实际
-        // printf("%.3f,%.3f,%.3f\n", setpoint, act1, act2);
-        float Actual_Speed_A = Control_Speed_GetActualSpeed(CONTROL_SPEED1_OBJECT);
-        float Actual_Speed_B = Control_Speed_GetActualSpeed(CONTROL_SPEED2_OBJECT);
-        printf("%.3f,%.3f,%.3f\n", setpoint, Actual_Speed_A, Actual_Speed_B);
-        OLED_Refresh();  
+        // printf("%.3f,%.3f,%.3f\n", node1->setpoint, Actual_Speed_A, Actual_Speed_B);
+        OLED_Refresh();
         PT_WAIT_TICK(pt,100);
     }
     PT_END(pt);
@@ -198,24 +191,39 @@ int main(void)
     // NVIC_ClearPendingIRQ(UART_0_INST_INT_IRQN);
     
     NVIC_ClearPendingIRQ(TIMER_0_INST_INT_IRQN);
-    NVIC_ClearPendingIRQ(TIMER_1_INST_INT_IRQN);
+    // NVIC_ClearPendingIRQ(TIMER_1_INST_INT_IRQN);
     //使能串口中断
     
-    NVIC_EnableIRQ(UART_0_INST_INT_IRQN);
-    NVIC_EnableIRQ(TIMER_0_INST_INT_IRQN);
     printf("串口初始化完成\n");
     // 使能 GPIO 中断
     NVIC_ClearPendingIRQ(ENCODER_INT_IRQN);
     NVIC_EnableIRQ(ENCODER_INT_IRQN);
     printf("编码器初始化完成\n");
-    DL_TimerA_startCounter(TIMER_1_INST);// 启动 TIMER_1
-    DL_TimerG_startCounter(TIMER_0_INST);
+    // DL_TimerA_startCounter(TIMER_1_INST);// 启动 TIMER_1
+    // DL_TimerG_startCounter(TIMER_0_INST);
 
     OLED_Init();
     OLED_Clear();
     OLED_DisPlay_On();
-    OLED_ShowString(0, 0, (uint8_t*)"test", 16, 1);
+    // ========== ★ MPU6050 静止校准 ==========
+    OLED_ShowString(0, 0, (uint8_t*)"Calibrating", 16, 1);
+    OLED_ShowString(0, 16, (uint8_t*)"Keep Still!", 16, 1);
     OLED_Refresh();
+    DL_I2C_enableController(I2C_6050_INST);   // ★ 使能 I2C 控制器
+    int res = MPU_Init();                    // 初始化 MPU6050（需 I2C 已就绪）
+    snprintf(buffuer, sizeof(buffuer), "current res:%d",res);
+    OLED_ShowString(0, 32, (uint8_t*)buffuer, 16, 1);
+    OLED_Refresh();
+    delay_cycles(CPUCLK_FREQ);
+    MPU6050_Calibrate(200);      // 采样 200 次，约 1 秒，期间保持静止
+    OLED_Clear();
+    OLED_ShowString(0, 0, (uint8_t*)"Calib Done!", 16, 1);
+    OLED_Refresh();
+    OLED_Clear();
+
+    // ★ 校准完成后才启动控制定时器（避免 ISR 里 MPU6050_Update 和校准抢 I2C）
+    // NVIC_EnableIRQ(TIMER_0_INST_INT_IRQN);
+    DL_TimerG_startCounter(TIMER_0_INST);
     printf("屏幕初始化完成\n");
     // 初始化 A4950 电机（Auto_Reload = 10000 - 1 = 9999，与 PWM timerCount=10000 对应）
     MotorInit_AT46950(&motor1, SetMotor1PWM, SetMotor1IN1, 9999);
@@ -240,6 +248,10 @@ int main(void)
     PT_INIT(&task1_pt);
     uart0_send_string("uart0 start work\r\n");
     printf("测试\n");
+
+    NVIC_EnableIRQ(UART_0_INST_INT_IRQN);
+    NVIC_EnableIRQ(TIMER_0_INST_INT_IRQN);
+
     // Motor_Set_PWM(-3000, -3000);
     // DL_TimerG_setCaptureCompareValue(PWM_0_INST, 3000, GPIO_PWM_0_C1_IDX);
     while (1)
@@ -331,7 +343,10 @@ void TIMER_0_INST_IRQHandler(void)
     {
         case DL_TIMER_IIDX_ZERO:
             count++;
-
+            // ★ 每 5ms：MPU6050 姿态更新（Madgwick 200Hz）
+            if (count % 5 == 0) {
+                MPU6050_Update();
+            }
             // ---------- 每 4ms：速度环 PID + PWM 输出 ----------
             if (count % 4 == 0) {
                 Control_UpdateSpeedPID(0, 0, 4.0f);   // 使用固定 dt=4，内部只用 Actual_Speed_A/B
@@ -347,15 +362,19 @@ void TIMER_0_INST_IRQHandler(void)
                 last_enc1 = curr1;
                 last_enc2 = curr2;
 
-                // 1. 更新实际速度（使用 20ms 增量）
+                // 1.更新实际速度（使用 20ms 增量）
                 UpdateSpeedFeedback(encoder1_speed, encoder2_speed, 20.0f);
 
-                // 2. 读取灰度并计算误差
-                gray_byte = DL_GPIO_readPins(GPIOB, 0xFF) & 0xFF;
-                gray_error = CalculateGrayError_Advanced(gray_byte);
+                // 2.读取灰度并计算误差
+                // gray_byte = DL_GPIO_readPins(GPIOB, 0xFF) & 0xFF;
+                // gray_error = CalculateGrayError_Advanced(gray_byte);
 
-                // 3. 灰度环计算并设定新目标
-                Control_SetGrayTarget(gray_error);
+                // 3.灰度环计算并设定新目标
+                // Control_SetGrayTarget(gray_error);
+                // 2.角度环：yaw → steering → 叠加到速度目标
+                MPU6050_Data_t* mpu = MPU6050_GetHandle();
+                float steering = Control_UpdateAngle(mpu->yaw, 20.0f);
+                Control_ApplyAngleSteering(steering);
             }
             break;
 
