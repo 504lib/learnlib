@@ -119,6 +119,7 @@ bool FSM_Structure::FSM_Start(uint8_t first_state_id)
     return true;
 }
 
+
 /**
  * @brief    返回是否初始化
  * 

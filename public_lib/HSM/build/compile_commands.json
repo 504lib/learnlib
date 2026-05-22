@@ -1,0 +1,8 @@
+[
+{
+  "directory": "C:/learnlib/public_lib/HSM/build",
+  "command": "C:\\dev\\llvm-mingw\\bin\\clang++.exe  @CMakeFiles/finite_state_machine.dir/includes_CXX.rsp -g -std=c++11 -o CMakeFiles\\finite_state_machine.dir\\HSM_Core.cpp.obj -c C:\\learnlib\\public_lib\\HSM\\HSM_Core.cpp",
+  "file": "C:/learnlib/public_lib/HSM/HSM_Core.cpp",
+  "output": "CMakeFiles/finite_state_machine.dir/HSM_Core.cpp.obj"
+}
+]

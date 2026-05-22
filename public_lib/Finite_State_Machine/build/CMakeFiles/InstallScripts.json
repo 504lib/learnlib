@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"C:/learnlib/public_lib/Finite_State_Machine/build/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

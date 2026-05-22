@@ -1,0 +1,8 @@
+[
+{
+  "directory": "C:/learnlib/public_lib/Finite_State_Machine/build",
+  "command": "C:\\dev\\llvm-mingw\\bin\\clang++.exe  @CMakeFiles/finite_state_machine.dir/includes_CXX.rsp -g -std=c++11 -o CMakeFiles\\finite_state_machine.dir\\Finite_State_Machine.cpp.obj -c C:\\learnlib\\public_lib\\Finite_State_Machine\\Finite_State_Machine.cpp",
+  "file": "C:/learnlib/public_lib/Finite_State_Machine/Finite_State_Machine.cpp",
+  "output": "CMakeFiles/finite_state_machine.dir/Finite_State_Machine.cpp.obj"
+}
+]
