@@ -54,4 +54,5 @@ void Control_Update(float dt);
 void Control_UpdateSpeedFeedback(int32_t diff_A, int32_t diff_B, float dt);
 void Control_SetManualSpeeds(float left, float right);	
 bool Control_IsAtEnd(void);
+uint8_t Control_GrayByte_Windows_Filiter(size_t window_size);
 #endif

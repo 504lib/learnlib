@@ -211,6 +211,27 @@ bool Control_IsAtEnd(void) {
     return (gray_byte == 0xFF);   // 所有传感器全白表示终点
 }
 
+uint8_t Control_GrayByte_Windows_Filiter(size_t window_size)
+{
+    // 简单的窗口滤波器，减少噪声影响
+    // 例如：要求连续3次读取到同样的值才更新 gray_byte
+    static uint8_t last_gray = 0;
+    static uint8_t count = 0;
+    uint8_t current_gray = GPIOE->IDR & 0xFF;
+
+    if (current_gray == last_gray) {
+        count++;
+        if (count >= window_size) {
+            gray_byte = current_gray;
+            count = 0; // 重置计数器
+        }
+    } else {
+        last_gray = current_gray;
+        count = 1; // 新值出现，重置计数器
+    }
+    return gray_byte;
+}
+
 /**
  * @brief 检测是否到达路口/分叉口
  *        约定：最长连续低电平（黑）传感器数量 >= 阈值

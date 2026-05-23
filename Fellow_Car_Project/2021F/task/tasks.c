@@ -3,7 +3,7 @@
 #include "usart.h"     // 为了 huart1
 #include <stdio.h>     // 为了 snprintf
 #include <string.h>    // 为了 strlen
-#include "main.h" 
+#include "main.h"
 #include "oled.h"
 #include "mpu6050_user.h"
 #include "grayscale.h"
@@ -23,6 +23,10 @@
 #define TURN_SPEED        0.08f  // 转弯轮速(m/s)
 #define TURN_DEADBAND     3.0f   // 转弯角度死区(度)
 
+
+#define HIGH_4_BITS_MASK 0xF0
+#define LOW_4_BITS_MASK  0x0F
+
 typedef enum {
     TASK_IDLE,              // 没有任务
     TASK_GO_TO_CROSS,       // 直行前往十字路口
@@ -32,7 +36,7 @@ typedef enum {
     TASK_GO_TO_END,         // 转弯后直行直到终点
     TASK_WAIT_DELIVERY_CONFIRM,  // 等待送药确认
     TASK_TURN_AROUND,            // 原地调头180°
-    TASK_RETURN                  // 执行返程栈	
+    TASK_RETURN                  // 执行返程栈
 } TaskState_t;
 
 // ---------- 返程子状态 ----------
@@ -43,7 +47,7 @@ typedef enum {
 } ReturnSubState;
 
 static TaskState_t task_state = TASK_IDLE;   // 当前任务状态
-DECLARE_STATIC_STACK(ActionStack, uint8_t, 16); 
+DECLARE_STATIC_STACK(ActionStack, uint8_t, 16);
 ActionStack_t action_stack;
 
 Protothread_t task1_pt;
@@ -63,7 +67,7 @@ void Tasks_Init(void)
     PT_INIT(&task1_pt);
     PT_INIT(&task2_pt);
     PT_INIT(&SerialTask_pt);
-	PT_INIT(&oled_pt); 
+	PT_INIT(&oled_pt);
 	PT_INIT(&fsm_pt);
     ActionStack_INIT(&action_stack);
 }
@@ -105,8 +109,8 @@ void SerialTask(Protothread_t* pt)
 //        snprintf(buffer, sizeof(buffer), "Serial task has execute %d time(s)\n", ++times);
 //		snprintf(buffer, sizeof(buffer),"Y:%.1f R:%.1f", mpu->yaw, mpu->roll);
 //        HAL_UART_Transmit(&huart1, (uint8_t*)buffer, strlen(buffer), 100);
-//	printf("Target=%.2f, Meas=%.2f, Out=%.2f, Speed1=%.5f,Speed=%.5f\n", 
-//       pidMotor1Speed.setpoint, 
+//	printf("Target=%.2f, Meas=%.2f, Out=%.2f, Speed1=%.5f,Speed=%.5f\n",
+//       pidMotor1Speed.setpoint,
 //       pidMotor1Speed.measured_value,
 //       pidMotor1Speed.output,
 //	   Actual_Speed_A,
@@ -189,13 +193,76 @@ void OLED_Task(Protothread_t* pt)
 //        else if (mode == 6)   // 任务显示模式
 //        {
 //			OLED_ShowString(0, 0, (uint8_t*)"TASK4", 16, 1);
-//        }		
+//        }
         OLED_Refresh();
         PT_WAIT_TICK(pt, 20);
     }
     PT_END(pt);
 }
 
+// ============================================================
+// 解耦的辅助函数
+// ============================================================
+
+// 命令处理：解析蓝牙命令，校验状态后切换任务状态
+static void Task_HandleCommand(uint8_t cmd, bool *pushed_end) {
+    if (cmd == 0x01) {
+        if (task_state != TASK_IDLE && task_state != TASK_WAITING_AT_CROSS) {
+            LOG_WARN("Task already running, ignore 0x01");
+        } else {
+            // ActionStack_CLEAR(&action_stack);
+            ActionStack_PUSH(&action_stack, cmd);
+            LOG_INFO("Start go to cross");
+            task_state = TASK_GO_TO_CROSS;
+            ctrl_mode = CTRL_MODE_TRACKING;
+            *pushed_end = false;
+        }
+    } else if (cmd == 0x02) {
+        if (task_state != TASK_WAITING_AT_CROSS) {
+            LOG_WARN("Not at cross, ignore left turn");
+        } else {
+            ActionStack_PUSH(&action_stack, cmd);
+            LOG_INFO("Left turn then go to cross");
+            task_state = TASK_TURN_LEFT;
+        }
+    } else if (cmd == 0x03) {
+        if (task_state != TASK_WAITING_AT_CROSS) {
+            LOG_WARN("Not at cross, ignore right turn");
+        } else {
+            ActionStack_PUSH(&action_stack, cmd);
+            LOG_INFO("Right turn then go to end");
+            task_state = TASK_TURN_RIGHT;
+        }
+    } else if (cmd == 0x04) {
+        if (task_state != TASK_WAIT_DELIVERY_CONFIRM) {
+            LOG_WARN("Not at delivery point, ignore confirm");
+        } else {
+            LOG_INFO("Delivery confirmed, preparing to return");
+            task_state = TASK_TURN_AROUND;
+        }
+    }
+    LOG_INFO("current stack size: %d", ActionStack_SIZE(&action_stack));
+}
+
+// 转弯初始化：读取当前航向，计算目标角度，设定差速
+static void Task_Turn_Initiate(float delta_angle, float speed_a, float speed_b,
+                                float *target_out, MPU6050_Data_t **mpu_out) {
+    *mpu_out = MPU6050_GetHandle();
+    *target_out = (*mpu_out)->yaw + delta_angle;
+    if (*target_out > 180.0f) *target_out -= 360.0f;
+    if (*target_out < -180.0f) *target_out += 360.0f;
+    Control_SetManualSpeeds(speed_a, speed_b);
+}
+
+// 检查转弯是否到达目标角度
+static bool Task_Turn_IsDone(MPU6050_Data_t *mpu, float target) {
+    return fabsf(AngleDiff(mpu->yaw, target)) <= TURN_DEADBAND;
+}
+
+
+// ============================================================
+// 主任务状态机
+// ============================================================
 void Task_FSM(Protothread_t *pt) {
     MPU6050_Data_t *mpu = NULL;
     uint8_t cmd;
@@ -206,54 +273,20 @@ void Task_FSM(Protothread_t *pt) {
     static ReturnSubState ret_state = RET_POP_ACTION; //返程
     static uint8_t ret_action = 0;
     static bool pushed_end = false;   // 防止 TASK_GO_TO_END 重复压栈
-	
+    static uint8_t white_gray_byte_count = 0;
+
     PT_BEGIN(pt);
     while (1) {
         // ========== 处理蓝牙命令 ==========
         if (App_CmdDequeue(&cmd)) {
-            if (cmd == 0x01) {
-                if (task_state != TASK_IDLE && task_state != TASK_WAITING_AT_CROSS) {
-                    LOG_WARN("Task already running, ignore 0x01");
-                } else {
-                    ActionStack_CLEAR(&action_stack);   // 新任务清空栈
-                    ActionStack_PUSH(&action_stack, cmd);					
-                    LOG_INFO("Start go to cross");
-                    task_state = TASK_GO_TO_CROSS;
-                    ctrl_mode = CTRL_MODE_TRACKING;
-					pushed_end = false;
-                }
-            } else if (cmd == 0x02) {
-                if (task_state != TASK_WAITING_AT_CROSS) {
-                    LOG_WARN("Not at cross, ignore left turn");
-                } else {
-					ActionStack_PUSH(&action_stack, cmd);
-                    LOG_INFO("Left turn then go to cross");
-                    task_state = TASK_TURN_LEFT;
-                }
-            } else if (cmd == 0x03) {
-                if (task_state != TASK_WAITING_AT_CROSS) {
-                    LOG_WARN("Not at cross, ignore right turn");
-                } else {
-					ActionStack_PUSH(&action_stack, cmd);
-                    LOG_INFO("Right turn then go to end");
-                    task_state = TASK_TURN_RIGHT;
-                }
-            } else if (cmd == 0x04) {   // 送药完成确认
-                if (task_state != TASK_WAIT_DELIVERY_CONFIRM) {
-                    LOG_WARN("Not at delivery point, ignore confirm");
-                } else {
-                    LOG_INFO("Delivery confirmed, preparing to return");
-                    task_state = TASK_TURN_AROUND;
-                }
-            }
-			
+            Task_HandleCommand(cmd, &pushed_end);
         }
-		
+
         // ========== 执行当前任务状态==========
-		
+
         if (task_state == TASK_GO_TO_CROSS) {
 //            if (gray_byte == 0x00) {
-              if (Control_IsCrossDetected(4)) {			
+              if (Control_IsCrossDetected(4)) {
                 HAL_GPIO_WritePin(LED4_GPIO_Port, LED4_Pin, GPIO_PIN_SET);
                 PID_Node_SetSetpoint(&pidMotor1Speed, 0.0f);
                 PID_Node_SetSetpoint(&pidMotor2Speed, 0.0f);
@@ -263,7 +296,7 @@ void Task_FSM(Protothread_t *pt) {
 				isFirstExecute = false;
 //				LOG_INFO("current First? %s",(isFirstExecute) ? "true" : "false");
             }
-			// 全白且不是第一次直行 -> 去程终点			
+			// 全白且不是第一次直行 -> 去程终点
 			else if(gray_byte == 0xFF && !isFirstExecute)
 			{
                 if (!pushed_end) {
@@ -279,48 +312,37 @@ void Task_FSM(Protothread_t *pt) {
 			}
             PT_WAIT_TICK(pt, 10);
         }
-        else if (task_state == TASK_GO_TO_CROSS) {
-            // 你的直行检测代码（无去抖）
-        }
         else if (task_state == TASK_TURN_LEFT) {
             // 第一次进入时初始化目标角度
-            turn_mpu = MPU6050_GetHandle();
-            turn_target_angle = turn_mpu->yaw + 90.0f;
-            if (turn_target_angle > 180.0f) turn_target_angle -= 360.0f;
-
-            Control_SetManualSpeeds(-TURN_SPEED, TURN_SPEED);
+            Task_Turn_Initiate(90.0f, -TURN_SPEED, TURN_SPEED, &turn_target_angle, &turn_mpu);
 
             // 等待，使用静态变量
-            PT_WAIT_UNTIL(pt,
-                fabsf(AngleDiff(turn_mpu->yaw, turn_target_angle)) <= TURN_DEADBAND
-            );
+            PT_WAIT_UNTIL(pt, Task_Turn_IsDone(turn_mpu, turn_target_angle));
 
             Control_SetManualSpeeds(0.0f, 0.0f);
             ctrl_mode = CTRL_MODE_TRACKING;
+            // 先离开当前路口，防止立刻重新检测到同一个路口
+            PT_WAIT_UNTIL(pt, !Control_IsCrossDetected(4));
             task_state = TASK_GO_TO_CROSS;
         }
         else if (task_state == TASK_TURN_RIGHT) {
             // 第一次进入时初始化目标角度
-            turn_mpu = MPU6050_GetHandle();
-            turn_target_angle = turn_mpu->yaw - 90.0f;
-            if (turn_target_angle < -180.0f) turn_target_angle += 360.0f;
-
-            Control_SetManualSpeeds(TURN_SPEED, -TURN_SPEED);
+            Task_Turn_Initiate(-90.0f, TURN_SPEED, -TURN_SPEED, &turn_target_angle, &turn_mpu);
 
             // 等待，使用静态变量
-            PT_WAIT_UNTIL(pt,
-                fabsf(AngleDiff(turn_mpu->yaw, turn_target_angle)) <= TURN_DEADBAND
-            );
+            PT_WAIT_UNTIL(pt, Task_Turn_IsDone(turn_mpu, turn_target_angle));
 
             Control_SetManualSpeeds(0.0f, 0.0f);
             ctrl_mode = CTRL_MODE_TRACKING;
+            // 先离开当前路口，防止立刻重新检测到同一个路口
+            PT_WAIT_UNTIL(pt, !Control_IsCrossDetected(4));
             task_state = TASK_GO_TO_CROSS;
         }
         else if (task_state == TASK_GO_TO_END) {
 			// 直接进入等待送药确认，不再重复等待全白
 			task_state = TASK_WAIT_DELIVERY_CONFIRM;
 			LOG_INFO("Reached end, waiting for delivery confirm");
-			PT_WAIT_TICK(pt, 10);   // 可选的短暂让出			
+			PT_WAIT_TICK(pt, 10);   // 可选的短暂让出
 //            PT_WAIT_UNTIL(pt, Control_IsAtEnd());
 //            Control_SetManualSpeeds(0.0f, 0.0f);
 //            ctrl_mode = CTRL_MODE_IDLE;
@@ -336,13 +358,10 @@ void Task_FSM(Protothread_t *pt) {
         }
         else if (task_state == TASK_TURN_AROUND) {
             // 原地调头 180°
-            turn_mpu = MPU6050_GetHandle();
-            turn_target_angle = turn_mpu->yaw + 180.0f;
-            if (turn_target_angle > 180.0f) turn_target_angle -= 360.0f;
-            if (turn_target_angle < -180.0f) turn_target_angle += 360.0f;
-            Control_SetManualSpeeds(TURN_SPEED, -TURN_SPEED);
-            PT_WAIT_UNTIL(pt,
-                fabsf(AngleDiff(turn_mpu->yaw, turn_target_angle)) <= TURN_DEADBAND);
+            Task_Turn_Initiate(180.0f, TURN_SPEED, -TURN_SPEED, &turn_target_angle, &turn_mpu);
+
+            PT_WAIT_UNTIL(pt, Task_Turn_IsDone(turn_mpu, turn_target_angle));
+
             Control_SetManualSpeeds(0.0f, 0.0f);
             ctrl_mode = CTRL_MODE_TRACKING;
             task_state = TASK_RETURN;
@@ -366,78 +385,68 @@ void Task_FSM(Protothread_t *pt) {
                         ret_state = RET_EXEC_STRAIGHT;
                     } else {
                         ret_action = (ret_action == ACTION_LEFT) ? ACTION_RIGHT : ACTION_LEFT;
-						LOG_INFO("current ret_cation:%s",(ret_action == ACTION_LEFT) ? "ACTION_RIGHT" : "ACTION_LEFT");
+						LOG_INFO("current ret_cation:%s",(ret_action == ACTION_LEFT) ? "ACTION_LEFT" : "ACTION_RIGHT");
                         ret_state = RET_EXEC_TURN;
                     }
+                    LOG_INFO("POP stack size after pop: %d", ActionStack_SIZE(&action_stack));
                 }
             }
 			else if (ret_state == RET_EXEC_STRAIGHT) {
 				// 1. 先离开当前路口（避免刚转弯完误判）
 				PT_WAIT_UNTIL(pt, !Control_IsCrossDetected(4));
-
+                // uint8_t gray_byte_filiter = Control_GrayByte_Windows_Filiter(3);
+                if (gray_byte == 0x00)
+                {
+                    white_gray_byte_count++;
+                }
+                else
+                {
+                    white_gray_byte_count = 0;
+                }
+                PT_WAIT_UNTIL(pt, gray_byte == 0xFF || white_gray_byte_count >= 3 || (gray_byte & HIGH_4_BITS_MASK) == 0 || (gray_byte & LOW_4_BITS_MASK) == 0); // 等待离开路口，进入全白或全黑或任一侧全黑状态
+                white_gray_byte_count = 0; // 重置计数器
+                LOG_INFO("Stop cross or end: 0x%02X", gray_byte);
 				// 2. 再等待下一个目标
-				if (ActionStack_SIZE(&action_stack) > 0) {
-					PT_WAIT_UNTIL(pt, Control_IsCrossDetected(4));   // 中间路口
-				} else {
-					PT_WAIT_UNTIL(pt, gray_byte == 0xFF);            // 终点起点
-				}
+				// if (ActionStack_SIZE(&action_stack) > 0) {
+				// 	PT_WAIT_UNTIL(pt, Control_IsCrossDetected(4));   // 中间路口
+                //     LOG_INFO("current Stack no empty");
+				// } else {
+				// 	PT_WAIT_UNTIL(pt, gray_byte == 0xFF);            // 终点起点
+				// }
 
 				Control_SetManualSpeeds(0.0f, 0.0f);
 				ctrl_mode = CTRL_MODE_IDLE;
 				ret_state = RET_POP_ACTION;
 				PT_WAIT_TICK(pt, 10);
-			}			
-            else if (ret_state == RET_EXEC_STRAIGHT) {
-                if (ActionStack_SIZE(&action_stack) > 0) {
-                    // 中间路口：连续黑点检测
-                    PT_WAIT_UNTIL(pt, Control_IsCrossDetected(4));
-                } else {
-                    // 最后一段：回到起点全白
-                    PT_WAIT_UNTIL(pt, gray_byte == 0xFF);
-                }
-                Control_SetManualSpeeds(0.0f, 0.0f);
-                ctrl_mode = CTRL_MODE_IDLE;
-                ret_state = RET_POP_ACTION;
-                PT_WAIT_TICK(pt, 10);
-            }
+			}
             else if (ret_state == RET_EXEC_TURN) {
-                turn_mpu = MPU6050_GetHandle();
-                if (ret_action == ACTION_LEFT) {
-                    turn_target_angle = turn_mpu->yaw + 90.0f;
-                    if (turn_target_angle > 180.0f) turn_target_angle -= 360.0f;
-                    Control_SetManualSpeeds(-TURN_SPEED, TURN_SPEED);
-                } else { // ACTION_RIGHT
-                    turn_target_angle = turn_mpu->yaw - 90.0f;
-                    if (turn_target_angle < -180.0f) turn_target_angle += 360.0f;
-                    Control_SetManualSpeeds(TURN_SPEED, -TURN_SPEED);
-                }
-                PT_WAIT_UNTIL(pt,
-                    fabsf(AngleDiff(turn_mpu->yaw, turn_target_angle)) <= TURN_DEADBAND);
+                float delta = (ret_action == ACTION_LEFT) ? 90.0f : -90.0f;
+                float spd_a = (ret_action == ACTION_LEFT) ? -TURN_SPEED : TURN_SPEED;
+                float spd_b = (ret_action == ACTION_LEFT) ? TURN_SPEED : -TURN_SPEED;
+
+                Task_Turn_Initiate(delta, spd_a, spd_b, &turn_target_angle, &turn_mpu);
+
+                PT_WAIT_UNTIL(pt, Task_Turn_IsDone(turn_mpu, turn_target_angle));
+
+				LOG_WARN("current pass");
                 Control_SetManualSpeeds(0.0f, 0.0f);
                 ctrl_mode = CTRL_MODE_TRACKING;
                 ret_state = RET_EXEC_STRAIGHT;
+				/** todo 排查exec_straight状态问题·
+				*/
             }
-        }			
+        }
         else if (task_state == TASK_WAITING_AT_CROSS) {
             PT_WAIT_TICK(pt, 50);
         }
+        else if (task_state == TASK_WAIT_DELIVERY_CONFIRM) {
+            PT_WAIT_TICK(pt, 50);
+        }
         else {  // TASK_IDLE 等
+            ActionStack_CLEAR(&action_stack); // 确保空闲时栈清空，避免残留命令干扰下一轮
             PT_WAIT_TICK(pt, 50);
         }
         // 注意：每个分支内已有 PT_WAIT_*，所以尾部不再需要额外等待
     }
     PT_END(pt);
 }
-
-//void task4(Protothread_t* pt)
-//{
-//	PT_BEGIN(pt);
-//	while(1)
-//	{
-//		uint8_t mode = 0;
-//		PT_WAIT_UNTIL(pt,mode == 1);
-//		PT_WAIT_TICK(pt,20);
-//	}
-//	
-//	PT_END(pt);
-//}
