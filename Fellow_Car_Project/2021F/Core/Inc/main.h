@@ -81,6 +81,10 @@ void Error_Handler(void);
 #define key2_GPIO_Port GPIOB
 #define key1_Pin GPIO_PIN_15
 #define key1_GPIO_Port GPIOB
+#define key3_Pin GPIO_PIN_12
+#define key3_GPIO_Port GPIOD
+#define key4_Pin GPIO_PIN_14
+#define key4_GPIO_Port GPIOD
 #define RES_OLED_Pin GPIO_PIN_0
 #define RES_OLED_GPIO_Port GPIOD
 #define DC_OLED_Pin GPIO_PIN_1

@@ -99,6 +99,12 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
+  /*Configure GPIO pins : key3_Pin key4_Pin */
+  GPIO_InitStruct.Pin = key3_Pin|key4_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
   /*Configure GPIO pins : RES_OLED_Pin DC_OLED_Pin CS_OLED_Pin */
   GPIO_InitStruct.Pin = RES_OLED_Pin|DC_OLED_Pin|CS_OLED_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;

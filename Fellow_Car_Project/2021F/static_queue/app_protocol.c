@@ -12,7 +12,7 @@ static App_CmdQueue_t app_cmd_queue = {0};
 
 // ---------- 蓝牙发送函数 ----------
 static bool uart_send(const uint8_t* data, uint16_t len) {
-    return (HAL_UART_Transmit(&huart3, (uint8_t*)data, len, 100) == HAL_OK);
+    return (HAL_UART_Transmit(&huart2, (uint8_t*)data, len, 100) == HAL_OK);
 }
 
 bool App_CmdDequeue(uint8_t *cmd) 
