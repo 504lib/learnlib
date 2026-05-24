@@ -24,3 +24,4 @@ target_include_directories(finite_state_machine
 )
 
 add_subdirectory(static_stack)
+add_subdirectory(static_queue)

@@ -55,7 +55,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "c:/learnlib/public_lib/HSM/build"
+			"value" : "c:/Users/whyP762/Desktop/static_queue/build"
 		},
 		{
 			"name" : "CMAKE_CACHE_MAJOR_VERSION",
@@ -150,160 +150,12 @@
 			"properties" : 
 			[
 				{
-					"name" : "ADVANCED",
-					"value" : "1"
-				},
-				{
 					"name" : "HELPSTRING",
 					"value" : "No help, variable specified on the command line."
 				}
 			],
 			"type" : "FILEPATH",
 			"value" : "C:/dev/llvm-mingw/bin/clang++.exe"
-		},
-		{
-			"name" : "CMAKE_CXX_COMPILER_AR",
-			"properties" : 
-			[
-				{
-					"name" : "ADVANCED",
-					"value" : "1"
-				},
-				{
-					"name" : "HELPSTRING",
-					"value" : "LLVM archiver"
-				}
-			],
-			"type" : "FILEPATH",
-			"value" : "C:/dev/llvm-mingw/bin/llvm-ar.exe"
-		},
-		{
-			"name" : "CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS",
-			"properties" : 
-			[
-				{
-					"name" : "ADVANCED",
-					"value" : "1"
-				},
-				{
-					"name" : "HELPSTRING",
-					"value" : "`clang-scan-deps` dependency scanner"
-				}
-			],
-			"type" : "FILEPATH",
-			"value" : "C:/dev/llvm-mingw/bin/clang-scan-deps.exe"
-		},
-		{
-			"name" : "CMAKE_CXX_COMPILER_RANLIB",
-			"properties" : 
-			[
-				{
-					"name" : "ADVANCED",
-					"value" : "1"
-				},
-				{
-					"name" : "HELPSTRING",
-					"value" : "Generate index for LLVM archive"
-				}
-			],
-			"type" : "FILEPATH",
-			"value" : "C:/dev/llvm-mingw/bin/llvm-ranlib.exe"
-		},
-		{
-			"name" : "CMAKE_CXX_FLAGS",
-			"properties" : 
-			[
-				{
-					"name" : "ADVANCED",
-					"value" : "1"
-				},
-				{
-					"name" : "HELPSTRING",
-					"value" : "Flags used by the CXX compiler during all build types."
-				}
-			],
-			"type" : "STRING",
-			"value" : ""
-		},
-		{
-			"name" : "CMAKE_CXX_FLAGS_DEBUG",
-			"properties" : 
-			[
-				{
-					"name" : "ADVANCED",
-					"value" : "1"
-				},
-				{
-					"name" : "HELPSTRING",
-					"value" : "Flags used by the CXX compiler during DEBUG builds."
-				}
-			],
-			"type" : "STRING",
-			"value" : "-g"
-		},
-		{
-			"name" : "CMAKE_CXX_FLAGS_MINSIZEREL",
-			"properties" : 
-			[
-				{
-					"name" : "ADVANCED",
-					"value" : "1"
-				},
-				{
-					"name" : "HELPSTRING",
-					"value" : "Flags used by the CXX compiler during MINSIZEREL builds."
-				}
-			],
-			"type" : "STRING",
-			"value" : "-Os -DNDEBUG"
-		},
-		{
-			"name" : "CMAKE_CXX_FLAGS_RELEASE",
-			"properties" : 
-			[
-				{
-					"name" : "ADVANCED",
-					"value" : "1"
-				},
-				{
-					"name" : "HELPSTRING",
-					"value" : "Flags used by the CXX compiler during RELEASE builds."
-				}
-			],
-			"type" : "STRING",
-			"value" : "-O3 -DNDEBUG"
-		},
-		{
-			"name" : "CMAKE_CXX_FLAGS_RELWITHDEBINFO",
-			"properties" : 
-			[
-				{
-					"name" : "ADVANCED",
-					"value" : "1"
-				},
-				{
-					"name" : "HELPSTRING",
-					"value" : "Flags used by the CXX compiler during RELWITHDEBINFO builds."
-				}
-			],
-			"type" : "STRING",
-			"value" : "-O2 -g -DNDEBUG"
-		},
-		{
-			"name" : "CMAKE_CXX_STANDARD_LIBRARIES",
-			"properties" : 
-			[
-				{
-					"name" : "ADVANCED",
-					"value" : "1"
-				},
-				{
-					"name" : "HELPSTRING",
-					"value" : "Libraries linked by default with all C++ applications."
-				}
-			],
-			"type" : "STRING",
-			"value" : "-lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32"
 		},
 		{
 			"name" : "CMAKE_C_COMPILER",
@@ -619,7 +471,7 @@
 				}
 			],
 			"type" : "STATIC",
-			"value" : "C:/learnlib/public_lib/HSM/build/CMakeFiles/pkgRedirects"
+			"value" : "C:/Users/whyP762/Desktop/static_queue/build/CMakeFiles/pkgRedirects"
 		},
 		{
 			"name" : "CMAKE_GENERATOR",
@@ -691,7 +543,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "C:/learnlib/public_lib/HSM"
+			"value" : "C:/Users/whyP762/Desktop/static_queue"
 		},
 		{
 			"name" : "CMAKE_INSTALL_PREFIX",
@@ -703,7 +555,7 @@
 				}
 			],
 			"type" : "PATH",
-			"value" : "C:/Program Files (x86)/FSM_Core"
+			"value" : "C:/Program Files (x86)/static_queue"
 		},
 		{
 			"name" : "CMAKE_LINKER",
@@ -855,7 +707,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "2"
+			"value" : "1"
 		},
 		{
 			"name" : "CMAKE_OBJCOPY",
@@ -935,7 +787,7 @@
 				}
 			],
 			"type" : "STATIC",
-			"value" : "FSM_Core"
+			"value" : "static_queue"
 		},
 		{
 			"name" : "CMAKE_RANLIB",
@@ -1330,7 +1182,19 @@
 			"value" : "FALSE"
 		},
 		{
-			"name" : "FSM_Core_BINARY_DIR",
+			"name" : "STATIC_QUEUE_ASSERT_TRAP",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Use while(1) trap on assert failure"
+				}
+			],
+			"type" : "BOOL",
+			"value" : "OFF"
+		},
+		{
+			"name" : "static_queue_BINARY_DIR",
 			"properties" : 
 			[
 				{
@@ -1339,10 +1203,10 @@
 				}
 			],
 			"type" : "STATIC",
-			"value" : "C:/learnlib/public_lib/HSM/build"
+			"value" : "C:/Users/whyP762/Desktop/static_queue/build"
 		},
 		{
-			"name" : "FSM_Core_IS_TOP_LEVEL",
+			"name" : "static_queue_IS_TOP_LEVEL",
 			"properties" : 
 			[
 				{
@@ -1354,7 +1218,7 @@
 			"value" : "ON"
 		},
 		{
-			"name" : "FSM_Core_SOURCE_DIR",
+			"name" : "static_queue_SOURCE_DIR",
 			"properties" : 
 			[
 				{
@@ -1363,55 +1227,7 @@
 				}
 			],
 			"type" : "STATIC",
-			"value" : "C:/learnlib/public_lib/HSM"
-		},
-		{
-			"name" : "STATIC_STACK_BUILD_TESTS",
-			"properties" : 
-			[
-				{
-					"name" : "HELPSTRING",
-					"value" : "Build static_stack standalone tests"
-				}
-			],
-			"type" : "BOOL",
-			"value" : "OFF"
-		},
-		{
-			"name" : "static_stack_BINARY_DIR",
-			"properties" : 
-			[
-				{
-					"name" : "HELPSTRING",
-					"value" : "Value Computed by CMake"
-				}
-			],
-			"type" : "STATIC",
-			"value" : "C:/learnlib/public_lib/HSM/build/static_stack"
-		},
-		{
-			"name" : "static_stack_IS_TOP_LEVEL",
-			"properties" : 
-			[
-				{
-					"name" : "HELPSTRING",
-					"value" : "Value Computed by CMake"
-				}
-			],
-			"type" : "STATIC",
-			"value" : "OFF"
-		},
-		{
-			"name" : "static_stack_SOURCE_DIR",
-			"properties" : 
-			[
-				{
-					"name" : "HELPSTRING",
-					"value" : "Value Computed by CMake"
-				}
-			],
-			"type" : "STATIC",
-			"value" : "C:/learnlib/public_lib/HSM/static_stack"
+			"value" : "C:/Users/whyP762/Desktop/static_queue"
 		}
 	],
 	"kind" : "cache",

@@ -256,6 +256,15 @@ FSM_Core_SOURCE_DIR:STATIC=C:/learnlib/public_lib/HSM
 STATIC_STACK_BUILD_TESTS:BOOL=OFF
 
 //Value Computed by CMake
+static_queue_BINARY_DIR:STATIC=C:/learnlib/public_lib/HSM/build/static_queue
+
+//Value Computed by CMake
+static_queue_IS_TOP_LEVEL:STATIC=OFF
+
+//Value Computed by CMake
+static_queue_SOURCE_DIR:STATIC=C:/learnlib/public_lib/HSM/static_queue
+
+//Value Computed by CMake
 static_stack_BINARY_DIR:STATIC=C:/learnlib/public_lib/HSM/build/static_stack
 
 //Value Computed by CMake
@@ -377,7 +386,7 @@ CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_NM
 CMAKE_NM-ADVANCED:INTERNAL=1
 //number of local generators
-CMAKE_NUMBER_OF_MAKEFILES:INTERNAL=2
+CMAKE_NUMBER_OF_MAKEFILES:INTERNAL=3
 //ADVANCED property for variable: CMAKE_OBJCOPY
 CMAKE_OBJCOPY-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_OBJDUMP

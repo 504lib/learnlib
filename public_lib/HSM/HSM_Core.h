@@ -98,9 +98,9 @@ void   HSM_StartWithEvent(HSM* hsm, HSM_Node* initial_state, HSM_Event_Package e
 void   HSM_Process(HSM* hsm);
 void   HSM_SetEnable(HSM* hsm, bool is_enable);
 void   HSM_SendEvent(HSM* hsm, HSM_Event_Package event);
-bool   HSM_Transition(HSM* hsm, HSM_Node* target, HSM_Event_Package event);
-bool   HSM_RegisterChildNodes(HSM* hsm, HSM_Node_Param node[], size_t table_len);
-bool   HSM_RegisterSiblingNodes(HSM* hsm, HSM_Node_Param node[], size_t table_len);
+bool   HSM_RequestTransition(HSM* hsm, HSM_Node* target, HSM_Event_Package event);
+bool   HSM_RegisterChild(HSM* hsm, HSM_Node* parent, HSM_Node_Param child_param);
+bool   HSM_RegisterChildNodes(HSM* hsm, HSM_Node* parent, HSM_Node_Param child_params[],size_t child_count);
 
 #ifdef __cplusplus
 }

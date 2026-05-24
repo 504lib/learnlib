@@ -4,5 +4,17 @@
   "command": "C:\\dev\\llvm-mingw\\bin\\clang++.exe  @CMakeFiles/finite_state_machine.dir/includes_CXX.rsp -g -std=c++11 -o CMakeFiles\\finite_state_machine.dir\\HSM_Core.cpp.obj -c C:\\learnlib\\public_lib\\HSM\\HSM_Core.cpp",
   "file": "C:/learnlib/public_lib/HSM/HSM_Core.cpp",
   "output": "CMakeFiles/finite_state_machine.dir/HSM_Core.cpp.obj"
+},
+{
+  "directory": "C:/learnlib/public_lib/HSM/build/static_queue",
+  "command": "C:\\dev\\llvm-mingw\\bin\\clang.exe  @CMakeFiles/static_queue.dir/includes_C.rsp -g -std=c11 -o CMakeFiles\\static_queue.dir\\static_queue_demo.c.obj -c C:\\learnlib\\public_lib\\HSM\\static_queue\\static_queue_demo.c",
+  "file": "C:/learnlib/public_lib/HSM/static_queue/static_queue_demo.c",
+  "output": "static_queue/CMakeFiles/static_queue.dir/static_queue_demo.c.obj"
+},
+{
+  "directory": "C:/learnlib/public_lib/HSM/build/static_queue",
+  "command": "C:\\dev\\llvm-mingw\\bin\\clang.exe  @CMakeFiles/static_queue_demo.dir/includes_C.rsp -g -std=c11 -o CMakeFiles\\static_queue_demo.dir\\static_queue_demo.c.obj -c C:\\learnlib\\public_lib\\HSM\\static_queue\\static_queue_demo.c",
+  "file": "C:/learnlib/public_lib/HSM/static_queue/static_queue_demo.c",
+  "output": "static_queue/CMakeFiles/static_queue_demo.dir/static_queue_demo.c.obj"
 }
 ]

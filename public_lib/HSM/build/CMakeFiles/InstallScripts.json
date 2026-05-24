@@ -2,7 +2,8 @@
 	"InstallScripts" : 
 	[
 		"C:/learnlib/public_lib/HSM/build/cmake_install.cmake",
-		"C:/learnlib/public_lib/HSM/build/static_stack/cmake_install.cmake"
+		"C:/learnlib/public_lib/HSM/build/static_stack/cmake_install.cmake",
+		"C:/learnlib/public_lib/HSM/build/static_queue/cmake_install.cmake"
 	],
 	"Parallel" : false
 }

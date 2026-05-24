@@ -8,7 +8,8 @@
 					"build" : ".",
 					"childIndexes" : 
 					[
-						1
+						1,
+						2
 					],
 					"jsonFile" : "directory-.-Debug-d0094a50bb2071803777.json",
 					"minimumCMakeVersion" : 
@@ -32,6 +33,22 @@
 					"parentIndex" : 0,
 					"projectIndex" : 1,
 					"source" : "static_stack"
+				},
+				{
+					"build" : "static_queue",
+					"jsonFile" : "directory-static_queue-Debug-e77a4f46f8b89bf69b6b.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.16"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 2,
+					"source" : "static_queue",
+					"targetIndexes" : 
+					[
+						1,
+						2
+					]
 				}
 			],
 			"name" : "Debug",
@@ -40,7 +57,8 @@
 				{
 					"childIndexes" : 
 					[
-						1
+						1,
+						2
 					],
 					"directoryIndexes" : 
 					[
@@ -59,6 +77,19 @@
 					],
 					"name" : "static_stack",
 					"parentIndex" : 0
+				},
+				{
+					"directoryIndexes" : 
+					[
+						2
+					],
+					"name" : "static_queue",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						1,
+						2
+					]
 				}
 			],
 			"targets" : 
@@ -69,6 +100,20 @@
 					"jsonFile" : "target-finite_state_machine-Debug-4a3947e0a78fccd6f077.json",
 					"name" : "finite_state_machine",
 					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 2,
+					"id" : "static_queue::@224082fe5e054dfcea28",
+					"jsonFile" : "target-static_queue-Debug-b414caecd029873bac00.json",
+					"name" : "static_queue",
+					"projectIndex" : 2
+				},
+				{
+					"directoryIndex" : 2,
+					"id" : "static_queue_demo::@224082fe5e054dfcea28",
+					"jsonFile" : "target-static_queue_demo-Debug-58a15aa89c3c49d314bc.json",
+					"name" : "static_queue_demo",
+					"projectIndex" : 2
 				}
 			]
 		}

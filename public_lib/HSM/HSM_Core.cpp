@@ -1,9 +1,20 @@
 #include "HSM_Core.h"
 #include "./static_stack.h"
+#include "./static_queue.h"
 #include <cassert>
 #include <array>
 
+
+
+struct TransitQueue_package
+{
+    HSM_Node* target;
+    HSM_Event_Package event;
+};
+
 DECLARE_STATIC_STACK(DispatchStack,HSM_Node*,HSM_MAX_STACK_DEPTH)
+DECLARE_STATIC_QUEUE(TransitQueue,TransitQueue_package,HSM_MAX_STACK_DEPTH)
+
 
 class HSM_Core
 {
@@ -12,14 +23,17 @@ private:
     bool            isinitialized;                          // 状态机是否已初始化
     DispatchStack_t dispatchStack_active_state;             // 当前活动状态的栈路径
     DispatchStack_t dispatchStack_next_state;               // 下一状态的栈路径,在状态转换过程中,用于暂存下一状态的栈路径,用于寻找LCA
+    TransitQueue_t  requestTransitionQueue;                 // 状态转换请求队列,在状态转换过程中,如果有新的状态转换请求,则将请求加入队列,待当前状态转换完成后,再处理请求,用于避免状态转换过程中出现重复转换和状态不稳定的情况
     HSM_Node*       current_active_state;                   // 当前活动状态
     HSM_Node*       pending_active_state;                   // 待激活状态,在状态转换过程中,用于暂存待激活状态,用于寻找LCA,NULL表示没有待激活状态,作为互斥标志使用
     bool            isPassDefenseCheck();                   // 防御性编程检查函数,检查状态机是否已初始化,是否已启用,是否有当前活动状态等,如果检查失败,则返回false,并打印警告日志
     bool            isPassDefenseCheck(HSM_Node* node);     
     void            clearHSM_Node_Table(HSM_Node_Param node[],std::size_t table_len); //
+    bool            Transition(HSM_Node* target, HSM_Event_Package event);          // 状态转换函数,将当前活动状态切换到目标状态,执行exit/entry链
     HSM_Node*       Dispatch(HSM_Event_Package event);      // 事件分发函数,将事件分发给当前活动状态,并处理状态转换
     HSM_Node*       LCA(HSM_Node* node1, HSM_Node* node2);              // 最近公共祖先函数,用于寻找两个节点的最近公共祖先,在状态转换过程中用于寻找当前活动状态和待激活状态的最近公共祖先
     HSM_Node*       InitHSM_Node(HSM_Node_Param node_param);              // 初始化状态节点函数,用于初始化状态节点,将节点的函数指针和节点关系指针设置为传入的参数,如果初始化成功,则返回节点指针,否则返回NULL
+    void            PushAncestors(DispatchStack_t* stack, HSM_Node* node, HSM_Node* ancestor);  // 将 node 到 ancestor(不含) 的祖先路径压栈
 public:
     HSM_Core();
     ~HSM_Core();
@@ -28,15 +42,16 @@ public:
     void            Process();                                   // 持续行为函数,用于处理持续状态的持续行为,需要在主循环中持续调用
     void            isEnable(bool is_enable);                                      // 启用状态机,使能状态机后,状态机才能处理事件
     void            SendEvent(HSM_Event_Package event);                             // 发送事件函数,将事件发送给状态机,状态机会将事件分发给当前活动状态,并处理状态转换
-    bool            Transition(HSM_Node* target, HSM_Event_Package event);          // 状态转换函数,将当前活动状态切换到目标状态,执行exit/entry链
-    bool            RegisterNodeTableForchild(HSM_Node_Param node[],std::size_t table_len);    // 注册子节点(父子链),将节点表按顺序串为parent-child链
-    bool            RegisterNodeTableForSibling(HSM_Node_Param node[],std::size_t table_len);  // 注册兄弟节点(兄弟链),将节点表按顺序串为next_sibling链
+    bool            RequestTransition(HSM_Node* target, HSM_Event_Package event);          // 状态转换函数,将当前活动状态切换到目标状态,执行exit/entry链
+    bool            RegisterChild(HSM_Node* parent, HSM_Node_Param child_param);              // 注册子节点函数,将子节点注册到父节点下,建立父子关系,如果注册成功,则返回true,否则返回false
+    bool            RegisterChildNodes(HSM_Node* parent, HSM_Node_Param child_params[], std::size_t child_count);              // 批量注册子节点函数,将多个子节点注册到父节点下,建立父子关系,如果注册成功,则返回true,否则返回false
 };
 
 HSM_Core::HSM_Core()
 {
     DispatchStack_INIT(&dispatchStack_active_state);
     DispatchStack_INIT(&dispatchStack_next_state);
+    TransitQueue_INIT(&requestTransitionQueue);
     current_active_state = NULL;
     pending_active_state = NULL;
     is_enabled = false;
@@ -87,19 +102,10 @@ HSM_Node*  HSM_Core::LCA(HSM_Node* node1, HSM_Node* node2)
         LOG_WARN("LCA function received NULL node! node1: %p, node2: %p", node1, node2);
         return nullptr;
     }
-    HSM_Node* node1_ptr = node1;
-    HSM_Node* node2_ptr = node2;
-    while (node1_ptr)
-    {
-        DispatchStack_PUSH(&dispatchStack_active_state, node1_ptr);
-        node1_ptr = node1_ptr->parent;
-    }
-    while (node2_ptr)
-    {
-        DispatchStack_PUSH(&dispatchStack_next_state, node2_ptr);
-        node2_ptr = node2_ptr->parent;
-    }
+    PushAncestors(&dispatchStack_active_state, node1, nullptr);
+    PushAncestors(&dispatchStack_next_state, node2, nullptr);
     HSM_Node* lca = nullptr;
+    HSM_Node *node1_ptr, *node2_ptr;
     while (DispatchStack_POP(&dispatchStack_active_state,&node1_ptr) && DispatchStack_POP(&dispatchStack_next_state,&node2_ptr))
     {
         if (node1_ptr == node2_ptr)
@@ -119,6 +125,7 @@ HSM_Node*  HSM_Core::LCA(HSM_Node* node1, HSM_Node* node2)
 
 void HSM_Core::Start(HSM_Node* initial_state)
 {
+    DispatchStack_CLEAR(&dispatchStack_active_state);
     if (!isinitialized)
     {
         LOG_WARN("HSM_Core::Start called but HSM is not initialized!");
@@ -135,11 +142,21 @@ void HSM_Core::Start(HSM_Node* initial_state)
         return;
     }
     isEnable(true);
-    current_active_state = initial_state;
-    if (current_active_state->entry_action)
+    PushAncestors(&dispatchStack_active_state, initial_state, nullptr);
+    HSM_Node* node;
+    while (DispatchStack_POP(&dispatchStack_active_state, &node))
     {
-        current_active_state->entry_action((HSM_Event_Package){0});
+        if (node->parent)
+        {
+            node->parent->active_child = node;
+        }
+        if (node->entry_action)
+        {
+            node->entry_action((HSM_Event_Package){0});
+        }
     }
+    current_active_state = initial_state;
+    DispatchStack_CLEAR(&dispatchStack_active_state);
 }
 
 void HSM_Core::Start(HSM_Node* initial_state, HSM_Event_Package event)
@@ -160,11 +177,21 @@ void HSM_Core::Start(HSM_Node* initial_state, HSM_Event_Package event)
         return;
     }
     isEnable(true);
-    current_active_state = initial_state;
-    if (current_active_state->entry_action)
+    PushAncestors(&dispatchStack_active_state, initial_state, nullptr);
+    HSM_Node* node;
+    while (DispatchStack_POP(&dispatchStack_active_state, &node))
     {
-        current_active_state->entry_action(event);
+        if (node->parent)
+        {
+            node->parent->active_child = node;
+        }
+        if (node->entry_action)
+        {
+            node->entry_action(event);
+        }
     }
+    current_active_state = initial_state;
+    DispatchStack_CLEAR(&dispatchStack_active_state);
 }
 
 void HSM_Core::isEnable(bool is_enable)
@@ -179,10 +206,20 @@ void HSM_Core::Process()
     {
         return;
     }
+    if(!is_enabled)
+    {
+        LOG_WARN("HSM_Core::Process called but HSM is not enabled! Call HSM_SetEnable() first.");
+        return;
+    }
     if (!current_active_state)
     {
         LOG_WARN("HSM_Core::Process called but no active state! Call Start() first.");
         return;
+    }
+    TransitQueue_package package;
+    while (TransitQueue_POP(&requestTransitionQueue, &package))
+    {
+        Transition(package.target, package.event);
     }
     if (current_active_state->continuous_action)
     {
@@ -205,6 +242,15 @@ bool HSM_Core::isPassDefenseCheck(HSM_Node* node)
         return false;
     }
     return isPassDefenseCheck();
+}
+
+void HSM_Core::PushAncestors(DispatchStack_t* stack, HSM_Node* node, HSM_Node* ancestor)
+{
+    while (node && node != ancestor)
+    {
+        DispatchStack_PUSH(stack, node);
+        node = node->parent;
+    }
 }
 
 HSM_Node* HSM_Core::InitHSM_Node(HSM_Node_Param node_param)
@@ -242,6 +288,7 @@ void HSM_Core::clearHSM_Node_Table(HSM_Node_Param node[],std::size_t table_len)
         {
             continue;
         }
+        node[i].node->is_initialized = false;
         node[i].node->parent = nullptr;
         node[i].node->first_child = nullptr;
         node[i].node->next_sibling = nullptr;
@@ -250,104 +297,69 @@ void HSM_Core::clearHSM_Node_Table(HSM_Node_Param node[],std::size_t table_len)
 }
 
 
-bool HSM_Core::RegisterNodeTableForchild(HSM_Node_Param node[],const std::size_t table_len)
-{
-    if (!isPassDefenseCheck())
-    {
-        return false;
-    }
-    if (table_len == 0)
-    {
-        LOG_WARN("HSM_Core::RegisterNodeTableForchild received empty node table!");
-        return false;
-    }
-    if (table_len > HSM_MAX_STACK_DEPTH)
-    {
-        LOG_WARN("HSM_Core::RegisterNodeTableForchild received node table with length %zu, which exceeds the maximum stack depth of %d!", table_len, HSM_MAX_STACK_DEPTH);
-        return false;
-    }
-    HSM_Node* parent_node = InitHSM_Node(node[0]);
-    if (!parent_node)
-    {
-        clearHSM_Node_Table(node,1);
-        LOG_WARN("HSM_Core::RegisterNodeTableForchild failed to initialize the first node!");
-        return false;
-    }
-    for (std::size_t i = 1; i < table_len; i++)
-    {
-        HSM_Node* current_node = InitHSM_Node(node[i]);
-        if (!current_node)
-        {
-            clearHSM_Node_Table(node,i);
-            LOG_WARN("HSM_Core::RegisterNodeTableForchild failed to initialize node at index %zu!", i);
-            return false;
-        }
-        current_node->parent = parent_node;
-        if (parent_node->first_child && parent_node->first_child != current_node)
-        {
-            LOG_WARN("HSM_Core::RegisterNodeTableForchild overwriting existing first_child of node at %p!", (void*)parent_node);
-        }
-        parent_node->first_child = current_node;
-        parent_node = current_node;
-    }
-    return true;
-}
-
-
-bool HSM_Core::RegisterNodeTableForSibling(HSM_Node_Param node[],const std::size_t table_len)
-{
-    if (!isPassDefenseCheck()) return false;
-    if (table_len == 0)
-    {
-        LOG_WARN("HSM_Core::RegisterNodeTableForSibling received empty node table!");
-        return false;
-    }
-    if (table_len > HSM_MAX_STACK_DEPTH)
-    {
-        LOG_WARN("HSM_Core::RegisterNodeTableForSibling received node table with length %zu, which exceeds the maximum stack depth of %d!", table_len, HSM_MAX_STACK_DEPTH);
-        return false;
-    }
-    HSM_Node* prev_sibling = InitHSM_Node(node[0]);
-    if (!prev_sibling)
-    {
-        clearHSM_Node_Table(node, 1);
-        LOG_WARN("HSM_Core::RegisterNodeTableForSibling failed to initialize the first node!");
-        return false;
-    }
-    for (std::size_t i = 1; i < table_len; i++)
-    {
-        HSM_Node* current_node = InitHSM_Node(node[i]);
-        if (!current_node)
-        {
-            clearHSM_Node_Table(node, i);
-            LOG_WARN("HSM_Core::RegisterNodeTableForSibling failed to initialize node at index %zu!", i);
-            return false;
-        }
-        if (prev_sibling->next_sibling && prev_sibling->next_sibling != current_node)
-        {
-            LOG_WARN("HSM_Core::RegisterNodeTableForSibling overwriting existing next_sibling of node at %p!", (void*)prev_sibling);
-        }
-        prev_sibling->next_sibling = current_node;
-        prev_sibling = current_node;
-    }
-    return true;
-}
 
 
 void HSM_Core::SendEvent(HSM_Event_Package event)
 {
     if (!isPassDefenseCheck()) return;
+    if (!is_enabled)
+    {
+        LOG_WARN("HSM_Core::SendEvent called but HSM is not enabled! Call HSM_SetEnable() first.");
+        return; 
+    }
     if (!current_active_state)
     {
         LOG_WARN("HSM_Core::SendEvent called but no active state! Call Start() first.");
         return;
     }
     Dispatch(event);
+    TransitQueue_package package;
+    while (TransitQueue_POP(&requestTransitionQueue, &package))
+    {
+        Transition(package.target, package.event);
+    }
+}
+
+bool HSM_Core::RequestTransition(HSM_Node* target, HSM_Event_Package event)
+{
+    if (!isPassDefenseCheck()) return false;
+    if (!is_enabled)
+    {
+        LOG_WARN("HSM_Core::RequestTransition called but HSM is not enabled! Call HSM_SetEnable() first!");
+        return false;
+    }
+    if (!target)
+    {
+        LOG_WARN("HSM_Core::RequestTransition received NULL target!");
+        return false;
+    }
+    if (!target->is_initialized)
+    {
+        LOG_WARN("HSM_Core::RequestTransition received uninitialized target node!");
+        return false;
+    }
+    if (!current_active_state)
+    {
+        LOG_WARN("HSM_Core::RequestTransition called but no active state! Call Start() first.");
+        return false;
+    }
+    TransitQueue_package transition_request = {target, event};
+    if (!TransitQueue_PUSH(&requestTransitionQueue, transition_request))
+    {
+        LOG_WARN("HSM_Core::RequestTransition failed to push transition request to queue! Queue might be full.");
+        return false;
+    }
+    return true;
 }
 
 bool HSM_Core::Transition(HSM_Node* target, HSM_Event_Package event)
 {
     if (!isPassDefenseCheck()) return false;
+    if (!is_enabled)
+    {
+        LOG_WARN("HSM_Core::Transition called but HSM is not enabled! Call HSM_SetEnable() first!");
+        return false;
+    }
     if (!target)
     {
         LOG_WARN("HSM_Core::Transition received NULL target!");
@@ -371,7 +383,11 @@ bool HSM_Core::Transition(HSM_Node* target, HSM_Event_Package event)
         LOG_WARN("HSM_Core::Transition failed to find LCA between current and target!");
         return false;
     }
-
+    if (target->parent)
+    {
+        target->parent->active_child = target; // 更新父节点的活跃子节点指针
+    }
+    
     HSM_Node* node = current_active_state;
     while (node != lca)
     {
@@ -379,20 +395,82 @@ bool HSM_Core::Transition(HSM_Node* target, HSM_Event_Package event)
         node = node->parent;
     }
 
-    HSM_Node* n = target;
-    while (n != lca)
-    {
-        DispatchStack_PUSH(&dispatchStack_active_state, n);
-        n = n->parent;
-    }
+    PushAncestors(&dispatchStack_active_state, target, lca);
 
     HSM_Node* entry_node;
     while (DispatchStack_POP(&dispatchStack_active_state, &entry_node))
     {
+        LOG_DEBUG("HSM_Core::Transition entering node at %p", (void*)entry_node);
         if (entry_node->entry_action) entry_node->entry_action(event);
     }
 
     current_active_state = target;
+    return true;
+}
+
+bool HSM_Core::RegisterChild(HSM_Node* parent, HSM_Node_Param child_param)
+{
+    if (!isPassDefenseCheck()) return false;
+    if (is_enabled)
+    {
+        LOG_WARN("HSM_Core::RegisterChild called while HSM is enabled!");
+        return false;
+    }
+    if (!parent)
+    {
+        LOG_WARN("HSM_Core::RegisterChild received NULL parent node!");
+        return false;
+    }
+    if (!parent->is_initialized)
+    {
+        parent->is_initialized = true;
+    }
+    HSM_Node* child = InitHSM_Node(child_param);
+    if (!child)
+    {
+        LOG_WARN("HSM_Core::RegisterChild failed to initialize child node!");
+        return false;
+    }
+    child->parent = parent;
+    if (!parent->first_child)
+    {
+        parent->first_child = child;
+        parent->active_child = child; // 如果父节点没有子节点,则将新注册的子节点设置为活跃子节点
+    }
+    else
+    {
+        HSM_Node* sibling = parent->first_child;
+        while (sibling->next_sibling)
+        {
+            sibling = sibling->next_sibling;
+        }
+        sibling->next_sibling = child;
+    }
+    return true;
+}
+
+bool HSM_Core::RegisterChildNodes(HSM_Node* parent, HSM_Node_Param child_params[], std::size_t child_count)
+{
+    if (!isPassDefenseCheck()) return false;
+    if (is_enabled)
+    {
+        LOG_WARN("HSM_Core::RegisterChildNodes called while HSM is enabled! Please disable HSM before registering child nodes.");
+        return false;
+    }
+    if (!parent)
+    {
+        LOG_WARN("HSM_Core::RegisterChildNodes received NULL parent node!");
+        return false;
+    }
+    for (std::size_t i = 0; i < child_count; i++)
+    {
+        if (!RegisterChild(parent, child_params[i]))
+        {
+            LOG_WARN("HSM_Core::RegisterChildNodes failed to register child at index %zu!", i);
+            clearHSM_Node_Table(child_params, i); // 清理已注册的子节点
+            return false;
+        }
+    }
     return true;
 }
 
@@ -480,17 +558,27 @@ extern "C"
         HSM_Core* hsm_core = reinterpret_cast<HSM_Core*>(hsm);
         hsm_core->SendEvent(event);
     }
-    bool HSM_Transition(HSM* hsm, HSM_Node* target, HSM_Event_Package event)
+    bool HSM_RequestTransition(HSM* hsm, HSM_Node* target, HSM_Event_Package event)
     {
         if (!hsm)
         {
-            LOG_WARN("HSM_Transition received NULL HSM pointer!");
+            LOG_WARN("HSM_RequestTransition received NULL HSM pointer!");
             return false;
         }
         HSM_Core* hsm_core = reinterpret_cast<HSM_Core*>(hsm);
-        return hsm_core->Transition(target, event);
+        return hsm_core->RequestTransition(target, event);
     }
-    bool HSM_RegisterChildNodes(HSM* hsm, HSM_Node_Param node[], std::size_t table_len)
+    bool HSM_RegisterChild(HSM* hsm, HSM_Node* parent, HSM_Node_Param child_param)
+    {
+        if (!hsm)
+        {
+            LOG_WARN("HSM_RegisterChild received NULL HSM pointer!");
+            return false;
+        }
+        HSM_Core* hsm_core = reinterpret_cast<HSM_Core*>(hsm);
+        return hsm_core->RegisterChild(parent, child_param);
+    }
+    bool HSM_RegisterChildNodes(HSM* hsm, HSM_Node* parent, HSM_Node_Param child_params[], std::size_t child_count)
     {
         if (!hsm)
         {
@@ -498,17 +586,7 @@ extern "C"
             return false;
         }
         HSM_Core* hsm_core = reinterpret_cast<HSM_Core*>(hsm);
-        return hsm_core->RegisterNodeTableForchild(node, table_len);
-    }
-    bool HSM_RegisterSiblingNodes(HSM* hsm, HSM_Node_Param node[], std::size_t table_len)
-    {
-        if (!hsm)
-        {
-            LOG_WARN("HSM_RegisterSiblingNodes received NULL HSM pointer!");
-            return false;
-        }
-        HSM_Core* hsm_core = reinterpret_cast<HSM_Core*>(hsm);
-        return hsm_core->RegisterNodeTableForSibling(node, table_len);
+        return hsm_core->RegisterChildNodes(parent, child_params, child_count);
     }
 }
 

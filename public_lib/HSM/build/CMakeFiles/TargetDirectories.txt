@@ -3,3 +3,7 @@ C:/learnlib/public_lib/HSM/build/CMakeFiles/edit_cache.dir
 C:/learnlib/public_lib/HSM/build/CMakeFiles/rebuild_cache.dir
 C:/learnlib/public_lib/HSM/build/static_stack/CMakeFiles/edit_cache.dir
 C:/learnlib/public_lib/HSM/build/static_stack/CMakeFiles/rebuild_cache.dir
+C:/learnlib/public_lib/HSM/build/static_queue/CMakeFiles/static_queue.dir
+C:/learnlib/public_lib/HSM/build/static_queue/CMakeFiles/static_queue_demo.dir
+C:/learnlib/public_lib/HSM/build/static_queue/CMakeFiles/edit_cache.dir
+C:/learnlib/public_lib/HSM/build/static_queue/CMakeFiles/rebuild_cache.dir

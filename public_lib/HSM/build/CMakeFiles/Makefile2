@@ -64,21 +64,47 @@ CMAKE_BINARY_DIR = C:\learnlib\public_lib\HSM\build
 # The main recursive "all" target.
 all: CMakeFiles/finite_state_machine.dir/all
 all: static_stack/all
+all: static_queue/all
 .PHONY : all
 
 # The main recursive "codegen" target.
 codegen: CMakeFiles/finite_state_machine.dir/codegen
 codegen: static_stack/codegen
+codegen: static_queue/codegen
 .PHONY : codegen
 
 # The main recursive "preinstall" target.
 preinstall: static_stack/preinstall
+preinstall: static_queue/preinstall
 .PHONY : preinstall
 
 # The main recursive "clean" target.
 clean: CMakeFiles/finite_state_machine.dir/clean
 clean: static_stack/clean
+clean: static_queue/clean
 .PHONY : clean
+
+#=============================================================================
+# Directory level rules for directory static_queue
+
+# Recursive "all" directory target.
+static_queue/all: static_queue/CMakeFiles/static_queue.dir/all
+static_queue/all: static_queue/CMakeFiles/static_queue_demo.dir/all
+.PHONY : static_queue/all
+
+# Recursive "codegen" directory target.
+static_queue/codegen: static_queue/CMakeFiles/static_queue.dir/codegen
+static_queue/codegen: static_queue/CMakeFiles/static_queue_demo.dir/codegen
+.PHONY : static_queue/codegen
+
+# Recursive "preinstall" directory target.
+static_queue/preinstall:
+.PHONY : static_queue/preinstall
+
+# Recursive "clean" directory target.
+static_queue/clean: static_queue/CMakeFiles/static_queue.dir/clean
+static_queue/clean: static_queue/CMakeFiles/static_queue_demo.dir/clean
+.PHONY : static_queue/clean
 
 #=============================================================================
 # Directory level rules for directory static_stack
@@ -130,6 +156,70 @@ CMakeFiles/finite_state_machine.dir/codegen:
 CMakeFiles/finite_state_machine.dir/clean:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\finite_state_machine.dir\build.make CMakeFiles/finite_state_machine.dir/clean
 .PHONY : CMakeFiles/finite_state_machine.dir/clean
+
+#=============================================================================
+# Target rules for target static_queue/CMakeFiles/static_queue.dir
+
+# All Build rule for target.
+static_queue/CMakeFiles/static_queue.dir/all:
+	$(MAKE) $(MAKESILENT) -f static_queue\CMakeFiles\static_queue.dir\build.make static_queue/CMakeFiles/static_queue.dir/depend
+	$(MAKE) $(MAKESILENT) -f static_queue\CMakeFiles\static_queue.dir\build.make static_queue/CMakeFiles/static_queue.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=C:\learnlib\public_lib\HSM\build\CMakeFiles --progress-num=3,4 "Built target static_queue"
+.PHONY : static_queue/CMakeFiles/static_queue.dir/all
+
+# Build rule for subdir invocation for target.
+static_queue/CMakeFiles/static_queue.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start C:\learnlib\public_lib\HSM\build\CMakeFiles 2
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\Makefile2 static_queue/CMakeFiles/static_queue.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start C:\learnlib\public_lib\HSM\build\CMakeFiles 0
+.PHONY : static_queue/CMakeFiles/static_queue.dir/rule
+
+# Convenience name for target.
+static_queue: static_queue/CMakeFiles/static_queue.dir/rule
+.PHONY : static_queue
+
+# codegen rule for target.
+static_queue/CMakeFiles/static_queue.dir/codegen:
+	$(MAKE) $(MAKESILENT) -f static_queue\CMakeFiles\static_queue.dir\build.make static_queue/CMakeFiles/static_queue.dir/codegen
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=C:\learnlib\public_lib\HSM\build\CMakeFiles --progress-num=3,4 "Finished codegen for target static_queue"
+.PHONY : static_queue/CMakeFiles/static_queue.dir/codegen
+
+# clean rule for target.
+static_queue/CMakeFiles/static_queue.dir/clean:
+	$(MAKE) $(MAKESILENT) -f static_queue\CMakeFiles\static_queue.dir\build.make static_queue/CMakeFiles/static_queue.dir/clean
+.PHONY : static_queue/CMakeFiles/static_queue.dir/clean
+
+#=============================================================================
+# Target rules for target static_queue/CMakeFiles/static_queue_demo.dir
+
+# All Build rule for target.
+static_queue/CMakeFiles/static_queue_demo.dir/all: static_queue/CMakeFiles/static_queue.dir/all
+	$(MAKE) $(MAKESILENT) -f static_queue\CMakeFiles\static_queue_demo.dir\build.make static_queue/CMakeFiles/static_queue_demo.dir/depend
+	$(MAKE) $(MAKESILENT) -f static_queue\CMakeFiles\static_queue_demo.dir\build.make static_queue/CMakeFiles/static_queue_demo.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=C:\learnlib\public_lib\HSM\build\CMakeFiles --progress-num=5,6 "Built target static_queue_demo"
+.PHONY : static_queue/CMakeFiles/static_queue_demo.dir/all
+
+# Build rule for subdir invocation for target.
+static_queue/CMakeFiles/static_queue_demo.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start C:\learnlib\public_lib\HSM\build\CMakeFiles 4
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\Makefile2 static_queue/CMakeFiles/static_queue_demo.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start C:\learnlib\public_lib\HSM\build\CMakeFiles 0
+.PHONY : static_queue/CMakeFiles/static_queue_demo.dir/rule
+
+# Convenience name for target.
+static_queue_demo: static_queue/CMakeFiles/static_queue_demo.dir/rule
+.PHONY : static_queue_demo
+
+# codegen rule for target.
+static_queue/CMakeFiles/static_queue_demo.dir/codegen:
+	$(MAKE) $(MAKESILENT) -f static_queue\CMakeFiles\static_queue_demo.dir\build.make static_queue/CMakeFiles/static_queue_demo.dir/codegen
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=C:\learnlib\public_lib\HSM\build\CMakeFiles --progress-num=5,6 "Finished codegen for target static_queue_demo"
+.PHONY : static_queue/CMakeFiles/static_queue_demo.dir/codegen
+
+# clean rule for target.
+static_queue/CMakeFiles/static_queue_demo.dir/clean:
+	$(MAKE) $(MAKESILENT) -f static_queue\CMakeFiles\static_queue_demo.dir\build.make static_queue/CMakeFiles/static_queue_demo.dir/clean
+.PHONY : static_queue/CMakeFiles/static_queue_demo.dir/clean
 
 #=============================================================================
 # Special targets to cleanup operation of make.

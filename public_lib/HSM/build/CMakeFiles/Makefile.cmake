@@ -48,6 +48,7 @@ set(CMAKE_MAKEFILE_DEPENDS
   "CMakeFiles/4.0.1/CMakeCXXCompiler.cmake"
   "CMakeFiles/4.0.1/CMakeRCCompiler.cmake"
   "CMakeFiles/4.0.1/CMakeSystem.cmake"
+  "C:/learnlib/public_lib/HSM/static_queue/CMakeLists.txt"
   "C:/learnlib/public_lib/HSM/static_stack/CMakeLists.txt"
   )
 
@@ -61,9 +62,12 @@ set(CMAKE_MAKEFILE_OUTPUTS
 set(CMAKE_MAKEFILE_PRODUCTS
   "CMakeFiles/CMakeDirectoryInformation.cmake"
   "static_stack/CMakeFiles/CMakeDirectoryInformation.cmake"
+  "static_queue/CMakeFiles/CMakeDirectoryInformation.cmake"
   )
 
 # Dependency information for all targets:
 set(CMAKE_DEPEND_INFO_FILES
   "CMakeFiles/finite_state_machine.dir/DependInfo.cmake"
+  "static_queue/CMakeFiles/static_queue.dir/DependInfo.cmake"
+  "static_queue/CMakeFiles/static_queue_demo.dir/DependInfo.cmake"
   )

@@ -128,6 +128,32 @@ finite_state_machine/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\finite_state_machine.dir\build.make CMakeFiles/finite_state_machine.dir/build
 .PHONY : finite_state_machine/fast
 
+#=============================================================================
+# Target rules for targets named static_queue
+
+# Build rule for target.
+static_queue: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\Makefile2 static_queue
+.PHONY : static_queue
+
+# fast build rule for target.
+static_queue/fast:
+	$(MAKE) $(MAKESILENT) -f static_queue\CMakeFiles\static_queue.dir\build.make static_queue/CMakeFiles/static_queue.dir/build
+.PHONY : static_queue/fast
+
+#=============================================================================
+# Target rules for targets named static_queue_demo
+
+# Build rule for target.
+static_queue_demo: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\Makefile2 static_queue_demo
+.PHONY : static_queue_demo
+
+# fast build rule for target.
+static_queue_demo/fast:
+	$(MAKE) $(MAKESILENT) -f static_queue\CMakeFiles\static_queue_demo.dir\build.make static_queue/CMakeFiles/static_queue_demo.dir/build
+.PHONY : static_queue_demo/fast
+
 HSM_Core.obj: HSM_Core.cpp.obj
 .PHONY : HSM_Core.obj
 
@@ -161,6 +187,8 @@ help:
 	@echo ... edit_cache
 	@echo ... rebuild_cache
 	@echo ... finite_state_machine
+	@echo ... static_queue
+	@echo ... static_queue_demo
 	@echo ... HSM_Core.obj
 	@echo ... HSM_Core.i
 	@echo ... HSM_Core.s
