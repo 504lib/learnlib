@@ -67,9 +67,9 @@ MotorAT4950 motor2;
 
 /* USER CODE BEGIN PV */
 MPU6050_Data_t* mpu = NULL;   // 全局指针，用于整个文件访问
-volatile uint8_t uart1_rx_byte; // 用于中断接收的临时变量
-volatile uint8_t uart3_rx_buffer[5] = {0};
-static uint32_t rx_count = 0;  // 添加接收计数器
+volatile uint8_t uart2_rx_byte; // USART2 协议层中断接收（摄像头）
+volatile uint8_t uart3_rx_byte; // USART3 协议层中断接收（蓝牙）
+static uint32_t rx_count = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -132,6 +132,7 @@ int main(void)
   MX_TIM4_Init();
   MX_USART1_UART_Init();
   MX_USART3_UART_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
   OLED_Init();
   OLED_Clear();
@@ -160,8 +161,9 @@ int main(void)
 //  FSM_App_Init();   //状态机初始化
 //  SM_StartTask(TASK_4);
   mpu = MPU6050_GetHandle();   // 获取句柄
-  App_Protocol_Init();   // 初始化协议
-  HAL_UART_Receive_IT(&huart3, &uart1_rx_byte, 1);  // 启动 USART3 中断接收
+  App_Protocol_Init();   // 初始化协议（摄像头和蓝牙共用同一协议实例）
+  HAL_UART_Receive_IT(&huart2, &uart2_rx_byte, 1);  // 启动 USART2（摄像头）中断接收
+  HAL_UART_Receive_IT(&huart3, &uart3_rx_byte, 1);  // 启动 USART3（蓝牙）中断接收
   HAL_TIM_Base_Start_IT(&htim4);  
   /* USER CODE END 2 */
 
@@ -289,14 +291,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-    if (huart->Instance == USART3)   // 确认是蓝牙串口
+    if (huart->Instance == USART2)   // 摄像头串口，走协议层
     {
         rx_count++;
-        // LOG_INFO("Received #%lu char: 0x%02X", rx_count, uart1_rx_byte);
-        // printf("Received char: %*s\n", 5, uart3_rx_buffer); // 调试输出
-        Uart_Protocol_ProcessReceivedData8bit(App_GetProtocolInstance(), uart1_rx_byte);
-        // 重新启动中断接收，准备接收下一个字节
-        HAL_UART_Receive_IT(&huart3, &uart1_rx_byte, 1);
+        Uart_Protocol_ProcessReceivedData8bit(App_GetProtocolInstance(), uart2_rx_byte);
+        HAL_UART_Receive_IT(&huart2, &uart2_rx_byte, 1);
+    }
+    else if (huart->Instance == USART3)   // 蓝牙串口，共用同一协议层
+    {
+        Uart_Protocol_ProcessReceivedData8bit(App_GetProtocolInstance(), uart3_rx_byte);
+        HAL_UART_Receive_IT(&huart3, &uart3_rx_byte, 1);
     }
 }
 /* USER CODE END 4 */
