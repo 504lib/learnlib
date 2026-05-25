@@ -1,0 +1,19 @@
+id: detector_271664
+name: 傻逼赵锴
+name[zh]: 检测器 271664
+version: 1.1.13
+author: MaixHub@Sipeed Ltd
+icon: app.png
+desc: 更新了已知问题
+exclude:
+  - __pycache__
+  - build
+  - dist
+  - .gitignore
+files:
+  - app.yaml
+  - main.py
+  - model_271664.cvimodel
+  - model_271664.mud
+  - protocol.py
+  - report.json
