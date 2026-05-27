@@ -1,0 +1,2 @@
+C:\dev\llvm-mingw\bin\llvm-ar.exe qc libstatic_queue.a CMakeFiles/static_queue.dir/static_queue_demo.c.obj
+C:\dev\llvm-mingw\bin\llvm-ranlib.exe libstatic_queue.a
