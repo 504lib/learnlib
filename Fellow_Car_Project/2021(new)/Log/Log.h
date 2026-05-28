@@ -9,7 +9,7 @@
 
 // 先定义默认级别，再检查是否已定义
 #ifndef CURRENT_LOG_LEVEL  
-    #define CURRENT_LOG_LEVEL 4
+    #define CURRENT_LOG_LEVEL 3
 #endif
  
 

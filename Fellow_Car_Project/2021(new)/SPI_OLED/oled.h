@@ -6,7 +6,7 @@
 #include "spi.h"
 #include <stdio.h>
 
-//-----------------OLED¶Ë¿Ú¶¨Òå---------------- 
+//-----------------OLEDç«¯å£å®šä¹‰---------------- 
 
 //#define OLED_SCL_Clr() HAL_GPIO_WritePin(SCL_OLED_GPIO_Port,SCL_OLED_Pin, GPIO_PIN_RESET)//SCL
 //#define OLED_SCL_Set() HAL_GPIO_WritePin(SCL_OLED_GPIO_Port,SCL_OLED_Pin, GPIO_PIN_SET)
@@ -24,8 +24,8 @@
 #define OLED_CS_Set()  HAL_GPIO_WritePin(CS_OLED_GPIO_Port,CS_OLED_Pin, GPIO_PIN_SET)
 
 
-#define OLED_CMD  0	//Ğ´ÃüÁî
-#define OLED_DATA 1	//Ğ´Êı¾İ
+#define OLED_CMD  0	//å†™å‘½ä»¤
+#define OLED_DATA 1	//å†™æ•°æ®
 
 typedef unsigned char u8;
 typedef unsigned int u16;

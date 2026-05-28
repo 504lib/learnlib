@@ -22,21 +22,21 @@ static App_CmdQueue_t     app_cmd_queue     = {0};
 // 和 HAL_UART_Receive_IT（中断）共用同一个 huart2 句柄会冲突。
 // 发送期间短暂关闭中断，发完后重启 RX IT 接收。
 static bool uart_send_cam(const uint8_t* data, uint16_t len) {
-    HAL_NVIC_DisableIRQ(USART2_IRQn);
+    // HAL_NVIC_DisableIRQ(USART2_IRQn);
     HAL_StatusTypeDef status = HAL_UART_Transmit(&huart2, (uint8_t*)data, len, 100);
     // 发送期间 RX 中断被屏蔽，可能有字节残留在硬件 buffer 中
     // AbortReceive 清掉旧的 BUSY_RX 状态，重新干净注册接收
-    HAL_UART_AbortReceive(&huart2);
-    HAL_UART_Receive_IT(&huart2, (uint8_t*)&uart2_rx_byte, 1);
-    HAL_NVIC_EnableIRQ(USART2_IRQn);
+    // HAL_UART_AbortReceive(&huart2);
+    // HAL_UART_Receive_IT(&huart2, (uint8_t*)&uart2_rx_byte, 1);
+    // HAL_NVIC_EnableIRQ(USART2_IRQn);
     return (status == HAL_OK);
 }
 
 static bool uart_send_bt(const uint8_t* data, uint16_t len) {
-    HAL_NVIC_DisableIRQ(USART3_IRQn);
+    // HAL_NVIC_DisableIRQ(USART3_IRQn);
     HAL_StatusTypeDef status = HAL_UART_Transmit(&huart3, (uint8_t*)data, len, 100);
-    HAL_UART_Receive_IT(&huart3, (uint8_t*)&uart3_rx_byte, 1);
-    HAL_NVIC_EnableIRQ(USART3_IRQn);
+    // HAL_UART_Receive_IT(&huart3, (uint8_t*)&uart3_rx_byte, 1);
+    // HAL_NVIC_EnableIRQ(USART3_IRQn);
     return (status == HAL_OK);
 }
 

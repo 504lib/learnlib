@@ -3,6 +3,8 @@
 #include "oled.h"
 #include "app_protocol.h"
 #include "usart.h"
+#include "HSM_Core.h"
+#include "app_fsm.h"
 
 #define CMD_DELIVERY_CONFIRM  0x04
 
@@ -42,7 +44,10 @@ static uint8_t Key2_ReadPin(MulitKey_t* key)
 
 static void Key2_OnPressed(MulitKey_t* key)
 {
-    key2_start_flag = true;
+//    key2_start_flag = true;
+	// Uart_Protocol_Transmit_Frame(App_GetProtocolInstance_Cam(), NULL, CMD_KEY_TRIGGER, 0);
+    App_SendCamFrame(CMD_KEY_TRIGGER, NULL, 0);
+    HSM_SendEvent(App_FSM_GetHandle(),(HSM_Event_Package){.HSM_Event_ID = EV_KEY2_TRIGGER});
     HAL_GPIO_TogglePin(LED4_GPIO_Port, LED4_Pin);
 }
 
