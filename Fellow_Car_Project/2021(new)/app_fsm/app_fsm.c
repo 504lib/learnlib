@@ -18,6 +18,7 @@
 #define CMD_CROSS_ARRIVED 0x30
 #define HIGH_4_BITS_MASK  0xF0
 #define LOW_4_BITS_MASK   0x0F
+#define NOT_CENTER_MASK		  0xE7
 
 // ============================================================
 // 动作栈
@@ -40,6 +41,7 @@ static HSM_Node*  g_node_go_cross;
 static HSM_Node*  g_node_at_cross;
 static HSM_Node*  g_node_wait_turn_cmd;
 static HSM_Node*  g_node_turn_left;
+//static HSM_Node*  g_node_turn_wait_done;
 static HSM_Node*  g_node_turn_right;
 static HSM_Node*  g_node_go_end;
 static HSM_Node*  g_node_wait_confirm;
@@ -76,7 +78,34 @@ static void turn_initiate(float delta_angle, float speed_a, float speed_b)
 
 static bool turn_angle_done(void)
 {
-    return fabsf(AngleDiff(turn_mpu->yaw, turn_target)) <= TURN_DEADBAND;
+	if((((gray_byte & (1 << 3)) == 0 || (gray_byte & (1 << 4))) == 0 ) && !(gray_byte & NOT_CENTER_MASK))
+	{
+		LOG_INFO("current graybyte:0x%2x",gray_byte);
+		return true;
+	}
+	return fabsf(AngleDiff(turn_mpu->yaw, turn_target)) <= TURN_DEADBAND ;
+}
+
+static bool turn_around_done(void)
+{
+	static bool isTurn_complete = false;
+	if(fabsf(AngleDiff(turn_mpu->yaw, turn_target)) <= TURN_DEADBAND && !isTurn_complete)
+	{
+		LOG_INFO("angle PID complete");
+		isTurn_complete = true;
+	}
+	if(isTurn_complete && (((gray_byte & (1 << 3)) == 0 || (gray_byte & (1 << 4)) == 0 )))
+	{
+		LOG_INFO("gray detect complete");
+		isTurn_complete = false;
+		return true;
+	}
+	else if(isTurn_complete)
+	{
+		LOG_INFO("current gray:0x%2x",gray_byte);
+	}
+	return false ;
+//	return (((gray_byte & (1 << 3)) == 0 || (gray_byte & (1 << 4))) == 0 );
 }
 
 static const char* event_name(uint8_t id)
@@ -89,6 +118,7 @@ static const char* event_name(uint8_t id)
         case EV_TURN_DONE:        return "EV_TURN_DONE";
         case EV_BT_GO:            return "EV_BT_GO";
         case EV_RESET:            return "EV_RESET";
+		case EV_KEY2_TRIGGER:     return "EV_KEY2_TRIGGER";
         default:                  return "UNKNOWN";
     }
 }
@@ -175,8 +205,14 @@ static void exit_Mission(HSM_Event_Package e)
 // ============================================================
 static bool handler_Outbound(HSM_Event_Package e)
 {
-    // EV_RESET 不在这里处理，让它冒泡到 Mission
-    LOG_INFO("[FSM] Handler Outbound: %s(0x%02X) → bubble up", event_name(e.HSM_Event_ID), e.HSM_Event_ID);
+    LOG_INFO("[FSM] Handler Outbound: %s(0x%02X) ", event_name(e.HSM_Event_ID), e.HSM_Event_ID);
+	if (e.HSM_Event_ID == EV_CAM_START) {
+        ActionStack_PUSH(&g_action_stack, ACTION_STRAIGHT);
+        g_pushed_end = false;
+        LOG_INFO("[FSM] Idle → WaitKey2 (CAM start)");
+        HSM_RequestTransition(g_app_hsm, g_node_wait_key2, e);
+        return true;
+    }
     return false;
 }
 
@@ -185,15 +221,28 @@ static bool handler_Outbound(HSM_Event_Package e)
 // ============================================================
 static void continuous_WaitKey2(void)
 {
-    if (KeyControl_IsStartTriggered()) {
-        KeyControl_ClearStartTrigger();
-        ctrl_mode = CTRL_MODE_TRACKING;
-        App_SendCamFrame(CMD_KEY_TRIGGER, NULL, 0);
-        LOG_INFO("[FSM] WaitKey2 key2 pressed → GoToCross");
+//    if (KeyControl_IsStartTriggered()) {
+//        KeyControl_ClearStartTrigger();
+//        ctrl_mode = CTRL_MODE_TRACKING;
+//        App_SendCamFrame(CMD_KEY_TRIGGER, NULL, 0);
+//        LOG_INFO("[FSM] WaitKey2 . pressed → GoToCross");
+//        HSM_RequestTransition(g_app_hsm, g_node_go_cross,
+//            (HSM_Event_Package){.HSM_Event_ID = 0});
+//    }
+}
+
+static bool handler_WaitKey2(HSM_Event_Package e)
+{
+	if(e.HSM_Event_ID == EV_KEY2_TRIGGER)
+	{
+		LOG_INFO("Receive KEY2 Signal");
         HSM_RequestTransition(g_app_hsm, g_node_go_cross,
             (HSM_Event_Package){.HSM_Event_ID = 0});
-    }
+		return true;
+	}
+	return false;
 }
+
 
 static void entry_WaitKey2(HSM_Event_Package e)
 {
@@ -215,6 +264,7 @@ static void continuous_GoToCross(void)
 {
     // 检测十字路口
     if (Control_IsCrossDetected(4)) {
+//		Grayscale_SetWeight();
         HAL_GPIO_WritePin(LED4_GPIO_Port, LED4_Pin, GPIO_PIN_SET);
         PID_Node_SetSetpoint(&pidMotor1Speed, 0.0f);
         PID_Node_SetSetpoint(&pidMotor2Speed, 0.0f);
@@ -270,8 +320,8 @@ static bool handler_WaitTurnCmd(HSM_Event_Package e)
     if (e.HSM_Event_ID == EV_CAM_START) {
         ActionStack_PUSH(&g_action_stack, ACTION_STRAIGHT);
         g_pushed_end = false;
-        LOG_INFO("[FSM] WaitTurnCmd CAM restart → WaitKey2");
-        HSM_RequestTransition(g_app_hsm, g_node_wait_key2, e);
+        LOG_INFO("[FSM] WaitTurnCmd → GoToCross (straight through)");
+        HSM_RequestTransition(g_app_hsm, g_node_go_cross, e);
         return true;
     }
     if (e.HSM_Event_ID == EV_BT_GO) {
@@ -297,8 +347,8 @@ static void entry_WaitTurnCmd(HSM_Event_Package e)
 static void entry_TurnLeft(HSM_Event_Package e)
 {
     (void)e;
-    LOG_INFO("[FSM] Enter TurnLeft — initiate +90° turn");
-    turn_initiate(90.0f, -TURN_SPEED, TURN_SPEED);
+    LOG_INFO("[FSM] Enter TurnLeft — initiate +80° turn");
+    turn_initiate(80.0f, -TURN_SPEED, TURN_SPEED);
 }
 
 static void exit_TurnLeft(HSM_Event_Package e)
@@ -333,8 +383,8 @@ static void continuous_TurnLeft(void)
 static void entry_TurnRight(HSM_Event_Package e)
 {
     (void)e;
-    LOG_INFO("[FSM] Enter TurnRight — initiate -90° turn");
-    turn_initiate(-90.0f, TURN_SPEED, -TURN_SPEED);
+    LOG_INFO("[FSM] Enter TurnRight — initiate -80° turn");
+    turn_initiate(-80.0f, TURN_SPEED, -TURN_SPEED);
 }
 
 static void exit_TurnRight(HSM_Event_Package e)
@@ -411,8 +461,8 @@ static bool handler_ReturnLeg(HSM_Event_Package e)
 static void entry_TurnAround(HSM_Event_Package e)
 {
     (void)e;
-    LOG_INFO("[FSM] Enter TurnAround — initiate 180° turn");
-    turn_initiate(180.0f, TURN_SPEED, -TURN_SPEED);
+    LOG_INFO("[FSM] Enter TurnAround — initiate 174° turn");
+    turn_initiate(174.0f, TURN_SPEED, -TURN_SPEED);
 }
 
 static void exit_TurnAround(HSM_Event_Package e)
@@ -425,7 +475,7 @@ static void exit_TurnAround(HSM_Event_Package e)
 
 static void continuous_TurnAround(void)
 {
-    if (turn_angle_done()) {
+    if (turn_around_done()) {
         LOG_INFO("[FSM] TurnAround done → PopAction (start retrace)");
         HSM_RequestTransition(g_app_hsm, g_node_pop_action,
             (HSM_Event_Package){.HSM_Event_ID = EV_TURN_DONE});
@@ -514,7 +564,7 @@ static void continuous_ExecStraight(void)
 static void entry_ExecTurn(HSM_Event_Package e)
 {
     (void)e;
-    float delta = (g_ret_action == ACTION_LEFT) ? 90.0f : -90.0f;
+    float delta = (g_ret_action == ACTION_LEFT) ? 80.0f : -80.0f;
     float spd_a = (g_ret_action == ACTION_LEFT) ? -TURN_SPEED : TURN_SPEED;
     float spd_b = (g_ret_action == ACTION_LEFT) ? TURN_SPEED : -TURN_SPEED;
 
@@ -601,7 +651,7 @@ static bool build_state_tree(void)
     // ---- Outbound 的子节点: WaitKey2, GoToCross, AtCross, GoToEnd, WaitConfirm ----
     {
         HSM_Node_Param children[] = {
-            { g_node_wait_key2,    NULL,                      entry_WaitKey2,    NULL, continuous_WaitKey2 },
+            { g_node_wait_key2,    handler_WaitKey2,          entry_WaitKey2,    NULL, continuous_WaitKey2 },
             { g_node_go_cross,     NULL,                      entry_GoToCross,   NULL, continuous_GoToCross },
             { g_node_at_cross,     NULL,                      NULL,              NULL, NULL },
             { g_node_go_end,       NULL,                      entry_GoToEnd,     NULL, NULL },
@@ -739,4 +789,9 @@ bool App_FSM_IsRunning(void)
     // 简单判断：不在 Idle 就是在执行任务
     // 注意：这里无法直接获取 HSM 当前状态，通过 control mode 间接判断
     return (ctrl_mode != CTRL_MODE_IDLE);
+}
+
+HSM* App_FSM_GetHandle(void)
+{
+    return g_app_hsm;
 }

@@ -15,6 +15,7 @@ enum App_EventID {
     EV_DELIVERY_CONFIRM = 0x04,   // 送药确认
     EV_TURN_DONE        = 0x10,   // 转弯/调头角度到位 (内部事件)
     EV_BT_GO            = 0x11,   // 蓝牙: 直接出发 → 去 GoToCross
+	EV_KEY2_TRIGGER     = 0x12,   // 按键触发
     EV_RESET            = 0xFF,   // 系统复位
 };
 
@@ -31,5 +32,6 @@ enum App_EventID {
 void App_FSM_Init(void);
 void App_FSM_Run(void);
 bool App_FSM_IsRunning(void);
+HSM* App_FSM_GetHandle(void);
 
 #endif

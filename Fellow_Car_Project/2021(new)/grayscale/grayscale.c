@@ -2,19 +2,20 @@
 #include "main.h"
 #include "PID_Node.h"
 
+static float symmetric_weights[GRAY_BITS] = {
+	-0.0f,  // λ0
+	-2.0f,  // λ1
+	-1.5f,  // λ2
+	-0.5f,  // λ3
+	 0.5f,  // λ4
+	 1.5f,  // λ5 
+	 2.0f,  // λ6
+	 0.0f   // λ7
+};
 
 float CalculateGrayError_Advanced(uint8_t gray_byte)
 {
-    static const float symmetric_weights[GRAY_BITS] = {
-        -3.5f,  // λ0
-        -2.5f,  // λ1
-        -1.5f,  // λ2
-        -0.5f,  // λ3
-         0.5f,  // λ4
-         1.5f,  // λ5 
-         2.5f,  // λ6
-         3.5f   // λ7
-    };
+
     
     // 1. ����ԳƼ�Ȩ��
     float symmetric_sum = 0.0f;
@@ -41,4 +42,9 @@ float CalculateGrayError_Advanced(uint8_t gray_byte)
     // const float k = 3.0f;  // ������ϵ��
     // float error = 2.0f * atanf(k * normalized) / 3.14159265f;
     return normalized;
+}
+
+void Grayscale_SetWeight(float bit_weight_value,uint8_t bit_loaction)
+{
+	symmetric_weights[bit_loaction] = bit_weight_value;
 }

@@ -17,6 +17,8 @@ CMD_KEY2_LONG     = 0x10
 CMD_RESET         = 0x20
 CMD_CROSS_ARRIVED = 0x30
 
+
+
 TARGET_NUMBER = None
 CURRENT_NUMBER = 0
 
@@ -28,8 +30,6 @@ class CamState:
     WAIT_KEY2     = 160
     SEARCH        = 200
     DETECT        = 300
-    SEND          = 400
-    WAIT_CROSS    = 450
     END           = 1000
 
 current_state = CamState.START
@@ -38,7 +38,7 @@ last_detector_time = 0
 objs = None
 CONFIRM_THRESHOLD = 5
 target_confirm_count = 0
-pending_cmd = None
+pending_direction = None
 cross_arrived_flag = False
 key2_triggered = False
 
@@ -62,6 +62,8 @@ def uart_send(raw_data: bytes) -> bool:
 
 # --- 协议接收回调 ---
 def on_frame_received(frame_type: int, payload: bytes, length: int):
+    global current_state, target_obj, last_detector_time, objs
+    global TARGET_NUMBER, CURRENT_NUMBER, target_confirm_count
     """UartProtocol 收到完整帧时回调"""
     print(f"[RX] frame type=0x{frame_type:02X}, len={length}")
     if frame_type == CMD_KEY2_LONG:
@@ -69,6 +71,12 @@ def on_frame_received(frame_type: int, payload: bytes, length: int):
         key2_triggered = True
         print(f"[RX] 收到 key2 触发信号")
     elif frame_type == CMD_RESET:
+        current_state = CamState.RECORD
+        target_obj = None
+        objs = None
+        TARGET_NUMBER = None
+        CURRENT_NUMBER = None
+        target_confirm_count = 0
         print(f"[RX] 收到复位信号")
     elif frame_type == CMD_CROSS_ARRIVED:
         global cross_arrived_flag
@@ -132,7 +140,7 @@ def check_digit_position(obj, img_width):
 def main():
     global current_state, target_obj, last_detector_time, objs
     global TARGET_NUMBER, CURRENT_NUMBER, target_confirm_count
-    global pending_cmd, cross_arrived_flag, key2_triggered
+    global pending_direction, cross_arrived_flag, key2_triggered
     global uart_dev, proto
 
     while not app.need_exit():
@@ -162,7 +170,7 @@ def main():
         img_copy = img.copy()
         draw_half_screen_lines(img_copy)
 
-        need_detect = current_state in (CamState.RECORD, CamState.SEARCH, CamState.DETECT, CamState.SEND, CamState.WAIT_CROSS)
+        need_detect = current_state in (CamState.RECORD, CamState.SEARCH, CamState.DETECT,CamState.WAIT_KEY2)
         if need_detect and (time.time() - last_detector_time > 0.2):
             objs = detector.detect(img_copy, conf_th=0.7, iou_th=0.45)
             last_detector_time = time.time()
@@ -176,7 +184,7 @@ def main():
             CamState.START: "START", CamState.RECORD: "RECORD",
             CamState.SEND_STRAIGHT: "SEND_STRAIGHT", CamState.WAIT_KEY2: "WAIT_KEY2",
             CamState.SEARCH: "SEARCH", CamState.DETECT: "DETECT",
-            CamState.SEND: "SEND", CamState.WAIT_CROSS: "WAIT_CROSS", CamState.END: "END"
+            CamState.END: "END"
         }
         img_copy.draw_string(5, 5, f"State:{state_names.get(current_state, '?')}", color=image.COLOR_BLUE, scale=1)
         img_copy.draw_string(5, 20, f"Target:{TARGET_NUMBER}", color=image.COLOR_RED, scale=1)
@@ -216,15 +224,32 @@ def main():
 
         elif current_state == CamState.WAIT_KEY2:
             img_copy.draw_string(5, 55, "Waiting for key2...", color=image.COLOR_YELLOW, scale=1)
+            objs = None
             if key2_triggered:
                 print("[STATE:WAIT_KEY2] key2 已按下，开始循迹搜索")
                 key2_triggered = False
                 current_state = CamState.SEARCH
                 objs = None
+                pending_direction = None
                 continue
 
         elif current_state == CamState.SEARCH:
             img_copy.draw_string(5, 55, "Going straight, searching...", color=image.COLOR_YELLOW, scale=1)
+            if cross_arrived_flag:
+                cross_arrived_flag = False
+                if pending_direction is not None:
+                    send_command_to_mcu(pending_direction)
+                    direction = "左" if pending_direction == CMD_LEFT else "右"
+                    print(f"[STATE:SEARCH] 收到路口信号，发送{direction}转指令")
+                    img_copy.draw_string(5, 55, f"Going {direction}, searching...", color=image.COLOR_YELLOW, scale=1)
+                    pending_direction = None
+                else:
+                    send_command_to_mcu(CMD_STRAIGHT)
+                    print("[STATE:SEARCH] 收到路口信号，未识别到目标，发送直行指令")
+                target_confirm_count = 0
+                target_obj = None
+                objs = None
+                continue
             if objs:
                 print(f"[STATE:SEARCH] 发现 {len(objs)} 个物体")
                 for obj in objs:
@@ -233,8 +258,24 @@ def main():
                 continue
             else:
                 target_obj = None
+                objs = None
 
         elif current_state == CamState.DETECT:
+            if cross_arrived_flag:
+                cross_arrived_flag = False
+                if pending_direction is not None:
+                    send_command_to_mcu(pending_direction)
+                    direction = "左" if pending_direction == CMD_LEFT else "右"
+                    print(f"[STATE:DETECT] 收到路口信号，发送{direction}转指令")
+                    pending_direction = None
+                else:
+                    send_command_to_mcu(CMD_STRAIGHT)
+                    print("[STATE:DETECT] 收到路口信号，未识别到目标，发送直行指令")
+                target_confirm_count = 0
+                target_obj = None
+                objs = None
+                current_state = CamState.SEARCH
+                continue
             if objs is None:
                 continue
             found_target = False
@@ -252,44 +293,16 @@ def main():
                 target_confirm_count += 1
                 print(f"[STATE:DETECT] 目标确认: {target_confirm_count}/{CONFIRM_THRESHOLD}")
                 if target_confirm_count >= CONFIRM_THRESHOLD:
-                    pending_cmd = check_digit_position(target_obj, w)
-                    print(f"[STATE:DETECT] 目标在{'左' if pending_cmd == CMD_LEFT else '右'}侧! 暂存指令等待路口信号")
-                    current_state = CamState.WAIT_CROSS
+                    pending_direction = check_digit_position(target_obj, w)
+                    print(f"[STATE:DETECT] 目标在{'左' if pending_direction == CMD_LEFT else '右'}侧! 暂存方向，等待路口信号")
                     target_confirm_count = 0
             else:
+                # 目标暂未找到，回 SEARCH 继续找，不发直行（CMD_STRAIGHT 会重置 MCU）
                 target_confirm_count = 0
                 target_obj = None
                 CURRENT_NUMBER = 0
                 current_state = CamState.SEARCH
                 objs = None
-                continue
-
-        elif current_state == CamState.WAIT_CROSS:
-            img_copy.draw_string(5, 55, "Waiting for cross signal...", color=image.COLOR_YELLOW, scale=1)
-            if cross_arrived_flag:
-                if send_command_to_mcu(pending_cmd):
-                    direction = "左" if pending_cmd == CMD_LEFT else "右"
-                    print(f"[STATE:WAIT_CROSS] 收到路口信号，发送{direction}转指令")
-                    cross_arrived_flag = False
-                    pending_cmd = None
-                    target_confirm_count = 0
-                    current_state = CamState.SEARCH
-                    objs = None
-                    target_obj = None
-                else:
-                    print("[STATE:WAIT_CROSS] 发送失败，重试...")
-
-        elif current_state == CamState.SEND:
-            cmd = check_digit_position(target_obj, w)
-            if send_command_to_mcu(cmd):
-                target_confirm_count = 0
-                direction = "左" if cmd == CMD_LEFT else "右"
-                print(f"[STATE:SEND] 已发送{direction}转指令，继续搜索")
-                current_state = CamState.SEARCH
-                objs = None
-                target_obj = None
-            else:
-                print("[STATE:SEND] 发送失败，重试...")
                 continue
 
         elif current_state == CamState.END:

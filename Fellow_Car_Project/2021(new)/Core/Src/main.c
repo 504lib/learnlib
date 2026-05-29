@@ -61,7 +61,8 @@ MotorAT4950 motor2;
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+#define CENTER_MASK  (1 << 3)|(1 << 4)|(1 << 5)|(1 << 2)
+#define MASK(bit)     (1 << bit)
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -172,19 +173,8 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  bool key2_test_sent = false;
   while (1)
   {
-	  // ====== key2 直接测试：读 GPIO 发 0x10 到 USART6 ======
-	  if (HAL_GPIO_ReadPin(key2_GPIO_Port, key2_Pin) == GPIO_PIN_SET) {
-	      if (!key2_test_sent) {
-	          key2_test_sent = true;
-	          App_SendCamFrame(CMD_KEY_TRIGGER, NULL, 0);
-	      }
-	  } else {
-	      key2_test_sent = false;
-	  }
-	  // ====== 测试代码结束 ======
 
 	  KeyControl_Scan();   // 扫描按键
     
@@ -271,6 +261,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
         // 读取灰度传感器并计算误差
         gray_byte = GPIOE->IDR & 0xFF;
+//		if(((gray_byte & MASK(2)) == 0 || (gray_byte & MASK(3)) == 0 || (gray_byte & MASK(4)) == 0 || (gray_byte & MASK(5)) == 0)
+//			&& ((gray_byte & MASK(0)) == 0 || (gray_byte & MASK(1)) == 0 || (gray_byte & MASK(6)) == 0 || (gray_byte & MASK(7)) == 0)) 
+//		{
+//			gray_byte &= CENTER_MASK;
+//		}
 		
         gray_error = CalculateGrayError_Advanced(gray_byte);
         // 读取编码器差值（注意：编码器计数器可能为负数，需根据实际接线调整符号）
