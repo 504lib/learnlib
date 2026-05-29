@@ -105,22 +105,14 @@ int main(void)
     {
       cur = 0;
     }
-    if(pre != cur)
+    if(pre == 1 && cur == 0)
     {
-      if(cur == 0)
-      {
-        HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-        cur = 1;
-      }
-      if(cur == 1)
-      {
-        HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-        cur = 0;
-      }
-    }
 
-  }
+        HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+    }
   /* USER CODE END 3 */
+  }
+
 }
 
 /**
