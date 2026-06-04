@@ -70,7 +70,11 @@ int main(void)
 
 	
 	uint16_t led0_start_time = 0;
+<<<<<<< HEAD
 	uint16_t led0_add = 250;
+=======
+	uint16_t led0_add = 500;
+>>>>>>> 549c90100fe6ee3058708b41819c73bc52cf9fa8
 
 	uint8_t key0_read_last = 1;
 	uint32_t last_key0_tick = 0;//时刻
@@ -118,7 +122,11 @@ int main(void)
 		{ 	
 			if((key0_read_now == 0)&&(cur - last_key0_tick >=20))
 			{
+<<<<<<< HEAD
 				led0_add +=250;
+=======
+				led0_add +=500;
+>>>>>>> 549c90100fe6ee3058708b41819c73bc52cf9fa8
 				last_key0_tick = cur;
 			}
 		}
