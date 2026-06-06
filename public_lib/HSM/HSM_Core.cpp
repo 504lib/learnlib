@@ -3,6 +3,7 @@
 #include "./static_queue.h"
 #include <cassert>
 #include <array>
+#include <new>
 
 
 

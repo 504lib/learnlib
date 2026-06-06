@@ -65,12 +65,14 @@ bool HSM_RegisterChildNodes(HSM* hsm, HSM_Node* parent,
 ```c
 typedef struct {
     HSM_Node* node;
-    bool (*handler)(HSM_Event_Package);          // 必须，事件处理
-    void (*entry_action)(HSM_Event_Package);     // 可选，进入状态
-    void (*exit_action)(HSM_Event_Package);      // 可选，退出状态
-    void (*continuous_action)();                 // 可选，持续执行
+    bool (*handler)(HSM_Event_Package);          // 事件处理, 返回 true 停止冒泡
+    void (*entry_action)(HSM_Event_Package);     // 进入状态
+    void (*exit_action)(HSM_Event_Package);      // 退出状态
+    void (*continuous_action)();                 // 每帧持续执行
 } HSM_Node_Param;
 ```
+
+> 所有回调均为可选（NULL 则跳过），但关键路径上的状态至少需要 handler 来响应事件、entry/exit 来产生副作用。
 
 ### 运行
 
@@ -152,7 +154,7 @@ enum EventID : uint8_t {
 ### 2. 定义回调
 
 ```c
-// handler — 返回 true 表示"我处理了"
+// handler — 返回 true 表示"我处理了"，不写则事件继续冒泡
 static bool handler_idle(HSM_Event_Package e)     { return e.HSM_Event_ID == EV_START; }
 static bool handler_normal(HSM_Event_Package e)   { return e.HSM_Event_ID == EV_OBSTACLE; }
 

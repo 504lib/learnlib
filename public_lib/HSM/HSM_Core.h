@@ -78,7 +78,7 @@ typedef struct HSM_Node
 typedef struct HSM_Node_ParamForFunction
 {
     HSM_Node* node;
-    bool (*handler)(HSM_Event_Package event);   // 事件处理函数指针,必须填写,此回调作为冒泡的重要依据,如果不填写,则此节点将无法冒泡事件
+    bool (*handler)(HSM_Event_Package event);   // 事件处理函数指针,返回true表示处理该事件并停止冒泡,不填写则跳过冒泡到父节点
     void (*entry_action)(HSM_Event_Package event);         // 进入状态时的动作函数指针,可选填写
     void (*exit_action)(HSM_Event_Package event);          // 退出状态时的动作函数指针,可选填写
     void (*continuous_action)();    // 持续状态时的动作函数指针,可选填写
