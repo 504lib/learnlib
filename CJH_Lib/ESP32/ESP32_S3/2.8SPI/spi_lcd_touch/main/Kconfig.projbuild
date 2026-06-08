@@ -1,0 +1,34 @@
+menu "Example Configuration"
+
+    config EXAMPLE_LCD_TOUCH_ENABLED
+        bool "Enable LCD touch (FT5x06/FT6336 I2C)"
+        default n
+        help
+            Enable this option to use the FT5x06/FT6336 capacitive touch controller via I2C.
+            This touch controller uses dedicated I2C bus (not shared with LCD SPI).
+
+    config EXAMPLE_LCD_TOUCH_I2C_SCL
+        int "Touch I2C SCL pin"
+        default 5
+        help
+            I2C clock pin for FT5x06 touch controller.
+
+    config EXAMPLE_LCD_TOUCH_I2C_SDA
+        int "Touch I2C SDA pin"
+        default 6
+        help
+            I2C data pin for FT5x06 touch controller.
+
+    config EXAMPLE_LCD_TOUCH_RST
+        int "Touch RST pin (-1 if not used)"
+        default 7
+        help
+            Reset pin for FT5x06 touch controller. Set to -1 if not connected.
+
+    config EXAMPLE_LCD_TOUCH_INT
+        int "Touch INT pin (-1 if not used)"
+        default -1
+        help
+            Interrupt pin for FT5x06 touch controller. Set to -1 if not connected.
+
+endmenu
