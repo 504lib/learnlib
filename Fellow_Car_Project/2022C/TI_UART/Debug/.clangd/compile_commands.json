@@ -1,0 +1,72 @@
+[
+   {
+      "directory" : "D:/mspm0g3507_projects/TI_UART/Debug",
+      "command"   : "clang++ -D__MSPM0G3507__ -D__USE_SYSCONFIG__ -I\"D:/mspm0g3507_projects/TI_UART\" -I\"D:/mspm0g3507_projects/TI_UART/Debug\" -I\"D:/TI/CSS/mspm0_sdk_2_10_00_04/source/third_party/CMSIS/Core/Include\" -I\"D:/TI/CSS/mspm0_sdk_2_10_00_04/source\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/armv7em-ti-none-eabihf/c++/v1\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c++/v1\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/lib/clang/18/include\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c\" -xc",
+      "file"      : "D:/mspm0g3507_projects/TI_UART/empty.c"
+   },
+   {
+      "directory" : "D:/mspm0g3507_projects/TI_UART/Debug",
+      "command"   : "clang++ -D__MSPM0G3507__ -D__USE_SYSCONFIG__ -I\"D:/mspm0g3507_projects/TI_UART\" -I\"D:/mspm0g3507_projects/TI_UART/Debug\" -I\"D:/TI/CSS/mspm0_sdk_2_10_00_04/source/third_party/CMSIS/Core/Include\" -I\"D:/TI/CSS/mspm0_sdk_2_10_00_04/source\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/armv7em-ti-none-eabihf/c++/v1\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c++/v1\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/lib/clang/18/include\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c\" -xc",
+      "file"      : "D:/mspm0g3507_projects/TI_UART/SPI_OLED/oled.c"
+   },
+   {
+      "directory" : "D:/mspm0g3507_projects/TI_UART/Debug",
+      "command"   : "clang++ -D__MSPM0G3507__ -D__USE_SYSCONFIG__ -I\"D:/mspm0g3507_projects/TI_UART\" -I\"D:/mspm0g3507_projects/TI_UART/Debug\" -I\"D:/TI/CSS/mspm0_sdk_2_10_00_04/source/third_party/CMSIS/Core/Include\" -I\"D:/TI/CSS/mspm0_sdk_2_10_00_04/source\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/armv7em-ti-none-eabihf/c++/v1\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c++/v1\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/lib/clang/18/include\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c\" -xc",
+      "file"      : "D:/mspm0g3507_projects/TI_UART/multikey/multikey.c"
+   },
+   {
+      "directory" : "D:/mspm0g3507_projects/TI_UART/Debug",
+      "command"   : "clang++ -D__MSPM0G3507__ -D__USE_SYSCONFIG__ -I\"D:/mspm0g3507_projects/TI_UART\" -I\"D:/mspm0g3507_projects/TI_UART/Debug\" -I\"D:/TI/CSS/mspm0_sdk_2_10_00_04/source/third_party/CMSIS/Core/Include\" -I\"D:/TI/CSS/mspm0_sdk_2_10_00_04/source\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/armv7em-ti-none-eabihf/c++/v1\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c++/v1\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/lib/clang/18/include\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c\" -xc",
+      "file"      : "D:/mspm0g3507_projects/TI_UART/Debug/ti_msp_dl_config.c"
+   },
+   {
+      "directory" : "D:/mspm0g3507_projects/TI_UART/Debug",
+      "command"   : "clang++ -D__MSPM0G3507__ -D__USE_SYSCONFIG__ -I\"D:/mspm0g3507_projects/TI_UART\" -I\"D:/mspm0g3507_projects/TI_UART/Debug\" -I\"D:/TI/CSS/mspm0_sdk_2_10_00_04/source/third_party/CMSIS/Core/Include\" -I\"D:/TI/CSS/mspm0_sdk_2_10_00_04/source\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/armv7em-ti-none-eabihf/c++/v1\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c++/v1\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/lib/clang/18/include\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c\" -xc",
+      "file"      : "D:/mspm0g3507_projects/TI_UART/Motor/Motor_AT4950.c"
+   },
+   {
+      "directory" : "D:/mspm0g3507_projects/TI_UART/Debug",
+      "command"   : "clang++ -D__MSPM0G3507__ -D__USE_SYSCONFIG__ -I\"D:/mspm0g3507_projects/TI_UART\" -I\"D:/mspm0g3507_projects/TI_UART/Debug\" -I\"D:/TI/CSS/mspm0_sdk_2_10_00_04/source/third_party/CMSIS/Core/Include\" -I\"D:/TI/CSS/mspm0_sdk_2_10_00_04/source\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/armv7em-ti-none-eabihf/c++/v1\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c++/v1\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/lib/clang/18/include\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c\" -xc",
+      "file"      : "D:/mspm0g3507_projects/TI_UART/DL_GetTick_Folder/DL_Tick.c"
+   },
+   {
+      "directory" : "D:/mspm0g3507_projects/TI_UART/Debug",
+      "command"   : "clang++ -D__MSPM0G3507__ -D__USE_SYSCONFIG__ -I\"D:/mspm0g3507_projects/TI_UART\" -I\"D:/mspm0g3507_projects/TI_UART/Debug\" -I\"D:/TI/CSS/mspm0_sdk_2_10_00_04/source/third_party/CMSIS/Core/Include\" -I\"D:/TI/CSS/mspm0_sdk_2_10_00_04/source\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/armv7em-ti-none-eabihf/c++/v1\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c++/v1\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/lib/clang/18/include\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c\" -xc",
+      "file"      : "D:/mspm0g3507_projects/TI_UART/PID_Node/PID_Node.c"
+   },
+   {
+      "directory" : "D:/mspm0g3507_projects/TI_UART/Debug",
+      "command"   : "clang++ -D__MSPM0G3507__ -D__USE_SYSCONFIG__ -I\"D:/mspm0g3507_projects/TI_UART\" -I\"D:/mspm0g3507_projects/TI_UART/Debug\" -I\"D:/TI/CSS/mspm0_sdk_2_10_00_04/source/third_party/CMSIS/Core/Include\" -I\"D:/TI/CSS/mspm0_sdk_2_10_00_04/source\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/armv7em-ti-none-eabihf/c++/v1\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c++/v1\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/lib/clang/18/include\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c\" -xc",
+      "file"      : "D:/mspm0g3507_projects/TI_UART/Log/Log.c"
+   },
+   {
+      "directory" : "D:/mspm0g3507_projects/TI_UART/Debug",
+      "command"   : "clang++ -D__MSPM0G3507__ -D__USE_SYSCONFIG__ -I\"D:/mspm0g3507_projects/TI_UART\" -I\"D:/mspm0g3507_projects/TI_UART/Debug\" -I\"D:/TI/CSS/mspm0_sdk_2_10_00_04/source/third_party/CMSIS/Core/Include\" -I\"D:/TI/CSS/mspm0_sdk_2_10_00_04/source\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/armv7em-ti-none-eabihf/c++/v1\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c++/v1\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/lib/clang/18/include\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c\" -xc",
+      "file"      : "D:/mspm0g3507_projects/TI_UART/grayscale/grayscale.c"
+   },
+   {
+      "directory" : "D:/mspm0g3507_projects/TI_UART/Debug",
+      "command"   : "clang++ -D__MSPM0G3507__ -D__USE_SYSCONFIG__ -I\"D:/mspm0g3507_projects/TI_UART\" -I\"D:/mspm0g3507_projects/TI_UART/Debug\" -I\"D:/TI/CSS/mspm0_sdk_2_10_00_04/source/third_party/CMSIS/Core/Include\" -I\"D:/TI/CSS/mspm0_sdk_2_10_00_04/source\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/armv7em-ti-none-eabihf/c++/v1\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c++/v1\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/lib/clang/18/include\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c\" -xc",
+      "file"      : "D:/mspm0g3507_projects/TI_UART/Control_Speed/Control_Speed.c"
+   },
+   {
+      "directory" : "D:/mspm0g3507_projects/TI_UART/Debug",
+      "command"   : "clang++ -D__MSPM0G3507__ -D__USE_SYSCONFIG__ -I\"D:/mspm0g3507_projects/TI_UART\" -I\"D:/mspm0g3507_projects/TI_UART/Debug\" -I\"D:/TI/CSS/mspm0_sdk_2_10_00_04/source/third_party/CMSIS/Core/Include\" -I\"D:/TI/CSS/mspm0_sdk_2_10_00_04/source\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/armv7em-ti-none-eabihf/c++/v1\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c++/v1\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/lib/clang/18/include\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c\" -xc",
+      "file"      : "D:/mspm0g3507_projects/TI_UART/MPU_6050/MadgwickAHRS.c"
+   },
+   {
+      "directory" : "D:/mspm0g3507_projects/TI_UART/Debug",
+      "command"   : "clang++ -D__MSPM0G3507__ -D__USE_SYSCONFIG__ -I\"D:/mspm0g3507_projects/TI_UART\" -I\"D:/mspm0g3507_projects/TI_UART/Debug\" -I\"D:/TI/CSS/mspm0_sdk_2_10_00_04/source/third_party/CMSIS/Core/Include\" -I\"D:/TI/CSS/mspm0_sdk_2_10_00_04/source\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/armv7em-ti-none-eabihf/c++/v1\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c++/v1\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/lib/clang/18/include\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c\" -xc",
+      "file"      : "D:/mspm0g3507_projects/TI_UART/MPU_6050/mpu6050.c"
+   },
+   {
+      "directory" : "D:/mspm0g3507_projects/TI_UART/Debug",
+      "command"   : "clang++ -D__MSPM0G3507__ -D__USE_SYSCONFIG__ -I\"D:/mspm0g3507_projects/TI_UART\" -I\"D:/mspm0g3507_projects/TI_UART/Debug\" -I\"D:/TI/CSS/mspm0_sdk_2_10_00_04/source/third_party/CMSIS/Core/Include\" -I\"D:/TI/CSS/mspm0_sdk_2_10_00_04/source\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/armv7em-ti-none-eabihf/c++/v1\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c++/v1\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/lib/clang/18/include\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c\" -xc",
+      "file"      : "D:/mspm0g3507_projects/TI_UART/MPU_6050/mpu6050_user.c"
+   },
+   {
+      "directory" : "D:/mspm0g3507_projects/TI_UART/Debug",
+      "command"   : "clang++ -D__MSPM0G3507__ -D__USE_SYSCONFIG__ -I\"D:/mspm0g3507_projects/TI_UART\" -I\"D:/mspm0g3507_projects/TI_UART/Debug\" -I\"D:/TI/CSS/mspm0_sdk_2_10_00_04/source/third_party/CMSIS/Core/Include\" -I\"D:/TI/CSS/mspm0_sdk_2_10_00_04/source\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/armv7em-ti-none-eabihf/c++/v1\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c++/v1\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/lib/clang/18/include\" -isystem\"D:/TI/CSS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/include/c\" -xc",
+      "file"      : "D:/mspm0g3507_projects/TI_UART/MPU_6050/mpu6050_i2c_ti.c"
+   }
+]

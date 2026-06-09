@@ -1,0 +1,2 @@
+source D:/ESP32/spi_lcd_touch/build/bootloader/gdbinit/symbols
+source D:/ESP32/spi_lcd_touch/build/bootloader/gdbinit/connect
