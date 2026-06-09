@@ -4,17 +4,33 @@
 
 float CalculateGrayError_Advanced(uint8_t gray_byte)
 {
-    static const float symmetric_weights[GRAY_BITS] = {
-        -3.5f,  // λ0
-        -2.5f,  // λ1
-        -1.5f,  // λ2
-        -0.5f,  // λ3
-         0.5f,  // λ4
-         1.5f,  // λ5 
-         2.5f,  // λ6
-         3.5f   // λ7
-    };
-    
+  static const float symmetric_weights[GRAY_BITS] = {
+         3.5f,  // λ0
+         2.5f,  // λ1
+         1.5f,  // λ2
+         0.5f,  // λ3
+        -0.5f,  // λ4
+        -1.5f,  // λ5 
+        -2.5f,  // λ6
+        -3.5f   // λ7
+  };
+        //  1.0f,  // λ0
+        //  0.8f,  // λ1
+        //  0.4f,  // λ2
+        //  0.0f,  // λ3
+        // -0.0f,  // λ4
+        // -0.4f,  // λ5 
+        // -0.8f,  // λ6
+        // -1.0f   // λ7
+        
+        //  3.5f,  // λ0
+        //  2.5f,  // λ1
+        //  1.5f,  // λ2
+        //  0.5f,  // λ3
+        // -0.5f,  // λ4
+        // -1.5f,  // λ5 
+        // -2.5f,  // λ6
+        // -3.5f   // λ7
     // 1. ����ԳƼ�Ȩ��
     float symmetric_sum = 0.0f;
     int total_count = 0;

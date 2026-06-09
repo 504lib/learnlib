@@ -44,6 +44,7 @@
 #include "./MPU_6050/mpu6050_user.h"
 #include "./MPU_6050/mpu6050.h"
 #include "./MPU_6050/MadgwickAHRS.h"
+#include "./HSM/HSM_Core.h"
 // #include "./Protothreads/"
 
 
@@ -130,6 +131,12 @@ void task1(Protothread_t* pt)
         // 串口输出 SerialPlot 格式
         // PID_Node* node1 = Control_Speed_PID_Hander(CONTROL_SPEED1_OBJECT);
         // printf("%.3f,%.3f,%.3f\n", node1->setpoint, Actual_Speed_A, Actual_Speed_B);
+        LOG_INFO("Grey byte:");
+        for (size_t i = 0; i < 8; i++) 
+        {
+            printf("%d ", (gray_byte & (1 << i)) ? 1 : 0);   
+        }
+        printf("\n");
         OLED_Refresh();
         PT_WAIT_TICK(pt,100);
     }
@@ -192,6 +199,11 @@ int main(void)
     
     NVIC_ClearPendingIRQ(TIMER_0_INST_INT_IRQN);
     // NVIC_ClearPendingIRQ(TIMER_1_INST_INT_IRQN);
+
+    /* 编码器 ISR 优先级必须高于 TIMER_0，否则 MPU6050 浮点运算会长时间阻塞编码器 */
+    NVIC_SetPriority(GPIOA_INT_IRQn, 0);         // 编码器：最高优先级
+    NVIC_SetPriority(TIMER_0_INST_INT_IRQN, 1);  // 定时器：低一级，允许编码器抢占
+
     //使能串口中断
     
     printf("串口初始化完成\n");
@@ -199,7 +211,7 @@ int main(void)
     NVIC_ClearPendingIRQ(ENCODER_INT_IRQN);
     NVIC_EnableIRQ(ENCODER_INT_IRQN);
     printf("编码器初始化完成\n");
-    // DL_TimerA_startCounter(TIMER_1_INST);// 启动 TIMER_1
+    // DL_TimerA_startCounter(TIMER_r'q_INST);// 启动 TIMER_1
     // DL_TimerG_startCounter(TIMER_0_INST);
 
     OLED_Init();
@@ -237,11 +249,13 @@ int main(void)
     // DL_TimerG_setCaptureCompareValue(PWM_0_INST, 8000, GPIO_PWM_0_C0_IDX); // PWM
     // 初始化速度环，传入电机句柄
     Control_Init(&motor1, &motor2);
-    Control_SetBaseSpeed(0.35f);
+    Control_SetBaseSpeed(0.5f); //基础巡线速度
     // Control_Speed_SetPID(CONTROL_SPEED1_OBJECT, 700.0f, 2.5f, 0.0f);
     // Control_Speed_SetPID(CONTROL_SPEED2_OBJECT, 700.0f, 2.5f, 0.0f);
-    // Control_Speed_SetSetPoint(CONTROL_SPEED1_OBJECT, 0.3f);
-    // Control_Speed_SetSetPoint(CONTROL_SPEED2_OBJECT, 0.3f);
+    
+    //单独速度环调速
+    // Control_Speed_SetSetPoint(CONTROL_SPEED1_OBJECT, 0.5f);
+    // Control_Speed_SetSetPoint(CONTROL_SPEED2_OBJECT, 0.5f);
     
     MulitKey_Init(&key,Key1ReadPinCallback,Key1PressdCallback,Key1PressdCallback,FALL_BORDER_TRIGGER);
     // volatile uint32_t cnt = 0;
@@ -263,6 +277,7 @@ int main(void)
         static uint32_t last_enc_print = 0;
         static bool isReverse = false;
         if (DL_GetTick() - last_enc_print >= 1000) {
+            
             // printf("E1_raw=%ld, E2_raw=%ld\n", encoder1_raw, encoder2_raw);
             if (isReverse) {
                 DL_GPIO_clearPins(LED_PORT, LED_LED_2_PIN);
@@ -343,6 +358,11 @@ void TIMER_0_INST_IRQHandler(void)
     {
         case DL_TIMER_IIDX_ZERO:
             count++;
+            gray_byte = DL_GPIO_readPins(GPIOB, 0xFF) & 0xFF;
+            gray_error = CalculateGrayError_Advanced(gray_byte);
+
+            // 3.灰度环计算并设定新目标
+            Control_SetGrayTarget(gray_error);
             // ★ 每 5ms：MPU6050 姿态更新（Madgwick 200Hz）
             if (count % 5 == 0) {
                 MPU6050_Update();
@@ -366,15 +386,11 @@ void TIMER_0_INST_IRQHandler(void)
                 UpdateSpeedFeedback(encoder1_speed, encoder2_speed, 20.0f);
 
                 // 2.读取灰度并计算误差
-                // gray_byte = DL_GPIO_readPins(GPIOB, 0xFF) & 0xFF;
-                // gray_error = CalculateGrayError_Advanced(gray_byte);
-
-                // 3.灰度环计算并设定新目标
-                // Control_SetGrayTarget(gray_error);
+                
                 // 2.角度环：yaw → steering → 叠加到速度目标
-                MPU6050_Data_t* mpu = MPU6050_GetHandle();
-                float steering = Control_UpdateAngle(mpu->yaw, 20.0f);
-                Control_ApplyAngleSteering(steering);
+                // MPU6050_Data_t* mpu = MPU6050_GetHandle();
+                // float steering = Control_UpdateAngle(mpu->yaw, 20.0f);
+                // Control_ApplyAngleSteering(steering);
             }
             break;
 
@@ -383,10 +399,30 @@ void TIMER_0_INST_IRQHandler(void)
     }
 }
 
-    volatile bool Enc1A_edgeFlag = true;  // true:等待上升沿, 0:等待下降沿
-    volatile bool Enc1B_edgeFlag = true;
-    volatile bool Enc2A_edgeFlag = true;
-    volatile bool Enc2B_edgeFlag = true;
+/* ===== 编码器状态机 —— 通过前后状态转移表计步，消除双边沿同时触发时的抵消 ===== */
+/* 状态编码: bit1=A, bit0=B → 格雷码顺序: 00,01,11,10                             */
+/* 正向(B领先A): 00→01→11→10→00   反向(A领先B): 00→10→11→01→00                  */
+static inline int8_t Encoder_Transition(uint8_t prev, uint8_t curr, int8_t last_dir)
+{
+    /* 单步转移 —— 每次 ±1 */
+    if (prev == 0b00 && curr == 0b01) return +1;
+    if (prev == 0b01 && curr == 0b11) return +1;
+    if (prev == 0b11 && curr == 0b10) return +1;
+    if (prev == 0b10 && curr == 0b00) return +1;
+
+    if (prev == 0b00 && curr == 0b10) return -1;
+    if (prev == 0b10 && curr == 0b11) return -1;
+    if (prev == 0b11 && curr == 0b01) return -1;
+    if (prev == 0b01 && curr == 0b00) return -1;
+
+    /* 对角转移 —— 两路同时跳变，ISR 合并成一次 → 根据上次方向判 ±2 */
+    if (prev == 0b00 && curr == 0b11) return (last_dir >= 0) ? +2 : -2;
+    if (prev == 0b01 && curr == 0b10) return (last_dir >= 0) ? +2 : -2;
+    if (prev == 0b11 && curr == 0b00) return (last_dir >= 0) ? +2 : -2;
+    if (prev == 0b10 && curr == 0b01) return (last_dir >= 0) ? +2 : -2;
+
+    return 0; /* 无变化 */
+}
 
 void GROUP1_IRQHandler(void)
 {
@@ -394,52 +430,34 @@ void GROUP1_IRQHandler(void)
                                     ENCODER_E1A_PIN | ENCODER_E1B_PIN |
                                     ENCODER_E2A_PIN | ENCODER_E2B_PIN);
 
-    // 读取当前所有相关引脚的电平（一次性读取，避免多次调用）
     uint32_t pin_levels = DL_GPIO_readPins(ENCODER_PORT,
                                     ENCODER_E1A_PIN | ENCODER_E1B_PIN |
                                     ENCODER_E2A_PIN | ENCODER_E2B_PIN);
 
-    // 提取各引脚状态（1 为高电平，0 为低电平）
-    uint8_t e1a = (pin_levels & ENCODER_E1A_PIN) ? 1 : 0;
-    uint8_t e1b = (pin_levels & ENCODER_E1B_PIN) ? 1 : 0;
-    uint8_t e2a = (pin_levels & ENCODER_E2A_PIN) ? 1 : 0;
-    uint8_t e2b = (pin_levels & ENCODER_E2B_PIN) ? 1 : 0;
+    /* 编码为 2-bit 状态: bit1=A, bit0=B */
+    uint8_t s1 = (uint8_t)((((pin_levels & ENCODER_E1A_PIN) ? 1 : 0) << 1) |
+                            ((pin_levels & ENCODER_E1B_PIN) ? 1 : 0));
+    uint8_t s2 = (uint8_t)((((pin_levels & ENCODER_E2A_PIN) ? 1 : 0) << 1) |
+                            ((pin_levels & ENCODER_E2B_PIN) ? 1 : 0));
 
-    // ---------- 电机1 编码器处理 ----------
+    static uint8_t  prev_s1, prev_s2;
+    static int8_t   dir1, dir2;
+
+    /* 电机1 */
     if (int_status & (ENCODER_E1A_PIN | ENCODER_E1B_PIN)) {
-        // 使用简单的 XOR 逻辑判断方向
-        // 当 A 相触发中断时，若 A == B 则为正向，否则反向
-        if (int_status & ENCODER_E1A_PIN) {
-            if (e1a == e1b)
-                encoder1_raw++;
-            else
-                encoder1_raw--;
-        }
-        // 当 B 相触发中断时，若 A != B 则为正向，否则反向
-        if (int_status & ENCODER_E1B_PIN) {
-            if (e1a != e1b)
-                encoder1_raw++;
-            else
-                encoder1_raw--;
-        }
+        int8_t d = Encoder_Transition(prev_s1, s1, dir1);
+        encoder1_raw += d;
+        if (d > 0) dir1 = 1; else if (d < 0) dir1 = -1;
+        prev_s1 = s1;
     }
 
-    // ---------- 电机2 编码器处理 ----------
+    /* 电机2 */
     if (int_status & (ENCODER_E2A_PIN | ENCODER_E2B_PIN)) {
-        if (int_status & ENCODER_E2A_PIN) {
-            if (e2a == e2b)
-                encoder2_raw++;
-            else
-                encoder2_raw--;
-        }
-        if (int_status & ENCODER_E2B_PIN) {
-            if (e2a != e2b)
-                encoder2_raw++;
-            else
-                encoder2_raw--;
-        }
+        int8_t d = Encoder_Transition(prev_s2, s2, dir2);
+        encoder2_raw += d;
+        if (d > 0) dir2 = 1; else if (d < 0) dir2 = -1;
+        prev_s2 = s2;
     }
 
-    // 清除所有已处理的中断标志
     DL_GPIO_clearInterruptStatus(ENCODER_PORT, int_status);
 }

@@ -11,7 +11,7 @@ typedef enum
 }Control_Speed_Select_Object_Option;
 
 #define WHEEL_CIRCUMFERENCE 0.1508f   // 车轮周长 m
-#define EFFECTIVE_PPR 1040            // 每转脉冲数（根据编码器配置）
+#define EFFECTIVE_PPR 1040            // 每转脉冲数 4×13×20=1040（4x倍频）
 
 
 // void Control_Init(MotorAT4950* m1, MotorAT4950* m2);

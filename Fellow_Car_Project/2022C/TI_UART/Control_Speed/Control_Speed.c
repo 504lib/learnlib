@@ -38,7 +38,7 @@ void Control_Init(MotorAT4950* m1, MotorAT4950* m2)
     //灰度0.055f, 0.0001f, 1.0f
     //0.070f, 0.0001f, 3.0f
     //0.4f,0.0f,1.5f
-    PID_Node_Init(&pidGrayscale, "Grayscale", 0.055f, 0.0001f, 1.0f);
+    PID_Node_Init(&pidGrayscale, "Grayscale", 0.055f, 0.0001f, 1.5f);
     PID_Node_Init(&pidAngle, "Angle", 100.0f, 0.1f, 0.0f);
 
     PID_Node_SetEnabled(&Speed_PID_node1, true);

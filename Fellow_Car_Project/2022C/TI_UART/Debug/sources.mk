@@ -121,6 +121,7 @@ SUBDIRS := \
 . \
 Control_Speed \
 DL_GetTick_Folder \
+HSM \
 Log \
 MPU_6050 \
 Motor \

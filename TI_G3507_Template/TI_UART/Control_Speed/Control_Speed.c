@@ -32,9 +32,13 @@ void Control_Init(MotorAT4950* m1, MotorAT4950* m2)
     motor1_ptr = m1;
     motor2_ptr = m2;
     // ===== 灰度 PID 初始化 =====
-    PID_Node_Init(&Speed_PID_node1, "speed_node1", 700.0f, 2.5f, 0.0f);
-    PID_Node_Init(&Speed_PID_node2, "speed_node2", 700.0f, 2.5f, 0.0f);
-    PID_Node_Init(&pidGrayscale, "Grayscale", 0.055f, 0.0001f, 1.0f);
+    //速度0.3f 700.0f,2.5f,0.0f
+    PID_Node_Init(&Speed_PID_node1, "speed_node1", 700.0f,2.5f,0.0f);
+    PID_Node_Init(&Speed_PID_node2, "speed_node2", 700.0f,4.0f,0.0f);
+    //灰度0.055f, 0.0001f, 1.0f
+    //0.070f, 0.0001f, 3.0f
+    //0.4f,0.0f,1.5f
+    PID_Node_Init(&pidGrayscale, "Grayscale", 0.055f, 0.0001f, 1.5f);
     PID_Node_Init(&pidAngle, "Angle", 100.0f, 0.1f, 0.0f);
 
     PID_Node_SetEnabled(&Speed_PID_node1, true);
@@ -55,23 +59,23 @@ void Control_Init(MotorAT4950* m1, MotorAT4950* m2)
     PID_Node_SetLimit(&Speed_PID_node1, (PID_Limit){
         .deadband = 0.0f,
         .derivative_max = 1000,
-        .input_max = 1.0f,
+        .input_max = 1.5f,                         //实际速度
         .input_min = 0.0f,
         .integral_max = 1000,
         .output_max = 1000,
         .output_min = -1000,
-        .setpoint_max = 0.5f,
+        .setpoint_max = 1.0f,                      //目标速度
         .setpoint_min = 0.0f
     });
     PID_Node_SetLimit(&Speed_PID_node2, (PID_Limit){
         .deadband = 0.0f,
         .derivative_max = 1000,
-        .input_max = 1.0f,
+        .input_max = 1.5f,
         .input_min = 0.0f,
         .integral_max = 1000,
         .output_max = 1000,
         .output_min = -1000,
-        .setpoint_max = 0.5f,
+        .setpoint_max = 1.0f,
         .setpoint_min = 0.0f
     });
     // 灰度环限制
@@ -79,7 +83,7 @@ void Control_Init(MotorAT4950* m1, MotorAT4950* m2)
 		.output_max = 0.6f,
 		.output_min = -0.6f,
 		.integral_max = 2.0f,       // 积分限幅
-		.deadband = 0.3f,           // 灰度误差死区
+		.deadband = 0.08f,           // 灰度误差死区
 		.setpoint_min = -1000.0f,   // 灰度误差范围
 		.setpoint_max = 1000.0f,
 		.input_min = -1000.0f,
