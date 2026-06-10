@@ -1,0 +1,9 @@
+blank_issues_enabled: false
+
+contact_links:
+  - name: 📖 Git 协作流程
+    url: https://github.com/504lib/learnlib/blob/main/Git_operation.MD
+    about: 不熟悉 PR 流程？先看这份指南
+  - name: 💬 团队讨论
+    url: https://github.com/504lib/learnlib/discussions
+    about: 一般性问题请先在 Discussions 中讨论
