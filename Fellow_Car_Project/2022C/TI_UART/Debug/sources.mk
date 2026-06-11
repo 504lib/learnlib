@@ -127,6 +127,9 @@ MPU_6050 \
 Motor \
 PID_Node \
 SPI_OLED \
+distance_sensor \
 grayscale \
+key_control \
 multikey \
+tasks \
 

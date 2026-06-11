@@ -45,6 +45,8 @@
 #include "./MPU_6050/mpu6050.h"
 #include "./MPU_6050/MadgwickAHRS.h"
 #include "./HSM/HSM_Core.h"
+#include "./key_control/key_control.h"
+#include "./tasks/tasks.h"
 // #include "./Protothreads/"
 
 
@@ -72,10 +74,8 @@ MotorAT4950 motor2;
 
 // #define ABS(a)      (a>0 ? a:(-a))
 
-Protothread_t task1_pt = {0};
 volatile unsigned char uart_data = 0;
 char buffuer[256] = {0};
-MulitKey_t key;
 
 // void PID_Node_Initization()
 // {
@@ -108,59 +108,6 @@ void SetMotor2PWM(uint16_t ccr) {
 void uart0_send_char(char ch); //串口0发送单个字符
 void uart0_send_string(char* str); //串口0发送字符串
 
-
-void task1(Protothread_t* pt)
-{
-    static uint32_t times = 0;
-    PT_BEGIN(pt);
-    while (1) {
-        // 显示 yaw 角
-        MPU6050_Data_t* mpu = MPU6050_GetHandle();
-        snprintf(buffuer, sizeof(buffuer), "yaw:%.1f", mpu->yaw);
-        OLED_ShowString(0, 32, (uint8_t*)buffuer, 16, 1);
-        snprintf(buffuer, sizeof(buffuer), "times:%u",times++);
-        OLED_ShowString(0, 16, (uint8_t*)buffuer, 16, 1);  
-        // // 显示左右轮实际速度
-        // float Actual_Speed_A = Control_Speed_GetActualSpeed(CONTROL_SPEED1_OBJECT);
-        // float Actual_Speed_B = Control_Speed_GetActualSpeed(CONTROL_SPEED2_OBJECT);
-        // snprintf(buffuer, sizeof(buffuer), "L:%.3f R:%.3f", Actual_Speed_A, Actual_Speed_B);
-        // OLED_ShowString(0, 16, (uint8_t*)buffuer, 16, 1);
-        // snprintf(buffuer, sizeof(buffuer), "times:%u",times++);
-        // OLED_ShowString(0, 32, (uint8_t*)buffuer, 16, 1);     
-
-        // 串口输出 SerialPlot 格式
-        // PID_Node* node1 = Control_Speed_PID_Hander(CONTROL_SPEED1_OBJECT);
-        // printf("%.3f,%.3f,%.3f\n", node1->setpoint, Actual_Speed_A, Actual_Speed_B);
-        LOG_INFO("Grey byte:");
-        for (size_t i = 0; i < 8; i++) 
-        {
-            printf("%d ", (gray_byte & (1 << i)) ? 1 : 0);   
-        }
-        printf("\n");
-        OLED_Refresh();
-        PT_WAIT_TICK(pt,100);
-    }
-    PT_END(pt);
-}
-
-
-uint8_t Key1ReadPinCallback(MulitKey_t* key)
-{
-    // 1. 读取原始位掩码值
-    uint32_t raw_value = DL_GPIO_readPins(KEY_GROIP_PORT, KEY_GROIP_BOARD_KEY_PIN);
-    
-    // 2. 使用双重否定 !! 将非零值强制转换为1，零值保持为0
-    return (uint8_t)(!!raw_value);
-}
-
-void Key1PressdCallback(MulitKey_t* key)
-{
-    // static bool isMotorOn = false;
-    // isMotorOn = !isMotorOn;
-    // DL_GPIO_togglePins(LED1_PORT, LED1_PIN_22_PIN);
-    // Motor_Set_PWM((isMotorOn) ? 2000 : 0, (isMotorOn) ? 2000 : 0);  // 左电机正转，右电机反转
-    
-}
 
 int fputc(int ch, FILE *f)
 {
@@ -249,7 +196,7 @@ int main(void)
     // DL_TimerG_setCaptureCompareValue(PWM_0_INST, 8000, GPIO_PWM_0_C0_IDX); // PWM
     // 初始化速度环，传入电机句柄
     Control_Init(&motor1, &motor2);
-    Control_SetBaseSpeed(0.5f); //基础巡线速度
+    Control_SetBaseSpeed(0.3f); //基础巡线速度
     // Control_Speed_SetPID(CONTROL_SPEED1_OBJECT, 700.0f, 2.5f, 0.0f);
     // Control_Speed_SetPID(CONTROL_SPEED2_OBJECT, 700.0f, 2.5f, 0.0f);
     
@@ -257,9 +204,9 @@ int main(void)
     // Control_Speed_SetSetPoint(CONTROL_SPEED1_OBJECT, 0.5f);
     // Control_Speed_SetSetPoint(CONTROL_SPEED2_OBJECT, 0.5f);
     
-    MulitKey_Init(&key,Key1ReadPinCallback,Key1PressdCallback,Key1PressdCallback,FALL_BORDER_TRIGGER);
+    KeyControl_Init();
     // volatile uint32_t cnt = 0;
-    PT_INIT(&task1_pt);
+    Tasks_Init();
     uart0_send_string("uart0 start work\r\n");
     printf("测试\n");
 
@@ -272,8 +219,8 @@ int main(void)
     {
         // printf("current tick_systick : %u\n",DL_SYSTICK_getValue());
         // delay_cycles(CPUCLK_FREQ / 2);
-        MulitKey_Scan(&key);
-        task1(&task1_pt);
+        KeyControl_Scan();
+        OLED_Task(&oled_pt);
         static uint32_t last_enc_print = 0;
         static bool isReverse = false;
         if (DL_GetTick() - last_enc_print >= 1000) {
