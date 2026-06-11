@@ -12,8 +12,11 @@
 "./Motor/Motor_AT4950.o"
 "./PID_Node/PID_Node.o"
 "./SPI_OLED/oled.o"
+"./distance_sensor/distance_sensor.o"
 "./grayscale/grayscale.o"
+"./key_control/key_control.o"
 "./multikey/multikey.o"
+"./tasks/tasks.o"
 -l"./device_linker.cmd"
 -ldevice.cmd.genlibs
 -llibc.a
