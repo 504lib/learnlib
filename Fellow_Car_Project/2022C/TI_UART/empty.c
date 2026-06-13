@@ -47,6 +47,7 @@
 #include "./HSM/HSM_Core.h"
 #include "./key_control/key_control.h"
 #include "./tasks/tasks.h"
+#include "./distance_sensor/distance_sensor.h"
 // #include "./Protothreads/"
 
 
@@ -68,6 +69,10 @@ static int32_t last_enc2 = 0;
 //灰度值全局变量
 volatile uint8_t gray_byte = 0;
 volatile float gray_error = 0.0f;
+
+//红外测距
+static distance_sensor dist_sensor;
+volatile uint16_t distance_mm = 0;
 
 MotorAT4950 motor1;
 MotorAT4950 motor2;
@@ -103,6 +108,15 @@ void SetMotor1PWM(uint16_t ccr) {
 }
 void SetMotor2PWM(uint16_t ccr) {
     DL_TimerG_setCaptureCompareValue(PWM_0_INST, ccr, GPIO_PWM_0_C1_IDX);
+}
+
+// Modbus-RTU 查询帧：读设备01的寄存器0x0010（距离值）
+static void Distance_SendQuery(void)
+{
+    static const uint8_t query[] = {0x01, 0x03, 0x00, 0x10, 0x00, 0x01, 0x85, 0xCF};
+    for (size_t i = 0; i < sizeof(query); i++) {
+        DL_UART_Main_transmitDataBlocking(UART_1_INST, query[i]);
+    }
 }
 
 void uart0_send_char(char ch); //串口0发送单个字符
@@ -205,6 +219,12 @@ int main(void)
     // Control_Speed_SetSetPoint(CONTROL_SPEED2_OBJECT, 0.5f);
     
     KeyControl_Init();
+
+    // 红外测距初始化
+    distance_sensor_init(&dist_sensor);
+    DL_UART_Main_enableInterrupt(UART_1_INST, DL_UART_INTERRUPT_RX);
+    NVIC_EnableIRQ(UART_1_INST_INT_IRQN);
+    printf("红外测距初始化完成\n");
     // volatile uint32_t cnt = 0;
     Tasks_Init();
     uart0_send_string("uart0 start work\r\n");
@@ -260,18 +280,25 @@ void uart0_send_string(char* str)
 //串口的中断服务函数
 void UART_0_INST_IRQHandler(void)
 {
-    //如果产生了串口中断
     switch( DL_UART_getPendingInterrupt(UART_0_INST) )
     {
-        case DL_UART_IIDX_RX://如果是接收中断
-            //将发送过来的数据保存在变量中
+        case DL_UART_IIDX_RX:
             uart_data = DL_UART_Main_receiveData(UART_0_INST);
-            //将保存的数据再发送出去
-            // uart0_send_char(uart_data);
-            // printf("receive data:%c\n",uart_data);
             break;
+        default:
+            break;
+    }
+}
 
-        default://其他的串口中断
+// UART_1 红外测距传感器 ISR
+void UART_1_INST_IRQHandler(void)
+{
+    switch( DL_UART_getPendingInterrupt(UART_1_INST) )
+    {
+        case DL_UART_IIDX_RX:
+            distance_sensor_process_byte(&dist_sensor, DL_UART_Main_receiveData(UART_1_INST));
+            break;
+        default:
             break;
     }
 }
@@ -331,6 +358,10 @@ void TIMER_0_INST_IRQHandler(void)
 
                 // 1.更新实际速度（使用 20ms 增量）
                 UpdateSpeedFeedback(encoder1_speed, encoder2_speed, 20.0f);
+
+                // 红外测距：发送查询 + 读取距离
+                Distance_SendQuery();
+                distance_mm = distance_sensor_get_distance(&dist_sensor);
 
                 // 2.读取灰度并计算误差
                 

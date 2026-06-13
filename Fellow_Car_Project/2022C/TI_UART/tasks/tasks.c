@@ -7,8 +7,9 @@
 #include <stdio.h>
 
 // 外部变量（定义在 empty.c 中）
-extern volatile uint8_t gray_byte;
-extern volatile float   gray_error;
+extern volatile uint8_t  gray_byte;
+extern volatile float    gray_error;
+extern volatile uint16_t distance_mm;
 
 Protothread_t oled_pt;
 
@@ -59,14 +60,14 @@ void OLED_Task(Protothread_t* pt)
             snprintf(buffer, sizeof(buffer), "err:%.2f", gray_error);
             OLED_ShowString(0, 16, (uint8_t*)buffer, 16, 1);
         }
-        else if (mode == 2)   // 速度模式
+        else if (mode == 2)   // 速度+距离模式
         {
             float speed_a = Control_Speed_GetActualSpeed(CONTROL_SPEED1_OBJECT);
             float speed_b = Control_Speed_GetActualSpeed(CONTROL_SPEED2_OBJECT);
-            snprintf(buffer, sizeof(buffer), "L:%.2f", speed_a);
+            snprintf(buffer, sizeof(buffer), "L:%.2f R:%.2f", speed_a, speed_b);
             OLED_ShowString(0, 0, (uint8_t*)buffer, 16, 1);
-            snprintf(buffer, sizeof(buffer), "R:%.2f", speed_b);
-            OLED_ShowString(0, 16, (uint8_t*)buffer, 16, 1);
+            snprintf(buffer, sizeof(buffer), "Dist:%u mm", distance_mm);
+            OLED_ShowString(0, 24, (uint8_t*)buffer, 16, 1);
         }
         else if (mode == 3)   // 题1：巡线
         {
