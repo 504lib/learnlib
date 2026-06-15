@@ -1,0 +1,10 @@
+-I static_queue
+-I protocol
+-I Log
+-I multikey
+-I Protothreads
+-I SPI_OLED
+-I Motor_AT4950
+-I MPU_9250
+-I Tasks
+-i static_queue/static_queue_demo.c
