@@ -507,6 +507,18 @@ bool Uart_Protocol_Register_Parse_WatchDog(UART_protocol_t* protocol_instance,ui
     return true;
 }
 
+bool Uart_Protocol_Register_CustomQueue(UART_protocol_t* protocol_instance, Queue_Operations queue_ops)
+{
+    if (!queue_ops.instance || !queue_ops.push || !queue_ops.pop)
+    {
+        LOG_INFO("Custom queue parameters are incomplete. Custom queue will not be enabled.");
+        return false;
+    }
+    protocol_instance->queue = queue_ops;
+    __Uart_Protocol_WriteBitFlag(protocol_instance, isCustomQueue, true);
+    return true;
+}
+
 bool Uart_Protocol_ProcessReceivedData8bit(UART_protocol_t* protocol_instance, uint8_t data)
 {
     if (!__Uart_Protocol_IsInitialized(protocol_instance))

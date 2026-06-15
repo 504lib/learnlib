@@ -116,6 +116,7 @@ void     wr_f32_be(uint8_t* p, float f);    // 本机 → 大端 float
 bool Uart_Protocol_Init(UART_protocol_t* protocol_instance,Uart_Protocol_FunctionsParameters RequiredParam);
 bool Uart_Protocol_Register_ACK(UART_protocol_t* protocol_instance,Uart_Protocol_ACKFunctionsParameters ACKParam);
 bool Uart_Protocol_Register_Parse_WatchDog(UART_protocol_t* protocol_instance,uint32_t (*get_tick)(void),const uint32_t time_out);
+bool Uart_Protocol_Register_CustomQueue(UART_protocol_t* protocol_instance,Queue_Operations queue_ops);
 bool Uart_Protocol_ProcessReceivedData8bit(UART_protocol_t* protocol_instance, uint8_t data);
 bool Uart_Protocol_ProcessReceivedDataBuffer(UART_protocol_t* protocol_instance, uint8_t* data,size_t len);
 bool Uart_Protocol_Transmit_Frame(UART_protocol_t* protocol_instance, const uint8_t* data, uint8_t type , uint8_t len);
