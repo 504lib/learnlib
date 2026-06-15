@@ -19,57 +19,60 @@
 #include "Log.h"
 #include <stdint.h>
 
+DECLARE_STATIC_QUEUE(UART_PROTOCOL_QUEUE, uint8_t, UART_PROTOCOL_FRAME_BUFFER_LEN * 2)
+
+typedef struct
+{
+    uint8_t Headerframe1;
+    uint8_t Headerframe2;
+    uint8_t Tailframe1;
+    uint8_t Tailframe2;
+} Custom_Frame_HT_T;
 
 
 typedef struct
 {
-    uint8_t Headerframe1;       // 帧头一
-    uint8_t Headerframe2;       // 帧头二
-    uint8_t Tailframe1;         // 帧尾一
-    uint8_t Tailframe2;         // 帧尾二
-}Custom_Frame_HT_T;
-
+    void*  instance;
+    bool (*push)(void* instance, const uint8_t data);
+    bool (*pop)(void* instance, uint8_t* data);
+} Queue_Operations;
 
 typedef struct
 {
-  void* Queue_instance;                                           // 串口数据队列实例指针
-  bool (*Queue_pushback)(void* Queue_instance, const uint8_t data); // 数据入队回调函数
-  bool (*Queue_popfront)(void* Queue_instance, uint8_t* data);      // 数据出队回调函数
-}Queue_Operations;                                                // 串口数据队列操作函数集合
+    Custom_Frame_HT_T frame_cfg;                                 // 帧头尾配置
+    uint32_t           flags;                                    // 运行时标志 (Flag_Type)
+    uint8_t            parse_state;                              // 当前解析状态 (Frame_Process_Type)
+    uint8_t            frame_buf[UART_PROTOCOL_FRAME_BUFFER_LEN];
+    size_t             data_len;
+    size_t             payload_index;
 
-typedef struct 
-{
-  Custom_Frame_HT_T uart_frame_struct;   // 帧结构定义
-  uint32_t hander_flags;  
-  uint8_t Frame_Process_Type;                  // 数据帧处理状态枚举
-  uint8_t frame_buffer[UART_PROTOCOL_FRAME_BUFFER_LEN];       // 整帧接收缓冲区（帧头+类型+长度+载荷+校验+帧尾）
-  size_t data_len;
-  size_t payload_index;
-  struct
-  {
-    uint8_t current_frame_type;                                   // 当前接收到的帧类型
-    void (*frame_received_handler)(uint8_t frame_type, const uint8_t* frame_data, uint16_t frame_len); // 数据帧接收处理函数
-  }event_handler;                                                // 事件处理函数集合
-  struct
-  {
-    bool (*transmit_function)(const uint8_t* data, uint16_t len); // 数据发送函数
-  }Send_Operations;                                                  // 数据发送函数集合
-  struct
-  {
-    uint8_t temp_transmit_buffer[UART_PROTOCOL_FRAME_BUFFER_LEN];    // 临时发送缓冲区（帧头+类型+长度+载荷+校验+帧尾）
-    size_t temp_buffer_len;
-    uint8_t pending_frame_type;
-    uint32_t tick;                                                // 定时器周期（ms）
-    uint32_t lastTick;                                      
-    uint32_t timeout_threshold;                                   // 接收超时阈值（ms）
-    size_t try_times;                                             // 接收重试次数
-    size_t max_try_times;                                   // 最大重试次数（编译时常量）
-    void (*timeout_handler)(uint8_t current_frame_type);                          // 超时处理函数
-    uint32_t (*GetTick)(void);
-  }tickBased_timeout;                                                // 定时器相关配置和处理函数
+    uint8_t            parsing_frame_type;                       // 正在解析的帧类型
+    void             (*on_frame)(uint8_t type, const uint8_t* payload, uint16_t len);
 
-  Queue_Operations queue_ops;                                                // 串口数据队列操作函数集合
-}UART_protocol_t;
+    bool             (*tx)(const uint8_t* data, uint16_t len);
+    UART_PROTOCOL_QUEUE_t   rx_queue;                                 // 默认串口数据接收队列
+    Queue_Operations   queue;                                   // 自定义队列
+
+    struct
+    {
+        uint8_t  backup[UART_PROTOCOL_FRAME_BUFFER_LEN];
+        size_t   backup_len;
+        uint8_t  pending_type;                                  // 正在等 ACK 的帧类型
+        uint32_t last_tick;
+        uint32_t timeout_ms;
+        size_t   retry_n;
+        size_t   retry_max;
+        uint32_t(*get_tick)(void);
+        void   (*on_timeout)(uint8_t type);
+    } ack;
+    struct
+    {
+        uint8_t last_frame_type;
+        uint32_t last_tick;
+        uint32_t timeout_ms;
+        uint32_t(*get_tick)(void);
+    } parse_watchdog;
+} UART_protocol_t;
 
 /**
  * @brief    函数指针参数
@@ -78,9 +81,8 @@ typedef struct
 typedef struct
 {
     const Custom_Frame_HT_T Head_Tial_Frame_struct;                   // 帧结构定义
-  bool (*transmit_function)(const uint8_t* data, uint16_t len); // 数据发送函数
-  void (*frame_received_handler)(uint8_t frame_type, const uint8_t* frame_data, uint16_t frame_len); // 数据帧接收处理函数
-    const Queue_Operations queue_ops;                                                // 串口数据队列操作函数集合
+    bool (*transmit_function)(const uint8_t* data, uint16_t len); // 数据发送函数
+    void (*frame_received_handler)(uint8_t frame_type, const uint8_t* frame_data, uint16_t frame_len); // 数据帧接收处理函数
 }Uart_Protocol_FunctionsParameters;
 
 /**
@@ -91,7 +93,9 @@ typedef struct
 {
   void (*timeout_handler)(uint8_t current_frame_type);                          // 超时处理函数
   uint32_t (*GetTick)(void);
-}Uart_Protocol_OptionalFunctionsParameters;
+}Uart_Protocol_ACKFunctionsParameters;
+
+
 
 // 序列化工具（线上统一采用大端序 BE）
 // 反序列化：从字节数组（BE）读取为本机数值
@@ -109,9 +113,9 @@ void     wr_f32_be(uint8_t* p, float f);    // 本机 → 大端 float
 
 
 /************************ 函数接口 *********************** */
-bool Uart_Protocol_Init(UART_protocol_t* protocol_instance,
-                        Uart_Protocol_FunctionsParameters RequiredParam,
-                        Uart_Protocol_OptionalFunctionsParameters OptionalParam);
+bool Uart_Protocol_Init(UART_protocol_t* protocol_instance,Uart_Protocol_FunctionsParameters RequiredParam);
+bool Uart_Protocol_Register_ACK(UART_protocol_t* protocol_instance,Uart_Protocol_ACKFunctionsParameters ACKParam);
+bool Uart_Protocol_Register_Parse_WatchDog(UART_protocol_t* protocol_instance,uint32_t (*get_tick)(void),const uint32_t time_out);
 bool Uart_Protocol_ProcessReceivedData8bit(UART_protocol_t* protocol_instance, uint8_t data);
 bool Uart_Protocol_ProcessReceivedDataBuffer(UART_protocol_t* protocol_instance, uint8_t* data,size_t len);
 bool Uart_Protocol_Transmit_Frame(UART_protocol_t* protocol_instance, const uint8_t* data, uint8_t type , uint8_t len);

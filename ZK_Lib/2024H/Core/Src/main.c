@@ -56,8 +56,6 @@
 int16_t test_num = 0; // 作为测试的全局变量，观察协议发送和接收的正确性
 uint8_t protocol_value_dirty = 0;
 
-DECLARE_STATIC_QUEUE(UART_Protocol_Frame_Buffer, uint8_t, UART_PROTOCOL_FRAME_BUFFER_LEN * 2);
-
 bool Uart_Protocol_Tranmsit_ForHal(const uint8_t* data, uint16_t len)
 {
     return HAL_UART_Transmit(&huart3, (uint8_t*)data, len, 100) == HAL_OK;
@@ -80,18 +78,6 @@ void frame_received_handler_Fucntion(uint8_t frame_type, const uint8_t* frame_da
     
 }
 
-
-bool Uart_Protocol_Queue_pushback(void* Queue_instance, const uint8_t data)
-{
-    UART_Protocol_Frame_Buffer_t* queue = (UART_Protocol_Frame_Buffer_t*)Queue_instance;
-    return UART_Protocol_Frame_Buffer_PUSH(queue, data);
-}
-
-bool Uart_Protocol_Queue_popfront(void* Queue_instance, uint8_t* data)
-{
-    UART_Protocol_Frame_Buffer_t* queue = (UART_Protocol_Frame_Buffer_t*)Queue_instance;
-    return UART_Protocol_Frame_Buffer_POP(queue, data);
-}
 
 
 void Uart_protocol_timeout_handler(uint8_t current_frame_type)
@@ -149,7 +135,6 @@ MulitKey_t key1;
 MulitKey_t key2;
 MotorAT4950 motor1;
 UART_protocol_t uart_protocol_instance;
-UART_Protocol_Frame_Buffer_t uart_frame_buffer;
 uint8_t receive_buffer[UART_PROTOCOL_FRAME_BUFFER_LEN];
 
 Uart_Protocol_FunctionsParameters RequiredParam = {
@@ -161,16 +146,6 @@ Uart_Protocol_FunctionsParameters RequiredParam = {
   },
   .transmit_function = Uart_Protocol_Tranmsit_ForHal,
   .frame_received_handler = frame_received_handler_Fucntion,
-  .queue_ops = {
-    .Queue_instance = (void*)&uart_frame_buffer, // 这里需要替换为实际的队列实例
-    .Queue_pushback = Uart_Protocol_Queue_pushback, // 这里需要替换为实际的函数指针
-    .Queue_popfront = Uart_Protocol_Queue_popfront  // 这里需要替换为实际的函数指针
-  }
-};
-
-Uart_Protocol_OptionalFunctionsParameters OptionalParam = {
-  .GetTick = HAL_GetTick,
-  .timeout_handler = Uart_protocol_timeout_handler // 如果不需要超时处理，可以设置为NULL
 };
 
 /* USER CODE END PV */
@@ -244,8 +219,15 @@ int main(void)
   MulitKey_Init(&key1,ReadKey1Pin,Key1PressedCallback,Key1PressedCallback,RISE_BORDER_TRIGGER);
   MulitKey_Init(&key2,ReadKey2Pin,Key2PressedCallback,Key2PressedCallback,RISE_BORDER_TRIGGER);
 
-  UART_Protocol_Frame_Buffer_INIT(&uart_frame_buffer);
-  Uart_Protocol_Init(&uart_protocol_instance, RequiredParam, OptionalParam);
+  Uart_Protocol_Init(&uart_protocol_instance, RequiredParam);
+  {
+    Uart_Protocol_ACKFunctionsParameters ack_param = {
+      .GetTick = HAL_GetTick,
+      .timeout_handler = Uart_protocol_timeout_handler
+    };
+    Uart_Protocol_Register_ACK(&uart_protocol_instance, ack_param);
+  }
+  Uart_Protocol_Register_Parse_WatchDog(&uart_protocol_instance, HAL_GetTick, 400); // 200ms 看门狗超时
   MotorInit_AT46950(&motor1, SetMotor1ComparePWM, SetMotor1Level, 1000);
   SetDefaultDirection(&motor1, High_Level);
   HAL_TIM_Base_Start_IT(&htim1);

@@ -1,0 +1,4 @@
+C:/learnlib/public_lib/protocol/build/tests/CMakeFiles/protocol.dir
+C:/learnlib/public_lib/protocol/build/tests/CMakeFiles/protocol_test.dir
+C:/learnlib/public_lib/protocol/build/tests/CMakeFiles/edit_cache.dir
+C:/learnlib/public_lib/protocol/build/tests/CMakeFiles/rebuild_cache.dir

@@ -136,22 +136,31 @@ static void reset_fixture(protocol_fixture_t* fixture, bool enable_ack)
         },
         .transmit_function = test_transmit,
         .frame_received_handler = test_receive_handler,
-        .queue_ops = {
-            .Queue_instance = &fixture->queue,
-            .Queue_pushback = queue_push,
-            .Queue_popfront = queue_pop,
-        },
-    };
-    Uart_Protocol_OptionalFunctionsParameters optional = {
-        .timeout_handler = enable_ack ? test_timeout_handler : NULL,
-        .GetTick = enable_ack ? test_get_tick : NULL,
     };
 
     memset(fixture, 0, sizeof(*fixture));
     TestByteQueue_INIT(&fixture->queue);
     g_active_fixture = fixture;
     g_fake_tick = 0u;
-    assert(Uart_Protocol_Init(&fixture->protocol, required, optional));
+
+    assert(Uart_Protocol_Init(&fixture->protocol, required));
+
+    /* wire custom queue (instead of default rx_queue) */
+    fixture->protocol.queue = (Queue_Operations){
+        .instance = &fixture->queue,
+        .push = queue_push,
+        .pop = queue_pop,
+    };
+    fixture->protocol.flags |= (uint32_t)(1 << 4); /* isCustomQueue */
+
+    if (enable_ack)
+    {
+        Uart_Protocol_ACKFunctionsParameters ack_param = {
+            .timeout_handler = test_timeout_handler,
+            .GetTick = test_get_tick,
+        };
+        assert(Uart_Protocol_Register_ACK(&fixture->protocol, ack_param));
+    }
 }
 
 static void feed_frame(protocol_fixture_t* fixture, const uint8_t* frame, size_t len)
@@ -281,7 +290,7 @@ static void test_ack_timeout_retries_then_stops_after_ack(void)
     assert(fixture.tx_spy.len == expected_len);
     assert(memcmp(fixture.tx_spy.buffer, expected_frame, expected_len) == 0);
 
-    g_fake_tick = fixture.protocol.tickBased_timeout.timeout_threshold + 1u;
+    g_fake_tick = fixture.protocol.ack.timeout_ms + 1u;
     assert(Uart_Protocol_Loop(&fixture.protocol));
     assert(fixture.tx_spy.call_count == 2u);
     assert(fixture.tx_spy.len == expected_len * 2u);
@@ -290,7 +299,7 @@ static void test_ack_timeout_retries_then_stops_after_ack(void)
     feed_frame(&fixture, ack_frame, ack_len);
     const size_t len_after_ack = fixture.tx_spy.len;
 
-    g_fake_tick += fixture.protocol.tickBased_timeout.timeout_threshold + 1u;
+    g_fake_tick += fixture.protocol.ack.timeout_ms + 1u;
     assert(Uart_Protocol_Loop(&fixture.protocol));
     assert(fixture.tx_spy.len == len_after_ack);
     assert(fixture.timeout_spy.call_count == 0u);
@@ -304,16 +313,16 @@ static void test_ack_timeout_hits_max_retry_and_calls_timeout_handler(void)
     reset_fixture(&fixture, true);
     assert(Uart_Protocol_Transmit_Frame(&fixture.protocol, payload, 0x99u, (uint8_t)sizeof(payload)));
 
-    for (size_t retry = 0; retry < fixture.protocol.tickBased_timeout.max_try_times; ++retry)
+    for (size_t retry = 0; retry < fixture.protocol.ack.retry_max; ++retry)
     {
-        g_fake_tick += fixture.protocol.tickBased_timeout.timeout_threshold + 1u;
+        g_fake_tick += fixture.protocol.ack.timeout_ms + 1u;
         assert(Uart_Protocol_Loop(&fixture.protocol));
     }
 
-    g_fake_tick += fixture.protocol.tickBased_timeout.timeout_threshold + 1u;
+    g_fake_tick += fixture.protocol.ack.timeout_ms + 1u;
     assert(Uart_Protocol_Loop(&fixture.protocol));
     assert(fixture.timeout_spy.call_count == 1u);
-    assert(fixture.timeout_spy.frame_type == 0u);
+    assert(fixture.timeout_spy.frame_type == 0x99u);
 }
 
 int main(void)
