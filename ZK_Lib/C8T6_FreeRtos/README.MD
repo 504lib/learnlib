@@ -1,157 +1,207 @@
-# 公交车项目详解和引脚配置
+# 公交车项目 STM32 端 (C8T6_FreeRtos)
+
+STM32F103C8T6 端，负责 OLED 显示、按键交互、UART 与 ESP32 站台通信。
 
 ---
 
-[toc]
+## 硬件平台
+
+| 项目 | 规格 |
+|------|------|
+| MCU | STM32F103C8T6 (Cortex-M3, 72MHz) |
+| 封装 | LQFP48 |
+| 显示屏 | SSD1306 128x64 OLED (SPI) |
+| 调试接口 | SWD (PA13/PA14) |
+| 系统时钟 | HSE 8MHz → PLL ×9 = 72MHz |
+| 操作系统 | FreeRTOS (CMSIS-V2) |
 
 ---
 
-## 项目执行目前总览
+## 引脚分配
 
-```mermaid
-flowchart TD
-    A[stm32程序开始] -->B(DMA串口初始化)
-    B --> IDEL_UART(空闲中断使能)
-    IDEL_UART --> is_Came_Data{是否收到来自ESP32的信息}
-    is_Came_Data --> |是| add_Event(添加事件组，并向环形缓冲区添加帧数据)
-    is_Came_Data --> |否| wait_Data(等待数据)
-    wait_Data --> is_Came_Data
-    B --> C{开启FreeRtos调度器}
-    C -->|U8G2显示任务| D[U8g2_Task]
-    C -->|按键扫描任务| E[KEY_Task]
-    C -->|串口处理任务| F[uart_task]
-    D --> G{是否以初始化}
-    E --> H{是否以初始化}
-    F --> I{是否以初始化}
-    G --> |否| Init_Enable(初始化RTC与菜单系统)
-    G --> |是| Init_Disable(处理U8G2渲染任务和RTC更新任务)
-    Init_Enable --> Init_Disable
-    Init_Disable --> |循环调度| D
-    H --> |否| KEY_Init(初始化按键对象)
-    H --> |是| KEY_Execute(扫描按键状态，执行状态机)
-    KEY_Init --> KEY_Execute
-    KEY_Execute --> |循环调度|E
-    I --> |否| UART_Init(获取环形缓冲区指针，开始接受帧数据)
-    I --> |是| UART_Execute(串口等待事件组)
-    UART_Execute --> is_Event_Happend{串口事件组是否发生}
-    is_Event_Happend --> |发生| Event_Happend(执行数据解析)
-    is_Event_Happend --> |未发生| Event_unHappend(处理ORE异常或同步乘客数据)
-    UART_Init --> UART_Execute
-    Event_Happend --> circule(循环调度)
-    Event_unHappend --> circule
-    circule --> F
+| 引脚 | 标签 | 功能 | 备注 |
+|------|------|------|------|
+| PC13 | LED | 板载 LED 指示灯 | GPIO Output |
+| PA0 | CS_OLED | OLED 片选线 | GPIO Output |
+| PA1 | DC_OLED | OLED 数据/命令选择 | GPIO Output |
+| PA2 | USART2_TX | 日志串口 TX | 115200bps, 连 PC 或调试器 |
+| PA3 | USART2_RX | 日志串口 RX | 未使用 |
+| PA4 | RES_OLED | OLED 复位引脚 | GPIO Output |
+| PA5 | SPI1_SCK | OLED SPI 时钟 | SPI 主机模式 |
+| PA6 | SPI1_MISO | SPI 主机输入 | 本项目未使用 |
+| PA7 | SPI1_MOSI | OLED SPI 数据线 | SPI 主机模式 |
+| PA9 | USART1_TX | 与 ESP32 通信 TX | 115200bps, DMA |
+| PA10 | USART1_RX | 与 ESP32 通信 RX | 115200bps, DMA + 空闲中断 |
+| PB0 | KEY_UP | 向上按钮 | GPIO Input, 下拉 |
+| PB1 | KEY_DOWN | 向下按钮 | GPIO Input, 下拉 |
+| PB10 | KEY_ENTER | 确认按钮 | GPIO Input, 下拉 |
+| PB11 | KEY_CANCEL | 取消/返回按钮 | GPIO Input, 下拉 |
+| PC14/15 | - | 外部低速晶振 (LSE) | 32.768kHz, RTC 时钟源 |
+| PD0/1 | - | 外部高速晶振 (HSE) | 8MHz |
+
+---
+
+## 外设分配
+
+| 外设 | 功能 | DMA | 中断 |
+|------|------|-----|------|
+| SPI1 | OLED 显示 (SSD1306) | TX: DMA1_Ch3 | - |
+| USART1 | 与 ESP32 站台通信 | RX: DMA1_Ch5, TX: DMA1_Ch4 | USART1_IRQn, 空闲中断 |
+| USART2 | 日志输出 | TX: DMA1_Ch7 | - |
+| RTC | 实时时钟, 定时保存 | - | - |
+| TIM4 | FreeRTOS 时基 (1ms) | - | TIM4_IRQn |
+
+**FreeRTOS 内核对象** (从 .ioc 文件):
+
+| 类型 | 名称 | 说明 |
+|------|------|------|
+| 任务 | U8G2_TASK | OLED 渲染 + 菜单交互, 优先级 Normal |
+| 任务 | KEY_TASK | 按键扫描, 优先级 Low |
+| 任务 | UART_TASK | 串口帧接收 + 乘客同步, 优先级 High7 |
+| 任务 | ACK_Task | ACK 重传 + 数据发送, 优先级 BelowNormal |
+| 事件组 | UART_EVENT | UART 数据到达通知 + ACK 接收通知 |
+| 互斥量 | UART_TXMute | 保护 USART1 发送操作 |
+| 消息队列 | ACK_Queue | 发送命令队列 (10 × `prama_Cmd_packet`) |
+
+---
+
+## 目录结构
+
+```
+C8T6_FreeRtos/
+├── Core/
+│   ├── Inc/                  # HAL 外设头文件 (gpio, usart, spi, dma, rtc)
+│   └── Src/
+│       ├── main.c            # 入口, 外设初始化, DMA 空闲中断回调
+│       ├── freertos.c        # FreeRTOS 任务 + 菜单构建 + 协议回调 (880行)
+│       ├── stm32f1xx_it.c    # 中断服务函数
+│       └── usart.c           # USART1/USART2 初始化
+├── protocol/
+│   ├── protocol.h            # 帧协议定义 (CmdType, Rounter, VehicleStatus)
+│   └── protocol.c            # 帧组包/解包, 注册制 Handler, 环形缓冲区
+├── menu/
+│   ├── menu.h                # 菜单系统 API (树状链表 + u8g2 渲染)
+│   └── menu.c                # 菜单系统实现
+├── u8g2/                     # u8g2 图形库 (SSD1306 驱动)
+├── u8g2_user/                # u8g2 HAL 适配层 (SPI 引脚配置)
+├── OLED/                     # 旧 OLED 驱动 (被 u8g2 替代, 保留兼容)
+├── Log/                      # 日志输出模块
+├── C8T6_FreeRtos.ioc         # STM32CubeMX 工程文件
+└── MDK-ARM/                  # Keil MDK 工程文件
 ```
 
-## 执行详解
+> **注意**: `multikey` 按键库不在本目录下, 已抽取到 `public_lib/multikey/` 共享。
 
-当前项目分为了很多模块，包括菜单模块(`menu.c`)、按键模块(`multikey.c`)、协议模块(`protocol.c`)、日志模块(`Log.c`)
-
-+ 菜单模块:提供树状链表的数据结构 + u8g2图形库的支持，目前以完成了基本的菜单需求，包含很多节点类型
-  | 节点类型                               | 作用                                                                 |
-  | -------------------------------------- | -------------------------------------------------------------------- |
-  | 子菜单(`MENU_TYPE_SUB_MENU`)         | 作为层次桥接的重要节点，可在进入子节点时用户自定义初始化             |
-  | 功能选项(`MENU_TYPE_FUNCTION`)       | 用户可自定义的功能节点，用户可自定义                                 |
-  | 整形数值选项(`MENU_TYPE_PARAM_INT`)  | 用户可自定义**整形变量**范围增减量的选项(在本项目中并不会使用) |
-  | 枚举字符选项(`MENU_TYPE_PARAM_ENUM`) | 用户可自定义显示的字符串(在本项目可能会使用，待商议)                 |
-  | 开关选项(`MENU_TYPE_TOGGLE`)         | 用户**可开关**的节点                                           |
-  | 主界面(`MENU_TYPE_MAIN`)             | 用户可自定义的主界面渲染(需要用户会使用u8g2图形库)                   |
-  | 仅显示信息节点(`MENU_TYPE_DISPLAY`)  | 暂未实现                                                             |
-+ 按键模块：提供按键防抖、点按、长按等操作，检测时间可自由更改，可运行时更改
-+ 协议模块：用于区分数据类型和检测数据完整性
-+ 日志模块：基于串口的日式输出模块，不可在程序中更改，可自由更改显示等级
-  | 日志类型 | 等级 | 使用场景                             |
-  | -------- | ---- | ------------------------------------ |
-  | DEBUG    | 4    | 新功能调试常用，生产环境慎用         |
-  | INFO     | 3    | 重要信息提示                         |
-  | WRAN     | 2    | 警告，可能由于模块问题等等           |
-  | FATAL    | 1    | 错误，程序若继续执行可能存在未知错误 |
-
-## 引脚配置
-
-| 引脚 | 引脚宏定义名称 | 作用                                             |
-| ---- | -------------- | ------------------------------------------------ |
-| PC13 | LED            | 开发板唯一的LED                                  |
-| PA0  | CS_OLED        | 作为OLED显示屏的片选线                           |
-| PA1  | DC_OLED        | Data/Command线，告诉OLED显示屏数据为数据还是命令 |
-| PA2  | UART2_TX       | 日志发送引脚                                     |
-| PA3  | UART2_RX       | 外界串口接受引脚(本引脚并未使用)                 |
-| PA4  | RES_OLED       | OLED的复位引脚                                   |
-| PA5  | SPI1_SCK       | OLED的SPI时钟线                                  |
-| PA6  | SPI1_MISO      | 从机向主机发送的线，本项目并未使用               |
-| PA7  | SPI_MOSI       | OLED的SDA线                                      |
-| PB0  | KEY_UP         | 方向为上的按钮，共阳极下降沿触发                 |
-| PB1  | KEY_DOWN       | 方向为下的按钮，共阳极下降沿触发                 |
-| PB10 | KEY_ENTER      | 方向为进入的按钮，共阳极下降沿触发               |
-| PB11 | KEY_CANCEL     | 方向为取消的按钮，共阳极下降沿触发               |
-| PA10 | UART1_RX       | 与ESP32通信的RX引脚                              |
-| PA9  | UART1_TX       | 与ESP32通信的TX引脚                              |
+---
 
 ## 当前菜单结构
 
-```mermaid
-flowchart TD
-	main_display --> root
-	root --> sub1
-	root --> sub2
-	root --> sub3
-	root --> sub4
-	root --> sub5
-	sub1 --> sub1_sub1
-	sub1 --> sub1_sub2
-	sub1 --> sub1_sub3
-	sub1 --> sub1_sub4
-	sub2 --> sub2_sub1
-	sub4 --> sub4_sub1
-	sub4 --> sub4_sub2
-	sub4 --> sub4_sub3
-	sub4 --> sub4_sub4
-	sub4 --> sub4_sub5
-	sub4 --> sub4_sub6
-	sub4 --> sub4_sub7
-	sub5 --> sub5_sub1
-	sub5 --> sub5_sub2
-	sub5 --> sub5_sub3
+菜单通过 `SLAVE_MODE` 宏区分站台模式和车辆模式, 两种模式编译出不同固件。
+
+```
+main_display  (主界面 - 显示时间 + 状态/乘客数)
+  └── root  (main_menu)
+        ├── sub1  (param_int) ─── 通信测试子菜单
+        │     ├── sub1_sub1  SendUART_INT        [FUNCTION]  发送整数帧
+        │     ├── sub1_sub2  Change_int           [PARAM_INT] 修改整数值
+        │     ├── sub1_sub3  SendUART_FLOAT       [FUNCTION]  发送浮点帧
+        │     └── sub1_sub4  SendUART_ACK         [FUNCTION]  发送 ACK 测试
+        ├── sub2  (param_enum) ─── 字符串枚举测试
+        │     └── sub2_sub1  Change_param         [PARAM_ENUM]
+        ├── sub3  (toggle) ─── 开关测试
+        ├── sub4  (Clock_Set) ─── 时钟设置
+        │     ├── sub4_sub1  seconds              [PARAM_INT]  0-59
+        │     ├── sub4_sub2  minutes              [PARAM_INT]  0-59
+        │     ├── sub4_sub3  hours                [PARAM_INT]  0-23
+        │     ├── sub4_sub4  years                [PARAM_INT]  0-99
+        │     ├── sub4_sub5  monthes              [PARAM_INT]  1-12
+        │     ├── sub4_sub6  days                 [PARAM_INT]  1-31
+        │     └── sub4_sub7  Set_time             [FUNCTION]  写入 RTC
+        └── sub5  (Set_passenger) ─── 乘客管理
+
+# 站台模式 (SLAVE_MODE=0)                    # 车辆模式 (SLAVE_MODE=1)
+  sub5_sub1  Set_R1_Passenger [PARAM_INT]       sub5_sub1  Waiting_Signal  [FUNCTION]
+  sub5_sub2  Set_R2_Passenger [PARAM_INT]       sub5_sub2  Leaving_Signal  [FUNCTION]
+  sub5_sub3  Set_R3_Passenger [PARAM_INT]
+  sub5_sub4  Set_Ring_Passenger [PARAM_INT]
+  sub5_sub5  SendUART_Passenger [FUNCTION]
+  sub5_sub6  clear             [FUNCTION]
 ```
 
-| 菜单节点         | 节点名称               | 类型                    | 简介               |
-| ---------------- | ---------------------- | ----------------------- | ------------------ |
-| `main_display` | `main`               | `MENU_TYPE_MAIN`      | 作为主界面渲染     |
-| `root`         | `main_menu`          | `MENU_TYPE_SUB_MENU`  | 作为根目录         |
-| `sub1`         | `param_int`          | `MENU_TYPE_SUB_MENU`  | 作为整形数据测试   |
-| `sub2`         | `param_enum`         | `MENU_TYPE_SUB_MENU`  | 作为字符串枚举测试 |
-| `sub3`         | `toggle`             | `MENU_TYPE_TOGGL`     | 作为开关测试       |
-| `sub4`         | `Clock_Set`          | `MENU_TYPE_SUB_MENU`  | 时钟配置菜单       |
-| `sub5`         | `Set_passenger`      | `MENU_TYPE_FUNCTION`  | 乘客发送菜单       |
-| `sub1_sub1`    | `SendUART_INT`       | `MENU_TYPE_FUNCTION`  | 整形数据通信测试   |
-| `sub1_sub2`    | `Change_int`         | `MENU_TYPE_PARAM_INT` | 整形数据修改菜单   |
-| `sub1_sub3`    | `SendUART_FLOAT`     | `MENU_TYPE_FUNCTION`  | 浮点数数据通信测试 |
-| `sub1_sub4`    | `SendUART_ACK`       | `MENU_TYPE_FUNCTION`  | ACK信号测试        |
-| `sub2_sub1`    | `Change_param`       | `MENU_TYPE_FUNCTION`  | 字符串数据测试菜单 |
-| `sub4_sub1`    | `seconds`            | `MENU_TYPE_PARAM_INT` | 设置秒             |
-| `sub4_sub2`    | `minutes`            | `MENU_TYPE_PARAM_INT` | 设置分             |
-| `sub4_sub3`    | `hours`              | `MENU_TYPE_PARAM_INT` | 设置时             |
-| `sub4_sub4`    | `years`              | `MENU_TYPE_PARAM_INT` | 设置年             |
-| `sub4_sub5`    | `monthes`            | `MENU_TYPE_PARAM_INT` | 设置月             |
-| `sub4_sub6`    | `days`               | `MENU_TYPE_PARAM_INT` | 设置日             |
-| `sub4_sub7`    | `Set_time`           | `MENU_TYPE_FUNCTION`  | 设置时间           |
-| `sub5_sub1`    | `Set_Passenger`      | `MENU_TYPE_PARAM_INT` | 设置乘客数量       |
-| `sub5_sub2`    | `SendUART_Passenger` | `MENU_TYPE_FUNCTION`  | 发送乘客数量       |
-| `sub5_sub3`    | `clear`              | `MENU_TYPE_FUNCTION`  | 清理乘客数量       |
+### 菜单节点类型
 
-## 快速开始
+| 类型 | 说明 | 示例 |
+|------|------|------|
+| `MENU_TYPE_MAIN` | 主界面, 用户自定义渲染 | 时间 + 状态/乘客数 |
+| `MENU_TYPE_SUB_MENU` | 子菜单, 可设进入/退出回调 | Clock_Set |
+| `MENU_TYPE_FUNCTION` | 功能节点, 点击执行回调 | SendUART_INT |
+| `MENU_TYPE_PARAM_INT` | 整数参数, 可增减 + 范围限制 | seconds (0-59) |
+| `MENU_TYPE_PARAM_ENUM` | 枚举参数, 从字符串列表选择 | Change_param |
+| `MENU_TYPE_TOGGLE` | 开关, 布尔值切换 | toggle |
 
-- [硬件连接指南](./docs/hardware.md)
-- [软件编译指南](./docs/software.md)
-- [API](./docs/api.md)
+---
 
-## 模块文档
+## UART 通信帧格式
 
-+ [菜单系统](./docs/modules/menu.md)
-+ [通信协议](./docs/modules/protocol.md)
-+ [按键处理](./docs/modules/multikeys.md)
-+ [日志系统](./docs/modules/Log.md)
+帧格式 (十六进制):
 
-## 开发指南
+```
++------+------+------+------+-----------+------+------+------+------+
+| 0xAA | 0x55 | Type | Len  | Payload[] | CHK_H| CHK_L| 0x0D | 0x0A |
++------+------+------+------+-----------+------+------+------+------+
+  帧头         命令    长度   数据 (0~10B)    校验和(大端)       帧尾
+```
 
-+ [菜单使用技巧](./docs/guides/add_menu.md)
-+ [协议使用技巧](./docs/guides/Link_protocol.md)
+校验覆盖: Type + Len + Payload (不含帧头帧尾)
+
+### 命令类型
+
+| CmdType | 值 | Payload 长度 | 说明 |
+|---------|------|-------------|------|
+| INT | 0 | 4 | 整数值 (大端) |
+| FLOAT | 1 | 4 | 浮点值 (大端 IEEE 754) |
+| ACK | 2 | 0 | 确认帧 |
+| PASSENGER_NUM | 3 | 2 | [路线上 1B, 乘客数 1B] |
+| CLEAR | 4 | 1 | [路线上 1B] 清空该路线乘客 |
+| VEHICLE_STATUS | 5 | 1 | [状态值 1B] 车辆状态变化 |
+
+### 通信流程
+
+```
+STM32                    ESP32C3 站台                  ESP32C3_Slave 车辆
+  │                          │                              │
+  │── PASSENGER_NUM ────────▶│ (通过 UART)                  │
+  │                          │── VEHICLE_STATUS ──────────▶│ (通过 WiFi)
+  │                          │◀── ACK ────────────────────│
+  │◀── ACK ─────────────────│                              │
+  │                          │                              │
+  │                          │◀── /api/vehicle_report ────│ (HTTP POST)
+  │                          │── JSON response ───────────▶│
+```
+
+- **ACK 重传**: 最多重试 3 次, 每次超时 200ms
+- **UART 接收**: USART1 DMA + 空闲中断 → 环形缓冲区 → 事件通知 UART_TASK
+- **发送保护**: USART1 TX 操作使用互斥量 `UART_TXMute`
+- **乘客同步**: UART_TASK 每秒检查 `passenger_num[]` 是否变化, 变化则入队发送
+- **ORE 恢复**: UART_TASK 检测到溢出错误时自动清除标志并重启 DMA
+
+---
+
+## 编译配置
+
+| 宏 | 默认值 | 说明 |
+|---|--------|------|
+| `SLAVE_MODE` | 0 | 0=站台模式, 1=车辆模式 |
+| `MAX_PAYLOAD_LEN` | 10 | 帧 Payload 最大长度 |
+| `MAX_CMD_TYPE_HANDLERS` | 20 | 最大命令类型数 |
+
+---
+
+## 已知问题与待改进
+
+1. `freertos.c` 880 行过重, 需拆分为 `menu_init.c` / `uart_callbacks.c` / `ack_task.c`
+2. `protocol.c` 与 `public_lib/protocol` 是不同实现, 需统一
+3. 站点列表硬编码在 ESP32_Slave 端, STM32 端不需要关心
+4. ORE 恢复逻辑在 UART_TASK 和 `HAL_UART_ErrorCallback` 中重复
+
+详见 [ROADMAP.md](../ROADMAP.md) (待创建)
