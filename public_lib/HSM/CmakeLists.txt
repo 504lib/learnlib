@@ -13,6 +13,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_library(finite_state_machine STATIC
     HSM_Core.cpp
+    HSM_Bus.cpp
 )
 
 
@@ -25,3 +26,11 @@ target_include_directories(finite_state_machine
 
 add_subdirectory(static_stack)
 add_subdirectory(static_queue)
+
+target_link_libraries(finite_state_machine PRIVATE static_stack static_queue)
+
+add_executable(HSM_Boundary_Test HSM_Boundary_Test.cpp)
+target_link_libraries(HSM_Boundary_Test PRIVATE finite_state_machine)
+
+add_executable(HSM_Bus_Demo HSM_Bus_Demo.cpp)
+target_link_libraries(HSM_Bus_Demo PRIVATE finite_state_machine)

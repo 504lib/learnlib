@@ -7,7 +7,7 @@
 #ifdef NO_LOG_ASSERT
 #define LOG_ASSERT(expr) ((void)0)
 #else
-#include "../Log/Log.h"
+#include "../../Log/Log.h"
 #endif
 
 #ifndef STATIC_QUEUE_ENTER_CRITICAL
