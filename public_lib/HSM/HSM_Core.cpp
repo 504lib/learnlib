@@ -29,8 +29,10 @@ private:
     HSM_Node*           pending_active_state;
     HSM_Node*           node_pool;                  // 用户提供的节点池
     size_t              node_pool_size;
-    const HSM_StateDef* state_defs;                 // 用户提供的状态定义表
+    const HSM_StateDef* state_defs;
     size_t              state_count;
+    const HSM_Transition* trans_table;
+    size_t                trans_count;
 
     bool            isPassDefenseCheck();
     bool            isPassDefenseCheck(HSM_Node* node);
@@ -52,6 +54,7 @@ public:
     bool            RequestTransition(HSM_Node* target, HSM_Event_Package event);
     HSM_Node*       BuildFromDefs(HSM_Node nodes[], size_t max_nodes, const HSM_StateDef states[], size_t count);
     HSM_Node*       FindNodeByName(const char* name);
+    void            RegisterTransitions(const HSM_Transition trans[], size_t count);
 };
 
 HSM_Core::HSM_Core()
@@ -65,6 +68,8 @@ HSM_Core::HSM_Core()
     node_pool_size = 0;
     state_defs = NULL;
     state_count = 0;
+    trans_table = NULL;
+    trans_count = 0;
     is_enabled = false;
     isinitialized = true;
 }
@@ -375,6 +380,12 @@ void HSM_Core::DumpTree(HSM_Node* root, int _depth)
     DispatchStack_CLEAR(&node_stack);
 }
 
+void HSM_Core::RegisterTransitions(const HSM_Transition trans[], size_t count)
+{
+    trans_table = trans;
+    trans_count = count;
+}
+
 HSM_Node* HSM_Core::FindNodeByName(const char* name)
 {
     for (size_t i = 0; i < state_count; i++) {
@@ -404,6 +415,17 @@ void HSM_Core::SendEvent(HSM_Event_Package event)
         return;
     }
     Dispatch(event);
+
+    // 自动查 transition 表
+    for (size_t i = 0; i < trans_count; i++) {
+        const HSM_Transition* t = &trans_table[i];
+        if (t->event != event.HSM_Event_ID) continue;
+        if (t->from && t->from != current_active_state) continue;
+        if (t->guard && !t->guard()) continue;
+        RequestTransition(t->to, event);
+        break;
+    }
+
     TransitQueue_package package;
     while (TransitQueue_POP(&requestTransitionQueue, &package))
     {
@@ -588,6 +610,15 @@ extern "C"
         }
         HSM_Core* hsm_core = reinterpret_cast<HSM_Core*>(hsm);
         return hsm_core->FindNodeByName(name);
+    }
+    void HSM_RegisterTransitions(HSM* hsm, const HSM_Transition trans[], size_t count)
+    {
+        if (!hsm) {
+            LOG_WARN("HSM_RegisterTransitions received NULL HSM pointer!");
+            return;
+        }
+        HSM_Core* hsm_core = reinterpret_cast<HSM_Core*>(hsm);
+        hsm_core->RegisterTransitions(trans, count);
     }
 }
 

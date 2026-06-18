@@ -38,6 +38,7 @@
 #include "mpu6050.h"
 #include "tasks.h"
 #include "Motor_AT4950.h"
+#include "HSM_OLED.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -128,7 +129,6 @@ static void RenderProtocolValue(void)
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-Protothread_t OLED_ShowPage0_Task, OLED_ShowPage1_Task, OLED_ShowPage2_Task, OLED_ShowPage3_Task;
 Protothread_t IMU_Task;
 Protothread_t SerialTask_handle;
 MulitKey_t key1;
@@ -211,11 +211,8 @@ int main(void)
   OLED_ColorTurn(0);
   OLED_DisplayTurn(0);
   OLED_DisPlay_On();
-  PT_INIT(&OLED_ShowPage0_Task);  
-  PT_INIT(&OLED_ShowPage1_Task);
-  PT_INIT(&OLED_ShowPage2_Task);
-  PT_INIT(&OLED_ShowPage3_Task);
   PT_INIT(&IMU_Task);
+  HSM_OLED_Init();
   MulitKey_Init(&key1,ReadKey1Pin,Key1PressedCallback,Key1PressedCallback,RISE_BORDER_TRIGGER);
   MulitKey_Init(&key2,ReadKey2Pin,Key2PressedCallback,Key2PressedCallback,RISE_BORDER_TRIGGER);
 
@@ -243,10 +240,7 @@ int main(void)
     IMU_task(&IMU_Task);
     MulitKey_Scan(&key1);
     MulitKey_Scan(&key2);
-    OLED_ShowPage0(&OLED_ShowPage0_Task);
-    OLED_ShowPage1(&OLED_ShowPage1_Task);
-    OLED_ShowPage2(&OLED_ShowPage2_Task);
-    OLED_ShowPage3(&OLED_ShowPage3_Task);
+    HSM_OLED_Process();
     SerialTask(&SerialTask_handle);
     Uart_Protocol_Loop(&uart_protocol_instance);
     RenderProtocolValue();

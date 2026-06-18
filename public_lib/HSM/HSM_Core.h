@@ -84,6 +84,18 @@ static inline void HSM_WriteF32LE(uint8_t* buf, float v) {
     HSM_WriteU32LE(buf, u.u);
 }
 
+typedef struct HSM_Transition {
+    struct HSM_Node* from;          // NULL = 任意状态
+    uint8_t          event;
+    struct HSM_Node* to;
+    bool           (*guard)(void);  // 可选守卫, 返回 false 跳过
+} HSM_Transition;
+
+#define HSM_TRANS(_from, _ev, _to)              { _from, _ev, _to, NULL }
+#define HSM_TRANS_ANY(_ev, _to)                 { NULL,  _ev, _to, NULL }
+#define HSM_TRANS_GUARD(_from, _ev, _to, _g)    { _from, _ev, _to, _g }
+#define HSM_TRANS_ANY_GUARD(_ev, _to, _g)       { NULL,  _ev, _to, _g }
+
 typedef struct HSM_StateDef
 {
     const char* name;
@@ -131,6 +143,7 @@ void      HSM_SetEnable(HSM* hsm, bool is_enable);
 void      HSM_SendEvent(HSM* hsm, HSM_Event_Package event);
 bool      HSM_RequestTransition(HSM* hsm, HSM_Node* target, HSM_Event_Package event);
 HSM_Node* HSM_FindNode(HSM* hsm, const char* name);
+void      HSM_RegisterTransitions(HSM* hsm, const HSM_Transition trans[], size_t count);
 
 #ifdef __cplusplus
 }

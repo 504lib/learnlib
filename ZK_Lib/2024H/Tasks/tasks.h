@@ -18,10 +18,6 @@ void Key1PressedCallback(MulitKey_t* key);
 void Key2PressedCallback(MulitKey_t* key);
 
 void IMU_task(Protothread_t* pt);
-void OLED_ShowPage0(Protothread_t* pt);
-void OLED_ShowPage1(Protothread_t* pt);
-void OLED_ShowPage2(Protothread_t* pt);
-void OLED_ShowPage3(Protothread_t* pt);
 void SerialTask(Protothread_t* pt);
 
 #endif // !__TASKS_

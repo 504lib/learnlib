@@ -1,7 +1,7 @@
 #include "tasks.h"
+#include "HSM_OLED.h"
 
 MPU6050_Data_t* mpu_data = NULL;
-uint8_t OLED_ShowPage_Index_Global = 0;
 
 
 
@@ -18,12 +18,12 @@ uint8_t ReadKey2Pin(MulitKey_t* key)
 
 void Key1PressedCallback(MulitKey_t* key)
 {
-  OLED_ShowPage_Index_Global = (OLED_ShowPage_Index_Global + 1) % 4; // 假设有4页
+    HSM_OLED_Key1();
 }
 
 void Key2PressedCallback(MulitKey_t* key)
 {
-  OLED_ShowPage_Index_Global = (OLED_ShowPage_Index_Global == 0U) ? 3U : (OLED_ShowPage_Index_Global - 1U);
+    HSM_OLED_Key2();
 }
 
 void IMU_task(Protothread_t* pt)
@@ -39,63 +39,6 @@ void IMU_task(Protothread_t* pt)
         HAL_GPIO_TogglePin(TestPin_GPIO_Port, TestPin_Pin); // 用于逻辑分析仪调试，观察IMU更新频率
     }
     PT_END(pt);
-}
-
-void OLED_ShowPage0(Protothread_t* pt)
-{
-  char buffer[50];
-  PT_BEGIN(pt);
-  while(1){
-    PT_WAIT_UNTIL(pt, OLED_ShowPage_Index_Global == 0);
-    PT_WAIT_TICK(pt, 20); // 每隔2000毫秒执行一次 a
-    snprintf(buffer, sizeof(buffer), "yaw = %.2f", mpu_data->yaw);
-    OLED_ShowString(0, 0, (uint8_t*)buffer,16,1);
-    OLED_Refresh();
-  }
-  PT_END(pt);
-}
-
-void OLED_ShowPage1(Protothread_t* pt)
-{
-  char buffer[50];
-  PT_BEGIN(pt);
-  while(1){
-    PT_WAIT_UNTIL(pt, OLED_ShowPage_Index_Global == 1);
-    PT_WAIT_TICK(pt, 20); // 每隔2000毫秒执行一次 a
-    snprintf(buffer, sizeof(buffer), "Page Index: %d", OLED_ShowPage_Index_Global);
-    OLED_ShowString(0, 0, (uint8_t*)buffer,16,1);
-    OLED_Refresh();
-  }
-  PT_END(pt);
-}
-
-
-void OLED_ShowPage2(Protothread_t* pt)
-{
-  char buffer[50];
-  PT_BEGIN(pt);
-  while(1){
-    PT_WAIT_UNTIL(pt, OLED_ShowPage_Index_Global == 2);
-    PT_WAIT_TICK(pt, 20); // 每隔2000毫秒执行一次 a
-    snprintf(buffer, sizeof(buffer), "Page Index: %d", OLED_ShowPage_Index_Global);
-    OLED_ShowString(0, 0, (uint8_t*)buffer,16,1);
-    OLED_Refresh();
-  }
-  PT_END(pt);
-}
-
-void OLED_ShowPage3(Protothread_t* pt)
-{
-  char buffer[50];
-  PT_BEGIN(pt);
-  while(1){
-    PT_WAIT_UNTIL(pt, OLED_ShowPage_Index_Global == 3);
-    PT_WAIT_TICK(pt, 20); // 每隔2000毫秒执行一次 a
-    snprintf(buffer, sizeof(buffer), "Page Index: %d", OLED_ShowPage_Index_Global);
-    OLED_ShowString(0, 0, (uint8_t*)buffer,16,1);
-    OLED_Refresh();
-  }
-  PT_END(pt);
 }
 
 void SerialTask(Protothread_t* pt)
