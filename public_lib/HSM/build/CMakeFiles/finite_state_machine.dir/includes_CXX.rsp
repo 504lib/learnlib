@@ -1,1 +1,1 @@
--IC:/learnlib/public_lib/HSM -IC:/learnlib/public_lib/HSM/../Log
+-IC:/learnlib/public_lib/HSM -IC:/learnlib/public_lib/HSM/../Log -IC:/learnlib/public_lib/HSM/static_stack -IC:/learnlib/public_lib/HSM/static_stack/../Log -IC:/learnlib/public_lib/HSM/static_queue

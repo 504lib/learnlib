@@ -8,34 +8,34 @@
 		},
 		"paths" : 
 		{
-			"cmake" : "C:/Users/whyP762/AppData/Local/stm32cube/bundles/cmake/4.0.1+st.3/bin/cmake.exe",
-			"cpack" : "C:/Users/whyP762/AppData/Local/stm32cube/bundles/cmake/4.0.1+st.3/bin/cpack.exe",
-			"ctest" : "C:/Users/whyP762/AppData/Local/stm32cube/bundles/cmake/4.0.1+st.3/bin/ctest.exe",
-			"root" : "C:/Users/whyP762/AppData/Local/stm32cube/bundles/cmake/4.0.1+st.3/share/cmake-4.0"
+			"cmake" : "C:/ST/STM32CubeCLT_1.20.0/CMake/bin/cmake.exe",
+			"cpack" : "C:/ST/STM32CubeCLT_1.20.0/CMake/bin/cpack.exe",
+			"ctest" : "C:/ST/STM32CubeCLT_1.20.0/CMake/bin/ctest.exe",
+			"root" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28"
 		},
 		"version" : 
 		{
 			"isDirty" : false,
-			"major" : 4,
-			"minor" : 0,
+			"major" : 3,
+			"minor" : 28,
 			"patch" : 1,
-			"string" : "4.0.1",
+			"string" : "3.28.1",
 			"suffix" : ""
 		}
 	},
 	"objects" : 
 	[
 		{
-			"jsonFile" : "codemodel-v2-df0f59b0da1de95a70b7.json",
+			"jsonFile" : "codemodel-v2-5c6d405da126398f5f00.json",
 			"kind" : "codemodel",
 			"version" : 
 			{
 				"major" : 2,
-				"minor" : 8
+				"minor" : 6
 			}
 		},
 		{
-			"jsonFile" : "cache-v2-9ecf2d234ba150cf05d7.json",
+			"jsonFile" : "cache-v2-f39f01f9bcca55227b08.json",
 			"kind" : "cache",
 			"version" : 
 			{
@@ -44,12 +44,12 @@
 			}
 		},
 		{
-			"jsonFile" : "cmakeFiles-v1-f5fb33ca99c9bb651c42.json",
+			"jsonFile" : "cmakeFiles-v1-375fa578f66e666bdc6b.json",
 			"kind" : "cmakeFiles",
 			"version" : 
 			{
 				"major" : 1,
-				"minor" : 1
+				"minor" : 0
 			}
 		},
 		{
@@ -90,7 +90,7 @@
 				"responses" : 
 				[
 					{
-						"jsonFile" : "cache-v2-9ecf2d234ba150cf05d7.json",
+						"jsonFile" : "cache-v2-f39f01f9bcca55227b08.json",
 						"kind" : "cache",
 						"version" : 
 						{
@@ -99,12 +99,12 @@
 						}
 					},
 					{
-						"jsonFile" : "codemodel-v2-df0f59b0da1de95a70b7.json",
+						"jsonFile" : "codemodel-v2-5c6d405da126398f5f00.json",
 						"kind" : "codemodel",
 						"version" : 
 						{
 							"major" : 2,
-							"minor" : 8
+							"minor" : 6
 						}
 					},
 					{
@@ -117,12 +117,12 @@
 						}
 					},
 					{
-						"jsonFile" : "cmakeFiles-v1-f5fb33ca99c9bb651c42.json",
+						"jsonFile" : "cmakeFiles-v1-375fa578f66e666bdc6b.json",
 						"kind" : "cmakeFiles",
 						"version" : 
 						{
 							"major" : 1,
-							"minor" : 1
+							"minor" : 0
 						}
 					}
 				]

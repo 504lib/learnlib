@@ -20,7 +20,9 @@
 					"source" : ".",
 					"targetIndexes" : 
 					[
-						0
+						0,
+						1,
+						2
 					]
 				},
 				{
@@ -46,8 +48,8 @@
 					"source" : "static_queue",
 					"targetIndexes" : 
 					[
-						1,
-						2
+						3,
+						4
 					]
 				}
 			],
@@ -67,7 +69,9 @@
 					"name" : "FSM_Core",
 					"targetIndexes" : 
 					[
-						0
+						0,
+						1,
+						2
 					]
 				},
 				{
@@ -87,8 +91,8 @@
 					"parentIndex" : 0,
 					"targetIndexes" : 
 					[
-						1,
-						2
+						3,
+						4
 					]
 				}
 			],
@@ -96,8 +100,22 @@
 			[
 				{
 					"directoryIndex" : 0,
+					"id" : "HSM_Boundary_Test::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-HSM_Boundary_Test-Debug-8db0dc9a3724fe1d79c9.json",
+					"name" : "HSM_Boundary_Test",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "HSM_Bus_Demo::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-HSM_Bus_Demo-Debug-ec44ff4efcd7cb0e2403.json",
+					"name" : "HSM_Bus_Demo",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
 					"id" : "finite_state_machine::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-finite_state_machine-Debug-4a3947e0a78fccd6f077.json",
+					"jsonFile" : "target-finite_state_machine-Debug-5f9b06f401001c7cb146.json",
 					"name" : "finite_state_machine",
 					"projectIndex" : 0
 				},
@@ -111,7 +129,7 @@
 				{
 					"directoryIndex" : 2,
 					"id" : "static_queue_demo::@224082fe5e054dfcea28",
-					"jsonFile" : "target-static_queue_demo-Debug-58a15aa89c3c49d314bc.json",
+					"jsonFile" : "target-static_queue_demo-Debug-b8de8c3449aeb170f3b8.json",
 					"name" : "static_queue_demo",
 					"projectIndex" : 2
 				}
@@ -127,6 +145,6 @@
 	"version" : 
 	{
 		"major" : 2,
-		"minor" : 8
+		"minor" : 6
 	}
 }

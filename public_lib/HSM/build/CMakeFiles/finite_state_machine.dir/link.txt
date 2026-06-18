@@ -1,2 +1,2 @@
-C:\dev\llvm-mingw\bin\llvm-ar.exe qc libfinite_state_machine.a CMakeFiles/finite_state_machine.dir/HSM_Core.cpp.obj
+C:\dev\llvm-mingw\bin\llvm-ar.exe qc libfinite_state_machine.a CMakeFiles/finite_state_machine.dir/HSM_Core.cpp.obj CMakeFiles/finite_state_machine.dir/HSM_Bus.cpp.obj
 C:\dev\llvm-mingw\bin\llvm-ranlib.exe libfinite_state_machine.a

@@ -67,7 +67,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "4"
+			"value" : "3"
 		},
 		{
 			"name" : "CMAKE_CACHE_MINOR_VERSION",
@@ -79,7 +79,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "0"
+			"value" : "28"
 		},
 		{
 			"name" : "CMAKE_CACHE_PATCH_VERSION",
@@ -119,7 +119,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "C:/Users/whyP762/AppData/Local/stm32cube/bundles/cmake/4.0.1+st.3/bin/cmake.exe"
+			"value" : "C:/ST/STM32CubeCLT_1.20.0/CMake/bin/cmake.exe"
 		},
 		{
 			"name" : "CMAKE_CPACK_COMMAND",
@@ -131,7 +131,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "C:/Users/whyP762/AppData/Local/stm32cube/bundles/cmake/4.0.1+st.3/bin/cpack.exe"
+			"value" : "C:/ST/STM32CubeCLT_1.20.0/CMake/bin/cpack.exe"
 		},
 		{
 			"name" : "CMAKE_CTEST_COMMAND",
@@ -143,7 +143,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "C:/Users/whyP762/AppData/Local/stm32cube/bundles/cmake/4.0.1+st.3/bin/ctest.exe"
+			"value" : "C:/ST/STM32CubeCLT_1.20.0/CMake/bin/ctest.exe"
 		},
 		{
 			"name" : "CMAKE_CXX_COMPILER",
@@ -155,10 +155,10 @@
 				},
 				{
 					"name" : "HELPSTRING",
-					"value" : "No help, variable specified on the command line."
+					"value" : "CXX compiler"
 				}
 			],
-			"type" : "FILEPATH",
+			"type" : "STRING",
 			"value" : "C:/dev/llvm-mingw/bin/clang++.exe"
 		},
 		{
@@ -315,10 +315,10 @@
 				},
 				{
 					"name" : "HELPSTRING",
-					"value" : "No help, variable specified on the command line."
+					"value" : "C compiler"
 				}
 			],
-			"type" : "FILEPATH",
+			"type" : "STRING",
 			"value" : "C:/dev/llvm-mingw/bin/clang.exe"
 		},
 		{
@@ -1087,7 +1087,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "C:/Users/whyP762/AppData/Local/stm32cube/bundles/cmake/4.0.1+st.3/share/cmake-4.0"
+			"value" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28"
 		},
 		{
 			"name" : "CMAKE_SHARED_LINKER_FLAGS",
@@ -1376,6 +1376,18 @@
 			],
 			"type" : "BOOL",
 			"value" : "OFF"
+		},
+		{
+			"name" : "_CMAKE_LINKER_PUSHPOP_STATE_SUPPORTED",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "linker supports push/pop state"
+				}
+			],
+			"type" : "INTERNAL",
+			"value" : "TRUE"
 		},
 		{
 			"name" : "static_queue_BINARY_DIR",

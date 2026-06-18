@@ -1,4 +1,6 @@
 C:/learnlib/public_lib/HSM/build/CMakeFiles/finite_state_machine.dir
+C:/learnlib/public_lib/HSM/build/CMakeFiles/HSM_Boundary_Test.dir
+C:/learnlib/public_lib/HSM/build/CMakeFiles/HSM_Bus_Demo.dir
 C:/learnlib/public_lib/HSM/build/CMakeFiles/edit_cache.dir
 C:/learnlib/public_lib/HSM/build/CMakeFiles/rebuild_cache.dir
 C:/learnlib/public_lib/HSM/build/static_stack/CMakeFiles/edit_cache.dir

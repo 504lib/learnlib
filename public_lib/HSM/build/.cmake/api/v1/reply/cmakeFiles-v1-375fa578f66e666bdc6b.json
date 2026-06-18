@@ -1,0 +1,186 @@
+{
+	"inputs" : 
+	[
+		{
+			"path" : "CmakeLists.txt"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "build/CMakeFiles/3.28.1/CMakeSystem.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28/Modules/CMakeSystemSpecificInitialize.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28/Modules/Platform/Windows-Initialize.cmake"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "build/CMakeFiles/3.28.1/CMakeCCompiler.cmake"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "build/CMakeFiles/3.28.1/CMakeCXXCompiler.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28/Modules/CMakeSystemSpecificInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28/Modules/CMakeGenericSystem.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28/Modules/CMakeInitializeConfigs.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28/Modules/Platform/Windows.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28/Modules/Platform/WindowsPaths.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28/Modules/CMakeCInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28/Modules/CMakeLanguageInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28/Modules/Compiler/Clang-C.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28/Modules/Compiler/Clang.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28/Modules/Compiler/CMakeCommonCompilerMacros.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28/Modules/Compiler/GNU.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28/Modules/Compiler/CMakeCommonCompilerMacros.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28/Modules/Platform/Windows-Clang-C.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28/Modules/Platform/Windows-Clang.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28/Modules/Platform/Windows-GNU.cmake"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "build/CMakeFiles/3.28.1/CMakeRCCompiler.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28/Modules/CMakeRCInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28/Modules/Platform/Windows-windres.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28/Modules/Platform/Windows-GNU-C-ABI.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28/Modules/CMakeCommonLanguageInclude.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28/Modules/CMakeCXXInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28/Modules/CMakeLanguageInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28/Modules/Compiler/Clang-CXX.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28/Modules/Compiler/Clang.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28/Modules/Platform/Windows-Clang-CXX.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28/Modules/Platform/Windows-Clang.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28/Modules/Platform/Windows-GNU-CXX-ABI.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "C:/ST/STM32CubeCLT_1.20.0/CMake/share/cmake-3.28/Modules/CMakeCommonLanguageInclude.cmake"
+		},
+		{
+			"path" : "static_stack/CmakeLists.txt"
+		},
+		{
+			"path" : "static_queue/CmakeLists.txt"
+		}
+	],
+	"kind" : "cmakeFiles",
+	"paths" : 
+	{
+		"build" : "C:/learnlib/public_lib/HSM/build",
+		"source" : "C:/learnlib/public_lib/HSM"
+	},
+	"version" : 
+	{
+		"major" : 1,
+		"minor" : 0
+	}
+}

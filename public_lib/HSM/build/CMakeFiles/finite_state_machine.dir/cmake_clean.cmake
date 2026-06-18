@@ -1,4 +1,6 @@
 file(REMOVE_RECURSE
+  "CMakeFiles/finite_state_machine.dir/HSM_Bus.cpp.obj"
+  "CMakeFiles/finite_state_machine.dir/HSM_Bus.cpp.obj.d"
   "CMakeFiles/finite_state_machine.dir/HSM_Core.cpp.obj"
   "CMakeFiles/finite_state_machine.dir/HSM_Core.cpp.obj.d"
   "libfinite_state_machine.a"

@@ -6,6 +6,24 @@
   "output": "CMakeFiles/finite_state_machine.dir/HSM_Core.cpp.obj"
 },
 {
+  "directory": "C:/learnlib/public_lib/HSM/build",
+  "command": "C:\\dev\\llvm-mingw\\bin\\clang++.exe  @CMakeFiles/finite_state_machine.dir/includes_CXX.rsp -g -std=c++11 -o CMakeFiles\\finite_state_machine.dir\\HSM_Bus.cpp.obj -c C:\\learnlib\\public_lib\\HSM\\HSM_Bus.cpp",
+  "file": "C:/learnlib/public_lib/HSM/HSM_Bus.cpp",
+  "output": "CMakeFiles/finite_state_machine.dir/HSM_Bus.cpp.obj"
+},
+{
+  "directory": "C:/learnlib/public_lib/HSM/build",
+  "command": "C:\\dev\\llvm-mingw\\bin\\clang++.exe  @CMakeFiles/HSM_Boundary_Test.dir/includes_CXX.rsp -g -std=c++11 -o CMakeFiles\\HSM_Boundary_Test.dir\\HSM_Boundary_Test.cpp.obj -c C:\\learnlib\\public_lib\\HSM\\HSM_Boundary_Test.cpp",
+  "file": "C:/learnlib/public_lib/HSM/HSM_Boundary_Test.cpp",
+  "output": "CMakeFiles/HSM_Boundary_Test.dir/HSM_Boundary_Test.cpp.obj"
+},
+{
+  "directory": "C:/learnlib/public_lib/HSM/build",
+  "command": "C:\\dev\\llvm-mingw\\bin\\clang++.exe  @CMakeFiles/HSM_Bus_Demo.dir/includes_CXX.rsp -g -std=c++11 -o CMakeFiles\\HSM_Bus_Demo.dir\\HSM_Bus_Demo.cpp.obj -c C:\\learnlib\\public_lib\\HSM\\HSM_Bus_Demo.cpp",
+  "file": "C:/learnlib/public_lib/HSM/HSM_Bus_Demo.cpp",
+  "output": "CMakeFiles/HSM_Bus_Demo.dir/HSM_Bus_Demo.cpp.obj"
+},
+{
   "directory": "C:/learnlib/public_lib/HSM/build/static_queue",
   "command": "C:\\dev\\llvm-mingw\\bin\\clang.exe  @CMakeFiles/static_queue.dir/includes_C.rsp -g -std=c11 -o CMakeFiles\\static_queue.dir\\static_queue_demo.c.obj -c C:\\learnlib\\public_lib\\HSM\\static_queue\\static_queue_demo.c",
   "file": "C:/learnlib/public_lib/HSM/static_queue/static_queue_demo.c",
