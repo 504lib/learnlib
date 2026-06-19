@@ -1,14 +1,12 @@
 /**
- * @file app_fsm_follow.c  (新 HSM API)
+ * @file app_fsm_follow.c (新 HSM + 转移表)
  *
- * 状态树 (平级):
- *   Root → Idle | T1_FOLLOW | T2_FOLLOW | T3_FOLLOW | T4_FOLLOW | Finish
+ * 跟随车：蓝牙命令驱动。Root 处理 BT_STOP / BT_FORK，Idle 处理 BT_GO。
  */
 
 #include "app_fsm_follow.h"
 #include "../fork_decide/fork_decide.h"
 #include "../Control_Speed/Control_Speed.h"
-#include "../Log/Log.h"
 
 #define T1_SPEED  0.30f
 #define T2_SPEED  0.50f
@@ -26,13 +24,8 @@ static float task_speed(uint8_t task)
     return 0.0f;
 }
 
-static void stop_motors(void)
-{
-    Control_Stop();
-}
-
 // ============================================================
-// Root: 全局事件
+// Root: BT_STOP → Finish,  BT_FORK → 只切权值不换状态
 // ============================================================
 static bool handler_Root(HSM_Event_Package e)
 {
@@ -54,7 +47,7 @@ static bool handler_Root(HSM_Event_Package e)
 static void entry_Idle(HSM_Event_Package e)
 {
     (void)e;
-    stop_motors();
+    Control_Stop();
     Grayscale_SetMode(FORK_MODE_NORMAL);
     Control_SetBaseSpeed(0.0f);
     g_running = false;
@@ -67,20 +60,15 @@ static bool handler_Idle(HSM_Event_Package e)
         if (task < 1 || task > 4) return false;
         g_task = task;
         g_running = true;
-
-        const char* name = NULL;
-        switch (task) {
-            case 1: name = "T1_FOLLOW"; break; case 2: name = "T2_FOLLOW"; break;
-            case 3: name = "T3_FOLLOW"; break; case 4: name = "T4_FOLLOW"; break;
-        }
-        HSM_RequestTransition(g_hsm, HSM_FindNode(g_hsm, name), e);
+        HSM_RequestTransition(g_hsm, HSM_FindNode(g_hsm,
+            task==1?"T1_FOLLOW":task==2?"T2_FOLLOW":task==3?"T3_FOLLOW":"T4_FOLLOW"), e);
         return true;
     }
     return false;
 }
 
 // ============================================================
-// FOLLOW 通用 entry
+// FOLLOW 共享 entry
 // ============================================================
 static void entry_Follow(HSM_Event_Package e)
 {
@@ -96,7 +84,7 @@ static void entry_Follow(HSM_Event_Package e)
 static void entry_Finish(HSM_Event_Package e)
 {
     (void)e;
-    stop_motors();
+    Control_Stop();
     Grayscale_SetMode(FORK_MODE_NORMAL);
     Control_SetBaseSpeed(0.0f);
     g_running = false;
