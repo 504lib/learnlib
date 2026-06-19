@@ -8,4 +8,4 @@
 -I MPU_9250
 -I Tasks
 -i static_queue/static_queue_demo.c
---suppress=unknownMacro:*
+--suppress=unknownMacro
