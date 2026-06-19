@@ -74,6 +74,7 @@ jobs:
               --suppress=*:*/u8g2/*
               --suppress=*:*/LCD/ILI9341/*
               --suppress=unknownMacro:*/Guider/generated/*
+              --suppress=unknownMacro:*/protocol/protocol.h
               --suppress=uninitvar:*/LCD/ILI9341/*
               --suppress=invalidPointerCast:*/MadgwickAHRS.c
               --max-configs=1
@@ -360,6 +361,7 @@ jobs:
               --suppress=*:*/u8g2/* \
               --suppress=*:*/LCD/ILI9341/* \
               --suppress=unknownMacro:*/Guider/generated/* \
+              --suppress=unknownMacro:*/protocol/protocol.h \
               --suppress=uninitvar:*/LCD/ILI9341/* \
               --suppress=invalidPointerCast:*/MadgwickAHRS.c \
               >"${report_log}" 2>&1
@@ -396,6 +398,7 @@ jobs:
               --suppress=*:*/u8g2/* \
               --suppress=*:*/LCD/ILI9341/* \
               --suppress=unknownMacro:*/Guider/generated/* \
+              --suppress=unknownMacro:*/protocol/protocol.h \
               --suppress=uninitvar:*/LCD/ILI9341/* \
               --suppress=invalidPointerCast:*/MadgwickAHRS.c \
               >"${error_xml}" 2>&1
