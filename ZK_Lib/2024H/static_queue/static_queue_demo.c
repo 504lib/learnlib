@@ -9,7 +9,7 @@ DECLARE_STATIC_QUEUE(ONE,int,1);
 int main()
 {
     // 创建并初始化队列实例
-    INT_t queue;
+    INT_t queue = {0};
     INT_INIT(&queue);
 
     // 边界：空队列 POP/PEEK/BACK（应全部失败）
@@ -114,7 +114,7 @@ int main()
     }
 
     // 容量为 1 的队列：满队列 PUSH 校验
-    ONE_t one;
+    ONE_t one = {0};
     ONE_INIT(&one);
     ONE_PUSH(&one, 7);
     if (!ONE_PUSH(&one, 8))
