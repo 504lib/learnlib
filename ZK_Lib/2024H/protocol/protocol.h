@@ -19,6 +19,7 @@
 #include "Log.h"
 #include <stdint.h>
 
+// cppcheck-suppress unknownMacro
 DECLARE_STATIC_QUEUE(UART_PROTOCOL_QUEUE, uint8_t, UART_PROTOCOL_FRAME_BUFFER_LEN * 2)
 
 typedef struct
