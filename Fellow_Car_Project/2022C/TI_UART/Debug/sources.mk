@@ -127,9 +127,13 @@ MPU_6050 \
 Motor \
 PID_Node \
 SPI_OLED \
+app_fsm \
+app_protocol \
 distance_sensor \
+fork_decide \
 grayscale \
 key_control \
 multikey \
+protocol \
 tasks \
 

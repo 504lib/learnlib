@@ -24,10 +24,15 @@ ORDERED_OBJS += \
 "./Motor/Motor_AT4950.o" \
 "./PID_Node/PID_Node.o" \
 "./SPI_OLED/oled.o" \
+"./app_fsm/app_fsm_follow.o" \
+"./app_fsm/app_fsm_lead.o" \
+"./app_protocol/app_protocol.o" \
 "./distance_sensor/distance_sensor.o" \
+"./fork_decide/fork_decide.o" \
 "./grayscale/grayscale.o" \
 "./key_control/key_control.o" \
 "./multikey/multikey.o" \
+"./protocol/protocol.o" \
 "./tasks/tasks.o" \
 $(GEN_CMDS__FLAG) \
 -Wl,-ldevice.cmd.genlibs \
@@ -49,10 +54,14 @@ RMDIR := RMDIR /S/Q
 -include Motor/subdir_vars.mk
 -include PID_Node/subdir_vars.mk
 -include SPI_OLED/subdir_vars.mk
+-include app_fsm/subdir_vars.mk
+-include app_protocol/subdir_vars.mk
 -include distance_sensor/subdir_vars.mk
+-include fork_decide/subdir_vars.mk
 -include grayscale/subdir_vars.mk
 -include key_control/subdir_vars.mk
 -include multikey/subdir_vars.mk
+-include protocol/subdir_vars.mk
 -include tasks/subdir_vars.mk
 -include subdir_rules.mk
 -include Control_Speed/subdir_rules.mk
@@ -63,10 +72,14 @@ RMDIR := RMDIR /S/Q
 -include Motor/subdir_rules.mk
 -include PID_Node/subdir_rules.mk
 -include SPI_OLED/subdir_rules.mk
+-include app_fsm/subdir_rules.mk
+-include app_protocol/subdir_rules.mk
 -include distance_sensor/subdir_rules.mk
+-include fork_decide/subdir_rules.mk
 -include grayscale/subdir_rules.mk
 -include key_control/subdir_rules.mk
 -include multikey/subdir_rules.mk
+-include protocol/subdir_rules.mk
 -include tasks/subdir_rules.mk
 -include objects.mk
 
@@ -178,8 +191,8 @@ TI_UART.out: $(OBJS) $(GEN_CMDS)
 # Other Targets
 clean:
 	-$(RM) $(GEN_MISC_FILES__QUOTED)$(GEN_FILES__QUOTED)$(EXE_OUTPUTS__QUOTED)
-	-$(RM) "empty.o" "ti_msp_dl_config.o" "startup_mspm0g350x_ticlang.o" "Control_Speed\Control_Speed.o" "DL_GetTick_Folder\DL_Tick.o" "HSM\HSM_Core.o" "Log\Log.o" "MPU_6050\MadgwickAHRS.o" "MPU_6050\mpu6050.o" "MPU_6050\mpu6050_i2c_ti.o" "MPU_6050\mpu6050_user.o" "Motor\Motor_AT4950.o" "PID_Node\PID_Node.o" "SPI_OLED\oled.o" "distance_sensor\distance_sensor.o" "grayscale\grayscale.o" "key_control\key_control.o" "multikey\multikey.o" "tasks\tasks.o" 
-	-$(RM) "empty.d" "ti_msp_dl_config.d" "startup_mspm0g350x_ticlang.d" "Control_Speed\Control_Speed.d" "DL_GetTick_Folder\DL_Tick.d" "Log\Log.d" "MPU_6050\MadgwickAHRS.d" "MPU_6050\mpu6050.d" "MPU_6050\mpu6050_i2c_ti.d" "MPU_6050\mpu6050_user.d" "Motor\Motor_AT4950.d" "PID_Node\PID_Node.d" "SPI_OLED\oled.d" "distance_sensor\distance_sensor.d" "grayscale\grayscale.d" "key_control\key_control.d" "multikey\multikey.d" "tasks\tasks.d" 
+	-$(RM) "empty.o" "ti_msp_dl_config.o" "startup_mspm0g350x_ticlang.o" "Control_Speed\Control_Speed.o" "DL_GetTick_Folder\DL_Tick.o" "HSM\HSM_Core.o" "Log\Log.o" "MPU_6050\MadgwickAHRS.o" "MPU_6050\mpu6050.o" "MPU_6050\mpu6050_i2c_ti.o" "MPU_6050\mpu6050_user.o" "Motor\Motor_AT4950.o" "PID_Node\PID_Node.o" "SPI_OLED\oled.o" "app_fsm\app_fsm_follow.o" "app_fsm\app_fsm_lead.o" "app_protocol\app_protocol.o" "distance_sensor\distance_sensor.o" "fork_decide\fork_decide.o" "grayscale\grayscale.o" "key_control\key_control.o" "multikey\multikey.o" "protocol\protocol.o" "tasks\tasks.o" 
+	-$(RM) "empty.d" "ti_msp_dl_config.d" "startup_mspm0g350x_ticlang.d" "Control_Speed\Control_Speed.d" "DL_GetTick_Folder\DL_Tick.d" "Log\Log.d" "MPU_6050\MadgwickAHRS.d" "MPU_6050\mpu6050.d" "MPU_6050\mpu6050_i2c_ti.d" "MPU_6050\mpu6050_user.d" "Motor\Motor_AT4950.d" "PID_Node\PID_Node.d" "SPI_OLED\oled.d" "app_fsm\app_fsm_follow.d" "app_fsm\app_fsm_lead.d" "app_protocol\app_protocol.d" "distance_sensor\distance_sensor.d" "fork_decide\fork_decide.d" "grayscale\grayscale.d" "key_control\key_control.d" "multikey\multikey.d" "protocol\protocol.d" "tasks\tasks.d" 
 	-$(RM) "HSM\HSM_Core.d" 
 	-@echo ' '
 

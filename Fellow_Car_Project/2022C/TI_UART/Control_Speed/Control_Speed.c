@@ -32,12 +32,16 @@ void Control_Init(MotorAT4950* m1, MotorAT4950* m2)
     motor1_ptr = m1;
     motor2_ptr = m2;
     // ===== 灰度 PID 初始化 =====
-    //速度0.3f 700.0f,2.5f,0.0f
+    //速度0.3f 700.0f,2.5f,0.0f   700.0f,4.0f,0.0f
+    //副车1200.0f,3.7f,0.0f   1200.0f,3.7f,0.0f
     PID_Node_Init(&Speed_PID_node1, "speed_node1", 700.0f,2.5f,0.0f);
-    PID_Node_Init(&Speed_PID_node2, "speed_node2", 700.0f,4.0f,0.0f);
+    PID_Node_Init(&Speed_PID_node2, "speed_node2", 700.0f,2.5f,0.0f);
     //灰度0.055f, 0.0001f, 1.5f
     //灰度0.14f, 0.01f, 5.0f
-    PID_Node_Init(&pidGrayscale, "Grayscale", 0.055f, 0.0001f, 1.5f);
+    //灰度0.07f, 0.0001f, 2.0f
+    //副车(0.3f)0.08f, 0.00015f, 1.5f
+    //副车(0.5f)0.07f,0.00012f,1.5f
+    PID_Node_Init(&pidGrayscale, "Grayscale", 0.07f, 0.0001f, 2.0f);
     PID_Node_Init(&pidAngle, "Angle", 100.0f, 0.1f, 0.0f);
 
     PID_Node_SetEnabled(&Speed_PID_node1, true);
@@ -212,4 +216,20 @@ void Control_ApplyAngleSteering(float steering)
     if (target_B < 0.0f) target_B = 0.0f;
     PID_Node_SetSetpoint(&Speed_PID_node1, target_A);
     PID_Node_SetSetpoint(&Speed_PID_node2, target_B);
+}
+
+void Control_Stop(void)
+{
+    PID_Node_SetEnabled(&Speed_PID_node1, false);
+    PID_Node_SetEnabled(&Speed_PID_node2, false);
+    Motor_setSpeed(motor1_ptr, 0);
+    Motor_setSpeed(motor2_ptr, 0);
+}
+
+void Control_Start(void)
+{
+    PID_Node_ResetIntegral(&Speed_PID_node1);
+    PID_Node_ResetIntegral(&Speed_PID_node2);
+    PID_Node_SetEnabled(&Speed_PID_node1, true);
+    PID_Node_SetEnabled(&Speed_PID_node2, true);
 }
