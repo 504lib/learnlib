@@ -432,25 +432,21 @@ void TIMER_0_INST_IRQHandler(void)
                 // 3.岔路检测 + HSM 事件（只领头车做检测）
                 #if CAR_ROLE == 1
                 {
-                    static uint8_t prev_gray_for_black = 0xFF;
-                    static bool   in_fork = false;
+                    static uint8_t  prev_gray = 0xFF;
+                    static bool    in_fork = false;
+                    static uint32_t fork_tick = 0;
 
-                    // 全黑线检测（上升沿）
-                    if (Gray_IsAllBlack(gray_byte) && prev_gray_for_black != 0x00) {
+                    // 全黑线 → 进 FORK（偏置权值）
+                    if (Gray_IsAllBlack(gray_byte) && prev_gray != 0x00) {
+                        in_fork = true;
+                        fork_tick = DL_GetTick();
                         HSM_Event_Package ev = {.HSM_Event_ID = EV_ALL_BLACK};
                         HSM_SendEvent(Lead_FSM_GetHandle(), ev);
                     }
-                    prev_gray_for_black = gray_byte;
+                    prev_gray = gray_byte;
 
-                    // 岔路出现
-                    if (Gray_IsForkSplit(gray_byte) && !in_fork) {
-                        in_fork = true;
-                        HSM_Event_Package ev = {.HSM_Event_ID = EV_FORK_APPEAR};
-                        HSM_SendEvent(Lead_FSM_GetHandle(), ev);
-                    }
-
-                    // 岔路通过
-                    if (in_fork && Gray_IsNarrowLine(gray_byte)) {
+                    // 1.5秒超时 → 退出 FORK
+                    if (in_fork && (DL_GetTick() - fork_tick) >= 1500) {
                         in_fork = false;
                         HSM_Event_Package ev = {.HSM_Event_ID = EV_FORK_PASSED};
                         HSM_SendEvent(Lead_FSM_GetHandle(), ev);
