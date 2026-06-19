@@ -48,7 +48,15 @@
 #include "./key_control/key_control.h"
 #include "./tasks/tasks.h"
 #include "./distance_sensor/distance_sensor.h"
+#include "./app_protocol/app_protocol.h"
+#include "./app_fsm/app_fsm_lead.h"
+#include "./app_fsm/app_fsm_follow.h"
 // #include "./Protothreads/"
+
+// ============================================================
+// 编译角色：1=领头车, 2=跟随车
+// ============================================================
+#define CAR_ROLE  1   // ← 领头车设为1，跟随车设为2，两车分别编译
 
 
 
@@ -220,6 +228,16 @@ int main(void)
     
     KeyControl_Init();
 
+    // 蓝牙协议初始化
+    App_Protocol_Init();
+
+    // 状态机初始化（根据角色）
+    #if CAR_ROLE == 1
+        Lead_FSM_Init();
+    #else
+        Follow_FSM_Init();
+    #endif
+
     // 红外测距初始化
     distance_sensor_init(&dist_sensor);
     DL_UART_Main_enableInterrupt(UART_1_INST, DL_UART_INTERRUPT_RX);
@@ -237,24 +255,68 @@ int main(void)
     // DL_TimerG_setCaptureCompareValue(PWM_0_INST, 3000, GPIO_PWM_0_C1_IDX);
     while (1)
     {
-        // printf("current tick_systick : %u\n",DL_SYSTICK_getValue());
-        // delay_cycles(CPUCLK_FREQ / 2);
         KeyControl_Scan();
         OLED_Task(&oled_pt);
-        static uint32_t last_enc_print = 0;
-        static bool isReverse = false;
-        if (DL_GetTick() - last_enc_print >= 1000) {
-            
-            // printf("E1_raw=%ld, E2_raw=%ld\n", encoder1_raw, encoder2_raw);
-            if (isReverse) {
-                DL_GPIO_clearPins(LED_PORT, LED_LED_2_PIN);
-            }
-            else {
-                DL_GPIO_setPins(LED_PORT, LED_LED_2_PIN);
-            }
-            isReverse = !isReverse;
-            last_enc_print = DL_GetTick();
+
+        // ===== 蓝牙协议驱动 + 命令处理 =====
+        App_Protocol_Run();
+
+        // 处理收到的蓝牙命令 → 发送给状态机
+        #if CAR_ROLE == 1
+        {
+            // 领头车不接收 BT 命令（领头发指令）
         }
+        #else
+        {
+            // 跟随车：检查 BT 命令 → 发送给跟随状态机
+            uint8_t cmd, payload;
+            if (App_Protocol_DequeueCmdWithPayload(&cmd, &payload)) {
+                HSM_Event_Package ev;
+                switch (cmd) {
+                    case CMD_BT_GO:
+                        ev.HSM_Event_ID = EV_BT_GO; ev.data[0] = payload;
+                        HSM_SendEvent(Follow_FSM_GetHandle(), ev);
+                        break;
+                    case CMD_BT_FORK:
+                        ev.HSM_Event_ID = EV_BT_FORK; ev.data[0] = payload;
+                        HSM_SendEvent(Follow_FSM_GetHandle(), ev);
+                        break;
+                    case CMD_BT_STOP:
+                        ev.HSM_Event_ID = EV_BT_STOP;
+                        HSM_SendEvent(Follow_FSM_GetHandle(), ev);
+                        break;
+                }
+            }
+        }
+        #endif
+
+        // ===== 按键处理 =====
+        #if CAR_ROLE == 1
+        {
+            // 领头车：KEY4 确认 → 启动任务 + 发送 CMD_GO 给跟随车
+            if (KeyControl_IsConfirmed()) {
+                KeyControl_ClearConfirm();
+                uint8_t mode = KeyControl_GetDisplayMode();
+                if (mode >= 3 && mode <= 6) {
+                    uint8_t task = mode - 2;  // mode3→1, mode4→2, mode5→3, mode6→4
+                    HSM_Event_Package ev;
+                    ev.HSM_Event_ID = EV_KEY_CONFIRM; ev.data[0] = task;
+                    HSM_SendEvent(Lead_FSM_GetHandle(), ev);
+                    // 告诉跟随车
+                    App_Protocol_SendFrame(CMD_BT_GO, &task, 1);
+                }
+            }
+            // KEY2 切换 → 回 IDLE
+            // TODO: 检测 mode 变化触发 EV_KEY_SWITCH
+        }
+        #endif
+
+        // ===== 驱动状态机 =====
+        #if CAR_ROLE == 1
+            Lead_FSM_Run();
+        #else
+            Follow_FSM_Run();
+        #endif
     }
 }
 
@@ -284,6 +346,7 @@ void UART_0_INST_IRQHandler(void)
     {
         case DL_UART_IIDX_RX:
             uart_data = DL_UART_Main_receiveData(UART_0_INST);
+            App_Protocol_ProcessByte(uart_data);  // 喂给蓝牙协议解析
             break;
         default:
             break;
@@ -333,7 +396,7 @@ void TIMER_0_INST_IRQHandler(void)
         case DL_TIMER_IIDX_ZERO:
             count++;
             gray_byte = DL_GPIO_readPins(GPIOB, 0xFF) & 0xFF;
-            gray_error = CalculateGrayError_Advanced(gray_byte);
+            gray_error = CalculateGrayError(gray_byte);
 
             // 3.灰度环计算并设定新目标
             Control_SetGrayTarget(gray_error);
@@ -346,12 +409,12 @@ void TIMER_0_INST_IRQHandler(void)
                 Control_UpdateSpeedPID(0, 0, 4.0f);   // 使用固定 dt=4，内部只用 Actual_Speed_A/B
             }
 
-            // ---------- 每 20ms：更新速度反馈 + 灰度环 ----------
+            // ---------- 每 20ms：更新速度反馈 + 灰度环 + 岔路检测 ----------
             if (count % 20 == 0) {
                 // 计算 20ms 编码器增量（此时的 last_enc 还是 20ms 前的值）
                 int32_t curr1 = encoder1_raw;
                 int32_t curr2 = encoder2_raw;
-                encoder1_speed = curr1 - last_enc1;   // 保留此变量供调试打印
+                encoder1_speed = curr1 - last_enc1;
                 encoder2_speed = curr2 - last_enc2;
                 last_enc1 = curr1;
                 last_enc2 = curr2;
@@ -363,12 +426,37 @@ void TIMER_0_INST_IRQHandler(void)
                 Distance_SendQuery();
                 distance_mm = distance_sensor_get_distance(&dist_sensor);
 
-                // 2.读取灰度并计算误差
-                
-                // 2.角度环：yaw → steering → 叠加到速度目标
-                // MPU6050_Data_t* mpu = MPU6050_GetHandle();
-                // float steering = Control_UpdateAngle(mpu->yaw, 20.0f);
-                // Control_ApplyAngleSteering(steering);
+                // 2.灰度误差已在每1ms计算，这里只做岔路检测
+                // (gray_error 已由 CalculateGrayError 更新)
+
+                // 3.岔路检测 + HSM 事件（只领头车做检测）
+                #if CAR_ROLE == 1
+                {
+                    static uint8_t prev_gray_for_black = 0xFF;
+                    static bool   in_fork = false;
+
+                    // 全黑线检测（上升沿）
+                    if (Gray_IsAllBlack(gray_byte) && prev_gray_for_black != 0x00) {
+                        HSM_Event_Package ev = {.HSM_Event_ID = EV_ALL_BLACK};
+                        HSM_SendEvent(Lead_FSM_GetHandle(), ev);
+                    }
+                    prev_gray_for_black = gray_byte;
+
+                    // 岔路出现
+                    if (Gray_IsForkSplit(gray_byte) && !in_fork) {
+                        in_fork = true;
+                        HSM_Event_Package ev = {.HSM_Event_ID = EV_FORK_APPEAR};
+                        HSM_SendEvent(Lead_FSM_GetHandle(), ev);
+                    }
+
+                    // 岔路通过
+                    if (in_fork && Gray_IsNarrowLine(gray_byte)) {
+                        in_fork = false;
+                        HSM_Event_Package ev = {.HSM_Event_ID = EV_FORK_PASSED};
+                        HSM_SendEvent(Lead_FSM_GetHandle(), ev);
+                    }
+                }
+                #endif
             }
             break;
 

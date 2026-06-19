@@ -42,4 +42,10 @@ float Control_UpdateAngle(float current_yaw, float dt);
 void Control_ApplyAngleSteering(float steering);
 void Control_SetAngleTarget(float target_deg);
 
+/** IDLE 时调用：停电机 + 禁PID，防止抖动 */
+void Control_Stop(void);
+
+/** 启动任务时调用：使能PID */
+void Control_Start(void);
+
 #endif

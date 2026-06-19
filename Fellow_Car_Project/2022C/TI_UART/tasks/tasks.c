@@ -44,7 +44,7 @@ void OLED_Task(Protothread_t* pt)
                 (gray_byte & 0x20) ? 1 : 0,
                 (gray_byte & 0x40) ? 1 : 0,
                 (gray_byte & 0x80) ? 1 : 0);
-            LOG_INFO("Grey byte: %s", buffer);
+            // LOG_INFO("Grey byte: %s", buffer);
         }
         else if (mode == 1)   // 灰度模式
         {
