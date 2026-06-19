@@ -1,6 +1,6 @@
 /**
  * @file app_protocol.c
- * @brief 蓝牙双车通信应用层协议实现
+ * @brief 蓝牙双车通信应用层协议（新 protocol API，内置队列）
  */
 
 #include "app_protocol.h"
@@ -9,14 +9,12 @@
 
 // ============================================================
 // 蓝牙 UART 配置
-// 需要在 syscfg 中配置对应 UART 引脚
-// 这里假设使用 UART1 外设（若用 UART3 则改为 UART3）
 // ============================================================
 #ifndef UART_BT_INST
-#define UART_BT_INST               UART1
+#define UART_BT_INST               UART0
 #endif
 #ifndef UART_BT_INST_INT_IRQN
-#define UART_BT_INST_INT_IRQN      UART1_INT_IRQn
+#define UART_BT_INST_INT_IRQN      UART0_INT_IRQn
 #endif
 
 // ============================================================
@@ -43,8 +41,6 @@ static bool uart_bt_send(const uint8_t* data, uint16_t len)
 // ============================================================
 static void on_bt_frame_received(uint8_t frame_type, const uint8_t* frame_data, uint16_t frame_len)
 {
-    LOG_INFO("[BT] RX frame type=0x%02X, len=%u", frame_type, frame_len);
-
     // 将命令码推入命令队列
     if (!App_CmdQueue_PUSH(&cmd_queue, frame_type))
     {
@@ -63,58 +59,24 @@ static void on_bt_frame_received(uint8_t frame_type, const uint8_t* frame_data, 
 }
 
 // ============================================================
-// 队列操作（适配 protocol 框架）
-// ============================================================
-
-// 字节级队列：蓝牙接收的原始字节
-DECLARE_STATIC_QUEUE(BtByteQueue, uint8_t, UART_BT_FRAME_BUFFER_LEN * 2);
-static BtByteQueue_t bt_byte_queue;
-
-static bool bt_byte_push(void* queue, const uint8_t data)
-{
-    (void)queue;
-    return BtByteQueue_PUSH(&bt_byte_queue, data);
-}
-
-static bool bt_byte_pop(void* queue, uint8_t* data)
-{
-    (void)queue;
-    return BtByteQueue_POP(&bt_byte_queue, data);
-}
-
-// ============================================================
 // 公开 API
 // ============================================================
 void App_Protocol_Init(void)
 {
-    // 初始化队列
-    BtByteQueue_INIT(&bt_byte_queue);
+    // 命令队列
     App_CmdQueue_INIT(&cmd_queue);
 
     // 帧边界
     Custom_Frame_HT_T frame_ht = {0xAA, 0x55, 0x55, 0xAA};
 
-    // 队列操作
-    Queue_Operations q_ops = {
-        .Queue_instance  = NULL,  // 不使用，回调内部已绑定
-        .Queue_pushback  = bt_byte_push,
-        .Queue_popfront  = bt_byte_pop,
-    };
-
-    // 必选参数
+    // 必选参数（新 API 无需 queue_ops，协议内置 rx_queue）
     Uart_Protocol_FunctionsParameters req = {
         .Head_Tial_Frame_struct = frame_ht,
         .transmit_function      = uart_bt_send,
         .frame_received_handler = on_bt_frame_received,
-        .queue_ops              = q_ops,
     };
 
-    // 可选参数：关闭 ACK（蓝牙近距离通信丢帧概率低）
-    Uart_Protocol_OptionalFunctionsParameters opt = {NULL, NULL};
-
-    Uart_Protocol_Init(&protocol_bt, req, opt);
-
-    LOG_INFO("[BT] Protocol initialized");
+    Uart_Protocol_Init(&protocol_bt, req);
 }
 
 void App_Protocol_Run(void)
