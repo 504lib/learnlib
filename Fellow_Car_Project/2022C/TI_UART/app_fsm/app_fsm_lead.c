@@ -7,6 +7,7 @@
 #include "app_fsm_lead.h"
 #include "../fork_decide/fork_decide.h"
 #include "../Control_Speed/Control_Speed.h"
+#include "../app_protocol/app_protocol.h"
 
 #define T1_SPEED  0.30f
 #define T2_SPEED  0.50f
@@ -56,6 +57,7 @@ static bool handler_Root(HSM_Event_Package e)
             Grayscale_SetMode(FORK_MODE_NORMAL);
             Control_SetBaseSpeed(0.0f);
             g_running = false;
+            App_Protocol_SendFrame(CMD_BT_STOP, NULL, 0);  // 通知跟随车
             HSM_RequestTransition(g_hsm, HSM_FindNode(g_hsm, "Idle"), e);
             return true;
         }

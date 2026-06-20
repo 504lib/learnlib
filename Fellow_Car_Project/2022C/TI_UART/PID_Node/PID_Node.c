@@ -841,7 +841,7 @@ PID_RETURN_CORE PID_Node_SetFeedForward(PID_Node* node, FeedForwardType feedforw
 
 
 /**
- * @brief 设置PID节点的限制参数。
+ * @brief 设置PID节点的限制参数
  * @param node  PID节点指针
  * @param limit 限制参数结构体
  * @return PID_RETURN_CORE
