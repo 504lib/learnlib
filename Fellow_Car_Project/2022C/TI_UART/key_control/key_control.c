@@ -6,10 +6,12 @@
 
 static MulitKey_t key1;
 static MulitKey_t key2;
+static MulitKey_t key3;
 static MulitKey_t key4;
 
 static uint8_t  display_mode = 0;
 static volatile bool confirm_flag = false;
+static volatile bool reset_flag   = false;
 
 // ============================================================
 // KEY1 (PB21) —— 预留
@@ -50,6 +52,22 @@ static void Key2_OnPressed(MulitKey_t* key)
 }
 
 // ============================================================
+// KEY3 (PB26) —— 复位任务
+// ============================================================
+static uint8_t Key3_ReadPin(MulitKey_t* key)
+{
+    (void)key;
+    uint32_t raw = DL_GPIO_readPins(KEY_GROIP_PORT, KEY_GROIP_KEY3_PIN);
+    return (uint8_t)(!!raw);
+}
+
+static void Key3_OnPressed(MulitKey_t* key)
+{
+    (void)key;
+    reset_flag = true;
+}
+
+// ============================================================
 // KEY4 (PB27) —— 确认/启动任务
 // ============================================================
 static uint8_t Key4_ReadPin(MulitKey_t* key)
@@ -74,15 +92,18 @@ void KeyControl_Init(void)
 {
     MulitKey_Init(&key1, Key1_ReadPin, Key1_OnPressed, Key1_OnLongPressed, FALL_BORDER_TRIGGER);
     MulitKey_Init(&key2, Key2_ReadPin, Key2_OnPressed, NULL,               FALL_BORDER_TRIGGER);
+    MulitKey_Init(&key3, Key3_ReadPin, Key3_OnPressed, NULL,               FALL_BORDER_TRIGGER);
     MulitKey_Init(&key4, Key4_ReadPin, Key4_OnPressed, NULL,               FALL_BORDER_TRIGGER);
     display_mode = 0;
     confirm_flag = false;
+    reset_flag   = false;
 }
 
 void KeyControl_Scan(void)
 {
     MulitKey_Scan(&key1);
     MulitKey_Scan(&key2);
+    MulitKey_Scan(&key3);
     MulitKey_Scan(&key4);
 }
 
@@ -99,4 +120,14 @@ bool KeyControl_IsConfirmed(void)
 void KeyControl_ClearConfirm(void)
 {
     confirm_flag = false;
+}
+
+bool KeyControl_IsReset(void)
+{
+    return reset_flag;
+}
+
+void KeyControl_ClearReset(void)
+{
+    reset_flag = false;
 }

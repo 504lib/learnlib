@@ -3,6 +3,9 @@
 
 #include "../Protothreads/Protothreads.h"
 
+#define CAR_ROLE  2   // ← 领头车设为1，跟随车设为2，两车分别编译
+
+
 // 全局 Protothread 变量
 extern Protothread_t oled_pt;
 

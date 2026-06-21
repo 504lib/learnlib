@@ -10,5 +10,7 @@ void KeyControl_Scan(void);
 uint8_t KeyControl_GetDisplayMode(void);
 bool KeyControl_IsConfirmed(void);
 void KeyControl_ClearConfirm(void);
+bool KeyControl_IsReset(void);
+void KeyControl_ClearReset(void);
 
 #endif

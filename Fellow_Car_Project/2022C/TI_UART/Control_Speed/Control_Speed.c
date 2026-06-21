@@ -1,4 +1,5 @@
 #include "./Control_Speed.h"
+#include "./tasks/tasks.h"
 #include <math.h>
 
 // ---- 内部静态变量 ----
@@ -43,9 +44,17 @@ void Control_Init(MotorAT4950* m1, MotorAT4950* m2)
     //灰度0.07f, 0.0001f, 2.0f           0.065f, 0.00015f, 2.5f
     //副车(0.3f)0.08f, 0.00015f, 1.5f
     //副车(0.5f)0.07f,0.00012f,1.5f
-    PID_Node_Init(&pidGrayscale, "Grayscale", 0.08f, 0.00015f, 1.5f);
+    #if CAR_ROLE == 1
+    {
+        PID_Node_Init(&pidGrayscale, "Grayscale", 0.06f, 0.00015f, 2.5f);
+    }
+    #else
+    {
+        PID_Node_Init(&pidGrayscale, "Grayscale", 0.08f, 0.00015f, 1.5f);
+    }
+    #endif
     PID_Node_Init(&pidAngle, "Angle", 100.0f, 0.1f, 0.0f);
-    PID_Node_Init(&pidDistance, "Distance", 1.0f,0.1f,0.0f);
+    PID_Node_Init(&pidDistance, "Distance", 0.5f,0.1f,0.0f);
     
     PID_Node_SetEnabled(&Speed_PID_node1, true);
     PID_Node_SetEnabled(&Speed_PID_node2, true);
@@ -114,13 +123,13 @@ void Control_Init(MotorAT4950* m1, MotorAT4950* m2)
     PID_Node_SetLimit(&pidAngle, angle_limit);
     //距离环限制（输入 mm，输出 无量纲系数）
     PID_Node_SetLimit(&pidDistance, (PID_Limit){
-        .deadband = 10.0f,
+        .deadband = 2.0f,
         .derivative_max = 100.0f,
         .input_max = 500.0f,
         .input_min = 0.0f,
         .integral_max = 5.0f,
-        .output_max = 0.2f,         // 输出 ±0.2 → factor 0.8~1.2
-        .output_min = -0.2f,
+        .output_max = 0.32f,         // 输出 ±0.2 → factor 0.8~1.2
+        .output_min = -0.05f,
         .setpoint_max = 500.0f,
         .setpoint_min = 0.0f
     });
@@ -200,17 +209,16 @@ void Control_UpdateSpeedPID(int32_t diff_A, int32_t diff_B, float dt)
     Motor_setSpeed(motor2_ptr, (int16_t)Speed_PID_node2.output);
 }
 
-static float g_distance_factor = 1.0f;
+static float g_distance_factor = 1.0f; // 距离环系数, 1.0=不调速, <1减速 >1加速
 
 /* 灰度环更新任务（每 20ms 调用） */
 void Control_SetGrayTarget(float gray_error)
 {
     if (!motor1_ptr || !motor2_ptr) return;
-    // 灰度 PID 计算
     PID_Node_UpdateMeasurement(&pidGrayscale, gray_error);
     PID_ExecuteNode(&pidGrayscale, 1.0f);
-    float speed_diff = pidGrayscale.output;
-    // 计算左右轮目标速度
+    float speed_diff = pidGrayscale.output; // 灰度PID输出=转向差速(m/s)
+    // factor*(base±diff): 距离调速在外层,转向差速在内层
     float target_A = g_distance_factor * (base_speed - speed_diff);
     float target_B = g_distance_factor * (base_speed + speed_diff);
     if (target_A < 0.0f) target_A = 0.0f;
@@ -266,8 +274,21 @@ void Control_EnableDistance(bool enable)
 
 float Control_UpdateDistance(float distance_mm)
 {
+    if (!g_enable_distance) {
+        g_distance_factor = 1.0f;
+        return 1.0f;
+    }
+    // 17~20cm视为刚好20cm，留3cm缓冲不减速
+    if (distance_mm >= 180 && distance_mm <= 200) {
+        distance_mm = 200;
+    }
     PID_Node_UpdateMeasurement(&pidDistance, distance_mm);
     PID_ExecuteNode(&pidDistance, 20.0f);
-    g_distance_factor = 1.0f - pidDistance.output;  // 远了加速，近了减速
+    g_distance_factor = 1.0f - pidDistance.output;  // 远了加速,近了减速
+
+    // 追车模式: 距离>25cm时额外加速追赶
+    if (distance_mm > 250) {
+        g_distance_factor *= 1.2f;
+    }
     return g_distance_factor;
 }

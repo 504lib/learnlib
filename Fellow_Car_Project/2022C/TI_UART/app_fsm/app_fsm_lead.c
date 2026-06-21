@@ -1,23 +1,22 @@
 /**
  * @file app_fsm_lead.c
- *
- * 简化：全黑线 → 直接进 FORK（偏置权值），2秒超时 → 回 LINE
  */
 
 #include "app_fsm_lead.h"
-#include "../fork_decide/fork_decide.h"
+#include "../fork_decide/task_config.h"
 #include "../Control_Speed/Control_Speed.h"
 #include "../app_protocol/app_protocol.h"
 
-#define T1_SPEED  0.30f
-#define T2_SPEED  0.50f
-#define T3_SPEED  0.30f
-#define T4_SPEED  1.00f
+#define IS_LEAD true
 
 static HSM*     g_hsm   = NULL;
 static uint8_t  g_task  = 0;
 static bool     g_running = false;
-static int      g_black_count = 0;  // 全黑线出现次数
+int g_black_count = 0;               // 全黑出现次数(跟随车也要读)
+
+extern volatile int g_fork_timeout_ms;
+extern volatile bool g_overtake_checking;
+extern volatile bool g_is_overtaking;
 
 static const char* line_name(uint8_t task)
 {
@@ -28,40 +27,29 @@ static const char* line_name(uint8_t task)
     return "Idle";
 }
 
-static const char* fork_name(uint8_t task)
-{
-    switch (task) {
-        case 1: return "T1_FORK"; case 2: return "T2_FORK";
-        case 3: return "T3_FORK"; case 4: return "T4_FORK";
-    }
-    return "Idle";
-}
-
-static float task_speed(uint8_t task)
-{
-    switch (task) { case 1: return T1_SPEED; case 2: return T2_SPEED;
-                    case 3: return T3_SPEED; case 4: return T4_SPEED; }
-    return 0.0f;
-}
-
 // ============================================================
-// Root: 全局事件
+// Root
 // ============================================================
 static bool handler_Root(HSM_Event_Package e)
 {
+    if (e.HSM_Event_ID == 0x24) { // EV_BT_OVERTAKE_DONE
+        g_is_overtaking = false; // 超车完成,允许恢复正常速度
+        Control_SetBaseSpeed(TaskConfig_Get(g_task)->base_speed);
+        Control_EnableDistance(!(g_black_count & 1)); // 偶数→开, 奇数→关
+        return true;
+    }
     if (e.HSM_Event_ID == EV_ALL_BLACK) {
-        g_black_count++;
-        if (g_black_count >= 2) {
-            // 第2次全黑 → 终点停车
+        g_black_count++; // 两车共用全局,递增全黑次数,Task3查表决定走内圈/外圈
+        if (g_black_count >= TaskConfig_Get(g_task)->finish_count) { // finish_count=2→1圈, =4→2圈, =6→3圈
             Control_Stop();
             Grayscale_SetMode(FORK_MODE_NORMAL);
             Control_SetBaseSpeed(0.0f);
             g_running = false;
-            App_Protocol_SendFrame(CMD_BT_STOP, NULL, 0);  // 通知跟随车
+            App_Protocol_SendFrame(CMD_BT_STOP, NULL, 0);
             HSM_RequestTransition(g_hsm, HSM_FindNode(g_hsm, "Idle"), e);
             return true;
         }
-        return false;  // 第1次 → 冒泡给转移表（LINE→FORK）
+        return false;  // 不到终点→放行, 转移表 LINE→FORK 接管
     }
     if (e.HSM_Event_ID == EV_KEY_SWITCH || e.HSM_Event_ID == EV_FINISH) {
         HSM_RequestTransition(g_hsm, HSM_FindNode(g_hsm, "Idle"), e);
@@ -88,12 +76,13 @@ static void entry_Idle(HSM_Event_Package e)
     g_running = false;
     g_task = 0;
     g_black_count = 0;
+    g_is_overtaking = false; // 复位超车标志
 }
 
 static bool handler_Idle(HSM_Event_Package e)
 {
     if (e.HSM_Event_ID == EV_KEY_CONFIRM) {
-        uint8_t task = HSM_ReadU8(e.data);
+        uint8_t task = HSM_ReadU8(e.data); // payload第1字节→task号
         if (task < 1 || task > 4) return false;
         g_task = task;
         g_running = true;
@@ -109,15 +98,29 @@ static bool handler_Idle(HSM_Event_Package e)
 static void entry_LineFollow(HSM_Event_Package e)
 {
     (void)e;
+    g_fork_timeout_ms = TaskConfig_Get(g_task)->fork_timeout_ms;
+    // g_overtake_checking不在此清零, 等ISR测到40cm才清
     Control_Start();
     Grayscale_SetMode(FORK_MODE_NORMAL);
-    Control_SetBaseSpeed(task_speed(g_task));
+    if (!g_is_overtaking) Control_SetBaseSpeed(TaskConfig_Get(g_task)->base_speed); // 超车中不降速
 }
 
 static void entry_Fork(HSM_Event_Package e)
 {
     (void)e;
-    Grayscale_SetMode(ForkDecide_GetMode(g_task));
+    const TaskConfig* cfg = TaskConfig_Get(g_task);
+    ForkMode mode = TaskConfig_GetForkMode(g_task, g_black_count, IS_LEAD);
+    Grayscale_SetMode(mode);
+
+    // Task3: 走内圈=超车加速+关距离PID, 走外圈且非Lap1=被超等检测
+    if (cfg->overtake_speed > 0 && mode == FORK_MODE_LEFT) {
+        Control_SetBaseSpeed(cfg->overtake_speed);
+        Control_EnableDistance(false);
+        g_is_overtaking = true; // 超车中, FORK退出后不降速
+    }
+    if (cfg->overtake_speed > 0 && mode == FORK_MODE_STRAIGHT && g_black_count != 1) {
+        g_overtake_checking = true; // Lap2/3被超车方, 等IR检测40cm
+    }
 }
 
 // ============================================================
@@ -126,23 +129,19 @@ static void entry_Fork(HSM_Event_Package e)
 static const HSM_StateDef lead_states[] = {
     HSM_STATE_DEF("Root",    NULL, handler_Root, NULL,              NULL, NULL),
     HSM_STATE_DEF("Idle",    "Root", handler_Idle, entry_Idle,      NULL, NULL),
-
     HSM_STATE_DEF("T1_LINE", "Root", NULL, entry_LineFollow, NULL, NULL),
     HSM_STATE_DEF("T1_FORK", "Root", NULL, entry_Fork,        NULL, NULL),
-
     HSM_STATE_DEF("T2_LINE", "Root", NULL, entry_LineFollow, NULL, NULL),
     HSM_STATE_DEF("T2_FORK", "Root", NULL, entry_Fork,        NULL, NULL),
-
     HSM_STATE_DEF("T3_LINE", "Root", NULL, entry_LineFollow, NULL, NULL),
     HSM_STATE_DEF("T3_FORK", "Root", NULL, entry_Fork,        NULL, NULL),
-
     HSM_STATE_DEF("T4_LINE", "Root", NULL, entry_LineFollow, NULL, NULL),
     HSM_STATE_DEF("T4_FORK", "Root", NULL, entry_Fork,        NULL, NULL),
 };
 #define STATE_COUNT (sizeof(lead_states) / sizeof(lead_states[0]))
 
 // ============================================================
-// 转移表：LINE →(全黑)→ FORK →(2秒超时)→ LINE
+// 转移表
 // ============================================================
 static HSM_Transition lead_trans[8];
 static int lead_trans_count = 0;
@@ -182,5 +181,3 @@ void Lead_FSM_Init(void)
 
 void Lead_FSM_Run(void)           { HSM_Process(g_hsm); }
 HSM* Lead_FSM_GetHandle(void)     { return g_hsm; }
-uint8_t Lead_GetCurrentTask(void) { return g_task; }
-bool   Lead_IsRunning(void)       { return g_running; }
