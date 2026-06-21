@@ -35,8 +35,9 @@
 #define CMD_BT_SPEED        0x04    // 速度设置 (领头→跟随) payload: float×4字节
 #define CMD_BT_OVERTAKE     0x05    // 超车指令 (领头→跟随) payload: 无
 #define CMD_BT_TASK_SELECT  0x06    // 任务选择 (领头→跟随) payload: 任务号(1字节)
-#define CMD_BT_ARRIVED      0x07    // 到达确认 (跟随→领头) payload: 无
-#define CMD_BT_ACK          0xFF    // ACK (双向) payload: 无
+#define CMD_BT_ARRIVED            0x07    // 到达确认 (跟随→领头) payload: 无
+#define CMD_BT_OVERTAKE_DONE       0x08    // 超车完成 (双向) payload: 无
+#define CMD_BT_ACK                 0xFF    // ACK (双向) payload: 无
 
 // ============================================================
 // 命令队列

@@ -51,12 +51,12 @@
 #include "./app_protocol/app_protocol.h"
 #include "./app_fsm/app_fsm_lead.h"
 #include "./app_fsm/app_fsm_follow.h"
+#include "./fork_decide/task_config.h"
 // #include "./Protothreads/"
 
 // ============================================================
 // 编译角色：1=领头车, 2=跟随车
 // ============================================================
-#define CAR_ROLE  2   // ← 领头车设为1，跟随车设为2，两车分别编译
 
 
 
@@ -89,6 +89,14 @@ MotorAT4950 motor2;
 
 volatile unsigned char uart_data = 0;
 char buffuer[256] = {0};
+
+// ISR 用函数指针替代 #if CAR_ROLE, main()里绑定到Lead/Follow的GetHandle
+static HSM* (*get_hsm)(void) = NULL;
+volatile int g_fork_timeout_ms = 1000; // FORK超时(ms), FSM启动时更新
+volatile bool g_overtake_checking = false; // Task3超车检测标志
+volatile bool g_is_overtaking = false;     // 超车中,不降速,等超车完成信号
+
+// uint8_t task = 0;
 
 // void PID_Node_Initization()
 // {
@@ -234,8 +242,10 @@ int main(void)
     // 状态机初始化（根据角色）
     #if CAR_ROLE == 1
         Lead_FSM_Init();
+        get_hsm = Lead_FSM_GetHandle;
     #else
         Follow_FSM_Init();
+        get_hsm = Follow_FSM_GetHandle;
     #endif
 
     // 红外测距初始化
@@ -262,17 +272,13 @@ int main(void)
         App_Protocol_Run();
 
         // 处理收到的蓝牙命令 → 发送给状态机
-        #if CAR_ROLE == 1
+        // ===== BT命令（跟随车收GO/FORK/STOP, 超车完成两车都收）=====
         {
-            // 领头车不接收 BT 命令（领头发指令）
-        }
-        #else
-        {
-            // 跟随车：检查 BT 命令 → 发送给跟随状态机
             uint8_t cmd, payload;
             if (App_Protocol_DequeueCmdWithPayload(&cmd, &payload)) {
                 HSM_Event_Package ev;
                 switch (cmd) {
+                    #if CAR_ROLE == 2
                     case CMD_BT_GO:
                         ev.HSM_Event_ID = EV_BT_GO; ev.data[0] = payload;
                         HSM_SendEvent(Follow_FSM_GetHandle(), ev);
@@ -285,10 +291,14 @@ int main(void)
                         ev.HSM_Event_ID = EV_BT_STOP;
                         HSM_SendEvent(Follow_FSM_GetHandle(), ev);
                         break;
+                    #endif
+                    case CMD_BT_OVERTAKE_DONE:
+                        ev.HSM_Event_ID = EV_BT_OVERTAKE_DONE;
+                        HSM_SendEvent(get_hsm(), ev); // 两车通用
+                        break;
                 }
             }
         }
-        #endif
 
         // ===== 按键处理 =====
         #if CAR_ROLE == 1
@@ -310,6 +320,18 @@ int main(void)
             // TODO: 检测 mode 变化触发 EV_KEY_SWITCH
         }
         #endif
+
+        // ===== KEY3 复位 =====
+        if (KeyControl_IsReset()) {
+            KeyControl_ClearReset();
+            HSM_Event_Package ev = {.HSM_Event_ID = EV_KEY_SWITCH};
+            #if CAR_ROLE == 1
+                HSM_SendEvent(Lead_FSM_GetHandle(), ev);
+                App_Protocol_SendFrame(CMD_BT_STOP, NULL, 0);  // 同步复位跟随车
+            #else
+                HSM_SendEvent(Follow_FSM_GetHandle(), ev);
+            #endif
+        }
 
         // ===== 驱动状态机 =====
         #if CAR_ROLE == 1
@@ -398,34 +420,29 @@ void TIMER_0_INST_IRQHandler(void)
             gray_byte = DL_GPIO_readPins(GPIOB, 0xFF) & 0xFF;
             gray_error = CalculateGrayError(gray_byte);
 
-            // ===== 全黑线检测（每1ms滤波，连续5次=5ms确认）=====
-            #if CAR_ROLE == 1
-            {
-                static int      black_cnt = 0;
-                static bool    in_fork = false;
-                static uint32_t fork_tick = 0;
-
-                if (Gray_IsAllBlack(gray_byte)) {
-                    black_cnt++;
-                    if (black_cnt >= 10 && !in_fork) {
-                        in_fork = true;
-                        fork_tick = DL_GetTick();
-                        black_cnt = 0;
-                        HSM_Event_Package ev = {.HSM_Event_ID = EV_ALL_BLACK};
-                        HSM_SendEvent(Lead_FSM_GetHandle(), ev);
-                    }
+            // ===== 全黑线检测(1ms/次, 10次确认=10ms滤波, 1s超时退出) =====
+            static bool    in_fork = false;        // FORK期间屏蔽重复触发
+            static uint32_t fork_tick = 0;         // 进入FORK的时刻(ms)
+            static int      black_cnt = 0;         // 连续全黑采样计数
+            if (Gray_IsAllBlack(gray_byte)) {
+                black_cnt++;
+                if (black_cnt >= 10 && !in_fork) { // 10ms稳定全黑+不在FORK→触发
+                    in_fork = true;
+                    fork_tick = DL_GetTick();
+                    black_cnt = 0;
+                    HSM_Event_Package ev = {.HSM_Event_ID = EV_ALL_BLACK};
+                    HSM_SendEvent(get_hsm(), ev);
+                }
                 } else {
                     black_cnt = 0;
                 }
 
-                // 1.5秒超时 → 退出 FORK
-                if (in_fork && (DL_GetTick() - fork_tick) >= 1000) {
-                    in_fork = false;
-                    HSM_Event_Package ev = {.HSM_Event_ID = EV_FORK_PASSED};
-                    HSM_SendEvent(Lead_FSM_GetHandle(), ev);
-                }
+            // FORK超时退出, 时长跟task走(快车短,慢车长)
+            if (in_fork && (DL_GetTick() - fork_tick) >= (uint32_t)g_fork_timeout_ms) {
+                in_fork = false;
+                HSM_Event_Package ev = {.HSM_Event_ID = EV_FORK_PASSED};
+                HSM_SendEvent(get_hsm(), ev);
             }
-            #endif
 
             // 3.灰度环计算并设定新目标
             Control_SetGrayTarget(gray_error);
@@ -458,6 +475,13 @@ void TIMER_0_INST_IRQHandler(void)
                 // 距离环更新（仅跟随车启用时生效）
                 Control_UpdateDistance(distance_mm);
 
+                // Task3超车检测: 被超方距离<40cm→超车完成
+                if (g_overtake_checking && distance_mm > 0 && distance_mm <= OVERTAKE_DETECT_MM) {
+                    g_overtake_checking = false;
+                    App_Protocol_SendFrame(CMD_BT_OVERTAKE_DONE, NULL, 0); // 通知对方
+                    HSM_Event_Package ev = {.HSM_Event_ID = 0x24}; // 自己也处理
+                    HSM_SendEvent(get_hsm(), ev);
+                }
             }
             break;
 
