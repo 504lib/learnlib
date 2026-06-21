@@ -48,4 +48,10 @@ void Control_Stop(void);
 /** 启动任务时调用：使能PID */
 void Control_Start(void);
 
+/** 启用/禁用距离PID（跟随车用，运行时可变） */
+void Control_EnableDistance(bool enable);
+
+/** 距离环计算，更新 speed_factor（每20ms调用） */
+float Control_UpdateDistance(float distance_mm);
+
 #endif

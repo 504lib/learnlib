@@ -5,6 +5,8 @@
 static PID_Node Speed_PID_node1, Speed_PID_node2; // 速度 PID 节点
 static PID_Node pidGrayscale;                     // 灰度 PID 节点
 static PID_Node pidAngle;                         // 角度 PID 节点
+static PID_Node pidDistance;                      // 距离 PID 节点
+
 static float Actual_Speed_A = 0.0f;
 static float Actual_Speed_B = 0.0f;
 static float total_distance_traveled = 0.0f;
@@ -34,21 +36,23 @@ void Control_Init(MotorAT4950* m1, MotorAT4950* m2)
     // ===== 灰度 PID 初始化 =====
     //速度0.3f 700.0f,2.5f,0.0f   700.0f,4.0f,0.0f
     //副车1200.0f,3.7f,0.0f   1200.0f,3.7f,0.0f
-    PID_Node_Init(&Speed_PID_node1, "speed_node1", 700.0f,2.5f,0.0f);
-    PID_Node_Init(&Speed_PID_node2, "speed_node2", 700.0f,2.5f,0.0f);
+    PID_Node_Init(&Speed_PID_node1, "speed_node1", 1200.0f,3.7f,0.0f);
+    PID_Node_Init(&Speed_PID_node2, "speed_node2", 1200.0f,3.7f,0.0f);
     //灰度0.055f, 0.0001f, 1.5f
     //灰度0.14f, 0.01f, 5.0f
-    //灰度0.07f, 0.0001f, 2.0f
+    //灰度0.07f, 0.0001f, 2.0f           0.065f, 0.00015f, 2.5f
     //副车(0.3f)0.08f, 0.00015f, 1.5f
     //副车(0.5f)0.07f,0.00012f,1.5f
-    PID_Node_Init(&pidGrayscale, "Grayscale", 0.07f, 0.0001f, 2.0f);
+    PID_Node_Init(&pidGrayscale, "Grayscale", 0.08f, 0.00015f, 1.5f);
     PID_Node_Init(&pidAngle, "Angle", 100.0f, 0.1f, 0.0f);
-
+    PID_Node_Init(&pidDistance, "Distance", 1.0f,0.1f,0.0f);
+    
     PID_Node_SetEnabled(&Speed_PID_node1, true);
     PID_Node_SetEnabled(&Speed_PID_node2, true);
     PID_Node_SetEnabled(&pidGrayscale, true);
     PID_Node_SetEnabled(&pidAngle, true);
-
+    PID_Node_SetEnabled(&pidDistance, true);
+    
     PID_Node_SetSetpoint(&pidAngle, 0.0f);   // 目标角度为0度（保持当前航向）
     PID_Node_SetCustomCallback(&pidAngle, (PID_Custom_Functions){
         .custom_error_calculation = AngleErrorCallback
@@ -58,6 +62,8 @@ void Control_Init(MotorAT4950* m1, MotorAT4950* m2)
     PID_Node_SetIntegralAttenuationKp(&Speed_PID_node2, 0.97f);
     PID_Node_SetIntegralAttenuationKp(&pidGrayscale, 0.95f);
     PID_Node_SetIntegralAttenuationKp(&pidAngle, 0.98f);
+    PID_Node_SetIntegralAttenuationKp(&pidDistance, 0.98f);
+    
     //速度环限制
     PID_Node_SetLimit(&Speed_PID_node1, (PID_Limit){
         .deadband = 0.0f,
@@ -106,6 +112,19 @@ void Control_Init(MotorAT4950* m1, MotorAT4950* m2)
 		.deadband = 1.0f          
 	};
     PID_Node_SetLimit(&pidAngle, angle_limit);
+    //距离环限制（输入 mm，输出 无量纲系数）
+    PID_Node_SetLimit(&pidDistance, (PID_Limit){
+        .deadband = 10.0f,
+        .derivative_max = 100.0f,
+        .input_max = 500.0f,
+        .input_min = 0.0f,
+        .integral_max = 5.0f,
+        .output_max = 0.2f,         // 输出 ±0.2 → factor 0.8~1.2
+        .output_min = -0.2f,
+        .setpoint_max = 500.0f,
+        .setpoint_min = 0.0f
+    });
+    PID_Node_SetSetpoint(&pidDistance, 200.0f);  // 目标 200mm = 20cm
 }
 
 /* 获取节点指针 */
@@ -181,6 +200,8 @@ void Control_UpdateSpeedPID(int32_t diff_A, int32_t diff_B, float dt)
     Motor_setSpeed(motor2_ptr, (int16_t)Speed_PID_node2.output);
 }
 
+static float g_distance_factor = 1.0f;
+
 /* 灰度环更新任务（每 20ms 调用） */
 void Control_SetGrayTarget(float gray_error)
 {
@@ -190,8 +211,8 @@ void Control_SetGrayTarget(float gray_error)
     PID_ExecuteNode(&pidGrayscale, 1.0f);
     float speed_diff = pidGrayscale.output;
     // 计算左右轮目标速度
-    float target_A = base_speed - speed_diff;
-    float target_B = base_speed + speed_diff;
+    float target_A = g_distance_factor * (base_speed - speed_diff);
+    float target_B = g_distance_factor * (base_speed + speed_diff);
     if (target_A < 0.0f) target_A = 0.0f;
     if (target_B < 0.0f) target_B = 0.0f;
     // 设定新目标（速度环在 4ms 调用时会读取）
@@ -232,4 +253,21 @@ void Control_Start(void)
     PID_Node_ResetIntegral(&Speed_PID_node2);
     PID_Node_SetEnabled(&Speed_PID_node1, true);
     PID_Node_SetEnabled(&Speed_PID_node2, true);
+}
+
+static bool g_enable_distance = false;
+
+void Control_EnableDistance(bool enable)
+{
+    g_enable_distance = enable;
+    g_distance_factor = 1.0f;
+    if (!enable) PID_Node_ResetIntegral(&pidDistance);
+}
+
+float Control_UpdateDistance(float distance_mm)
+{
+    PID_Node_UpdateMeasurement(&pidDistance, distance_mm);
+    PID_ExecuteNode(&pidDistance, 20.0f);
+    g_distance_factor = 1.0f - pidDistance.output;  // 远了加速，近了减速
+    return g_distance_factor;
 }

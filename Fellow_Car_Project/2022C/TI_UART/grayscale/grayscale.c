@@ -19,10 +19,10 @@ static const float weights_normal[GRAY_BITS] = {
 
 // 外圈直行：屏蔽左边 S0~S2（左转分支），只看右边 S4~S7（直行分支）
 static const float weights_straight[GRAY_BITS] = {
-     0.0f,  // S0  屏蔽
-     0.0f,  // S1  屏蔽
-     0.0f,  // S2  屏蔽
-    -0.5f,  // S3  过渡
+    -0.4f,  // S0  屏蔽
+    -0.3f,  // S1  屏蔽
+    -0.2f,  // S2  屏蔽
+    -0.1f,  // S3  过渡
      0.5f,  // S4
      1.5f,  // S5
      2.5f,  // S6
@@ -35,10 +35,10 @@ static const float weights_left[GRAY_BITS] = {
     -2.5f,  // S1
     -1.5f,  // S2
     -0.5f,  // S3  过渡
-     0.0f,  // S4  屏蔽
-     0.0f,  // S5  屏蔽
-     0.0f,  // S6  屏蔽
-     0.0f   // S7  屏蔽
+     0.1f,  // S4  屏蔽
+     0.2f,  // S5  屏蔽
+     0.3f,  // S6  屏蔽
+     0.4f   // S7  屏蔽
 };
 
 static const float* g_active_weights = weights_normal;
@@ -125,7 +125,8 @@ int Gray_BlackCount(uint8_t gray_byte)
 
 bool Gray_IsAllBlack(uint8_t gray_byte)
 {
-    return gray_byte == 0x00;
+    // 只检测中间6位 S1~S6（屏蔽最外侧 S0 和 S7）
+    return (gray_byte & 0x7E) == 0x00;
 }
 
 bool Gray_IsForkSplit(uint8_t gray_byte)

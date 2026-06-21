@@ -47,6 +47,7 @@ static bool handler_Root(HSM_Event_Package e)
 static void entry_Idle(HSM_Event_Package e)
 {
     (void)e;
+    Control_EnableDistance(false);
     Control_Stop();
     Grayscale_SetMode(FORK_MODE_NORMAL);
     Control_SetBaseSpeed(0.0f);
@@ -73,6 +74,7 @@ static bool handler_Idle(HSM_Event_Package e)
 static void entry_Follow(HSM_Event_Package e)
 {
     (void)e;
+    Control_EnableDistance(true);
     Control_Start();
     Grayscale_SetMode(FORK_MODE_NORMAL);
     Control_SetBaseSpeed(task_speed(g_task));
@@ -84,6 +86,7 @@ static void entry_Follow(HSM_Event_Package e)
 static void entry_Finish(HSM_Event_Package e)
 {
     (void)e;
+    Control_EnableDistance(false);
     Control_Stop();
     Grayscale_SetMode(FORK_MODE_NORMAL);
     Control_SetBaseSpeed(0.0f);

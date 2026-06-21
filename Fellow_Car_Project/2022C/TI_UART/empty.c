@@ -56,7 +56,7 @@
 // ============================================================
 // 编译角色：1=领头车, 2=跟随车
 // ============================================================
-#define CAR_ROLE  1   // ← 领头车设为1，跟随车设为2，两车分别编译
+#define CAR_ROLE  2   // ← 领头车设为1，跟随车设为2，两车分别编译
 
 
 
@@ -398,6 +398,35 @@ void TIMER_0_INST_IRQHandler(void)
             gray_byte = DL_GPIO_readPins(GPIOB, 0xFF) & 0xFF;
             gray_error = CalculateGrayError(gray_byte);
 
+            // ===== 全黑线检测（每1ms滤波，连续5次=5ms确认）=====
+            #if CAR_ROLE == 1
+            {
+                static int      black_cnt = 0;
+                static bool    in_fork = false;
+                static uint32_t fork_tick = 0;
+
+                if (Gray_IsAllBlack(gray_byte)) {
+                    black_cnt++;
+                    if (black_cnt >= 10 && !in_fork) {
+                        in_fork = true;
+                        fork_tick = DL_GetTick();
+                        black_cnt = 0;
+                        HSM_Event_Package ev = {.HSM_Event_ID = EV_ALL_BLACK};
+                        HSM_SendEvent(Lead_FSM_GetHandle(), ev);
+                    }
+                } else {
+                    black_cnt = 0;
+                }
+
+                // 1.5秒超时 → 退出 FORK
+                if (in_fork && (DL_GetTick() - fork_tick) >= 1000) {
+                    in_fork = false;
+                    HSM_Event_Package ev = {.HSM_Event_ID = EV_FORK_PASSED};
+                    HSM_SendEvent(Lead_FSM_GetHandle(), ev);
+                }
+            }
+            #endif
+
             // 3.灰度环计算并设定新目标
             Control_SetGrayTarget(gray_error);
             // ★ 每 5ms：MPU6050 姿态更新（Madgwick 200Hz）
@@ -426,33 +455,9 @@ void TIMER_0_INST_IRQHandler(void)
                 Distance_SendQuery();
                 distance_mm = distance_sensor_get_distance(&dist_sensor);
 
-                // 2.灰度误差已在每1ms计算，这里只做岔路检测
-                // (gray_error 已由 CalculateGrayError 更新)
+                // 距离环更新（仅跟随车启用时生效）
+                Control_UpdateDistance(distance_mm);
 
-                // 3.岔路检测 + HSM 事件（只领头车做检测）
-                #if CAR_ROLE == 1
-                {
-                    static uint8_t  prev_gray = 0xFF;
-                    static bool    in_fork = false;
-                    static uint32_t fork_tick = 0;
-
-                    // 全黑线 → 进 FORK（偏置权值）
-                    if (Gray_IsAllBlack(gray_byte) && prev_gray != 0x00) {
-                        in_fork = true;
-                        fork_tick = DL_GetTick();
-                        HSM_Event_Package ev = {.HSM_Event_ID = EV_ALL_BLACK};
-                        HSM_SendEvent(Lead_FSM_GetHandle(), ev);
-                    }
-                    prev_gray = gray_byte;
-
-                    // 1.5秒超时 → 退出 FORK
-                    if (in_fork && (DL_GetTick() - fork_tick) >= 1500) {
-                        in_fork = false;
-                        HSM_Event_Package ev = {.HSM_Event_ID = EV_FORK_PASSED};
-                        HSM_SendEvent(Lead_FSM_GetHandle(), ev);
-                    }
-                }
-                #endif
             }
             break;
 
