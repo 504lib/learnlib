@@ -1,7 +1,19 @@
-target_sources(${CMAKE_PROJECT_NAME} PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/tasks.c
+add_library(Tasks STATIC
+	tasks.c
 )
 
-target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
+target_include_directories(Tasks PUBLIC
+	${CMAKE_CURRENT_SOURCE_DIR}
+	${CMAKE_CURRENT_SOURCE_DIR}/../Core/Inc
+)
+
+target_link_libraries(Tasks PUBLIC
+	stm32cubemx
+	Log
+	multikey
+	Protothreads
+	static_queue
+	SPI_OLED
+	Motor_AT4950
+	MPU_9250
 )

@@ -249,24 +249,25 @@ float invSqrt(float x) {
 	}
 	else
 	{
-		/* optimal but expensive method: */
-		return 1.0f / sqrtf(x);
+		/* optimal but expensive method: use double-precision sqrt and cast
+		   to avoid depending on single-precision libm symbols like sqrtf */
+		return 1.0f / (float)sqrt((double)x);
 	}
 }
 
 void Get_Euler_Angles(float* yaw, float* pitch, float* roll)
 {
-    *roll  = atan2f(2.0f * (q0 * q1 + q2 * q3),
-                    1.0f - 2.0f * (q1 * q1 + q2 * q2));
-    
-    *pitch = asinf(2.0f * (q0 * q2 - q3 * q1));
-    
-    *yaw   = atan2f(2.0f * (q0 * q3 + q1 * q2),
-                    1.0f - 2.0f * (q2 * q2 + q3 * q3));
+	*roll  = (float)atan2(2.0f * (q0 * q1 + q2 * q3),
+						1.0f - 2.0f * (q1 * q1 + q2 * q2));
 
-	*roll  *= 180.0f / M_PI;
-    *pitch *= 180.0f / M_PI;
-    *yaw   *= 180.0f / M_PI;
+	*pitch = (float)asin(2.0f * (q0 * q2 - q3 * q1));
+
+	*yaw   = (float)atan2(2.0f * (q0 * q3 + q1 * q2),
+						1.0f - 2.0f * (q2 * q2 + q3 * q3));
+
+	*roll  *= (float)(180.0f / M_PI);
+    *pitch *= (float)(180.0f / M_PI);
+    *yaw   *= (float)(180.0f / M_PI);
 }
 
 //====================================================================================================

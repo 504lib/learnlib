@@ -1,7 +1,7 @@
 #include "tasks.h"
-#include "HSM_OLED.h"
 
 MPU6050_Data_t* mpu_data = NULL;
+uint8_t OLED_ShowPage_Index_Global = 0;
 
 
 
@@ -18,12 +18,12 @@ uint8_t ReadKey2Pin(MulitKey_t* key)
 
 void Key1PressedCallback(MulitKey_t* key)
 {
-    HSM_OLED_Key1();
+  OLED_ShowPage_Index_Global = (OLED_ShowPage_Index_Global + 1) % 4; // 假设有4页
 }
 
 void Key2PressedCallback(MulitKey_t* key)
 {
-    HSM_OLED_Key2();
+  OLED_ShowPage_Index_Global = (OLED_ShowPage_Index_Global == 0U) ? 3U : (OLED_ShowPage_Index_Global - 1U);
 }
 
 void IMU_task(Protothread_t* pt)
@@ -41,12 +41,69 @@ void IMU_task(Protothread_t* pt)
     PT_END(pt);
 }
 
+void OLED_ShowPage0(Protothread_t* pt)
+{
+  char buffer[50];
+  PT_BEGIN(pt);
+  while(1){
+    PT_WAIT_UNTIL(pt, OLED_ShowPage_Index_Global == 0);
+    PT_WAIT_TICK(pt, 20); // 每隔2000毫秒执行一次 a
+    snprintf(buffer, sizeof(buffer), "yaw = %.2f", mpu_data->yaw);
+    OLED_ShowString(0, 0, (uint8_t*)buffer,16,1);
+    OLED_Refresh();
+  }
+  PT_END(pt);
+}
+
+void OLED_ShowPage1(Protothread_t* pt)
+{
+  char buffer[50];
+  PT_BEGIN(pt);
+  while(1){
+    PT_WAIT_UNTIL(pt, OLED_ShowPage_Index_Global == 1);
+    PT_WAIT_TICK(pt, 20); // 每隔2000毫秒执行一次 a
+    snprintf(buffer, sizeof(buffer), "Page Index: %d", OLED_ShowPage_Index_Global);
+    OLED_ShowString(0, 0, (uint8_t*)buffer,16,1);
+    OLED_Refresh();
+  }
+  PT_END(pt);
+}
+
+
+void OLED_ShowPage2(Protothread_t* pt)
+{
+  char buffer[50];
+  PT_BEGIN(pt);
+  while(1){
+    PT_WAIT_UNTIL(pt, OLED_ShowPage_Index_Global == 2);
+    PT_WAIT_TICK(pt, 20); // 每隔2000毫秒执行一次 a
+    snprintf(buffer, sizeof(buffer), "Page Index: %d", OLED_ShowPage_Index_Global);
+    OLED_ShowString(0, 0, (uint8_t*)buffer,16,1);
+    OLED_Refresh();
+  }
+  PT_END(pt);
+}
+
+void OLED_ShowPage3(Protothread_t* pt)
+{
+  char buffer[50];
+  PT_BEGIN(pt);
+  while(1){
+    PT_WAIT_UNTIL(pt, OLED_ShowPage_Index_Global == 3);
+    PT_WAIT_TICK(pt, 20); // 每隔2000毫秒执行一次 a
+    snprintf(buffer, sizeof(buffer), "Page Index: %d", OLED_ShowPage_Index_Global);
+    OLED_ShowString(0, 0, (uint8_t*)buffer,16,1);
+    OLED_Refresh();
+  }
+  PT_END(pt);
+}
+
 void SerialTask(Protothread_t* pt)
 {
     PT_BEGIN(pt);
     while(1){
-        // LOG_DEBUG("Yaw: %.2f, Pitch: %.2f, Roll: %.2f", mpu_data->yaw, mpu_data->pitch, mpu_data->roll);
-        // LOG_DEBUG("gz: %.2f", mpu_data->phys.gz);
+        LOG_DEBUG("Yaw: %.2f, Pitch: %.2f, Roll: %.2f", mpu_data->yaw, mpu_data->pitch, mpu_data->roll);
+        LOG_DEBUG("gz: %.2f", mpu_data->phys.gz);
         PT_WAIT_TICK(pt, 100); // 每隔100毫秒执行一次
     }
     PT_END(pt);

@@ -38,7 +38,6 @@
 #include "mpu6050.h"
 #include "tasks.h"
 #include "Motor_AT4950.h"
-#include "HSM_OLED.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -60,6 +59,11 @@ uint8_t protocol_value_dirty = 0;
 bool Uart_Protocol_Tranmsit_ForHal(const uint8_t* data, uint16_t len)
 {
     return HAL_UART_Transmit(&huart3, (uint8_t*)data, len, 100) == HAL_OK;
+}
+
+void Serial_LOG_Transmit(const char* buffer,size_t len)
+{
+    HAL_UART_Transmit(&huart3, (uint8_t*)buffer, len, 100);
 }
 
 
@@ -131,6 +135,10 @@ static void RenderProtocolValue(void)
 /* USER CODE BEGIN PV */
 Protothread_t IMU_Task;
 Protothread_t SerialTask_handle;
+Protothread_t OLED0_Task;
+Protothread_t OLED1_Task;
+Protothread_t OLED2_Task;
+Protothread_t OLED3_Task;
 MulitKey_t key1;
 MulitKey_t key2;
 MotorAT4950 motor1;
@@ -212,7 +220,7 @@ int main(void)
   OLED_DisplayTurn(0);
   OLED_DisPlay_On();
   PT_INIT(&IMU_Task);
-  HSM_OLED_Init();
+  LOG_Init(Serial_LOG_Transmit);
   MulitKey_Init(&key1,ReadKey1Pin,Key1PressedCallback,Key1PressedCallback,RISE_BORDER_TRIGGER);
   MulitKey_Init(&key2,ReadKey2Pin,Key2PressedCallback,Key2PressedCallback,RISE_BORDER_TRIGGER);
 
@@ -231,6 +239,13 @@ int main(void)
   HAL_UARTEx_ReceiveToIdle_IT(&huart3,receive_buffer, sizeof(receive_buffer));
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
   Motor_setSpeed(&motor1, 500); // 设置电机以50%的占空比正向旋转
+  LOG_Set_Level(LOG_LEVEL_FATAL);
+  LOG_RAW("test raw log\n");
+  LOG_DEBUG("test debug log");
+  LOG_INFO("test info log");
+  LOG_ERROR("test error log");
+  LOG_WARN("test warn log");
+  LOG_FATAL("test fatal log");
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -240,9 +255,13 @@ int main(void)
     IMU_task(&IMU_Task);
     MulitKey_Scan(&key1);
     MulitKey_Scan(&key2);
-    HSM_OLED_Process();
     SerialTask(&SerialTask_handle);
+    OLED_ShowPage0(&OLED0_Task);
+    OLED_ShowPage1(&OLED1_Task);
+    OLED_ShowPage2(&OLED2_Task);
+    OLED_ShowPage3(&OLED3_Task);
     Uart_Protocol_Loop(&uart_protocol_instance);
+    LOG_Process();
     RenderProtocolValue();
     // RunAckWaitTest(&uart_protocol_instance);
     /* USER CODE END WHILE */
