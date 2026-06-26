@@ -1,0 +1,4 @@
+C:/learnlib/public_lib/Log/build/CMakeFiles/Log.dir
+C:/learnlib/public_lib/Log/build/CMakeFiles/test_log.dir
+C:/learnlib/public_lib/Log/build/CMakeFiles/edit_cache.dir
+C:/learnlib/public_lib/Log/build/CMakeFiles/rebuild_cache.dir

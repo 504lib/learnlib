@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C \"C:/learnlib\" log --reverse --format=\"%H %ai %s\" -- \"ZK_Lib/2024H/menu/\" \"public_lib/menu/\")",
+      "Bash(git -C \"C:/learnlib\" submodule status)",
+      "Bash(git -C \"C:/learnlib/ZK_Lib\" log --oneline --format=\"%ai %s\" -- \"C8T6_FreeRtos/menu/\" \"STM32+ESP32_Project/menu/\" \"2024H/menu/\")",
+      "Bash(git -C \"C:/learnlib/ZK_Lib\" log --reverse --format=\"%ai %s\" -- \"C8T6_FreeRtos/menu/\" \"STM32+ESP32_Project/menu/\" \"2024H/menu/\")",
+      "Bash(git -C \"C:/learnlib/ZK_Lib\" log --format=\"%ai %s\" -1 -- \"C8T6_FreeRtos/menu/\")"
+    ]
+  }
+}

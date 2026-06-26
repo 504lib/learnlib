@@ -56,9 +56,6 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
-    ../../public_lib/HSM/HSM_Core.cpp
-    ../../public_lib/HSM/HSM_Bus.cpp
-    Tasks/HSM_OLED.cpp
 )
 
 # Add include paths
@@ -76,6 +73,7 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
 # Enable printf floating-point formatting in newlib-nano.
 target_link_options(${CMAKE_PROJECT_NAME} PRIVATE
     -Wl,-u,_printf_float
+    -Wl,--start-group
 )
 
 # Remove wrong libob.a library dependency when using cpp files
@@ -92,6 +90,8 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     Motor_AT4950
     MPU_9250
     protocol
+    Tasks
     ${TOOLCHAIN_LINK_LIBRARIES}
+    -Wl,--end-group
     # Add user defined libraries
 )

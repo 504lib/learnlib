@@ -13,4 +13,5 @@ target_include_directories(MPU_9250 PUBLIC
 
 target_link_libraries(MPU_9250 PUBLIC
     stm32cubemx
+    m
 )

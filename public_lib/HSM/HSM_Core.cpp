@@ -513,7 +513,7 @@ bool HSM_Core::Transition(HSM_Node* target, HSM_Event_Package event)
     HSM_Node* entry_node;
     while (DispatchStack_POP(&dispatchStack_active_state, &entry_node))
     {
-        LOG_DEBUG("HSM_Core::Transition entering node at \"%s\"", entry_node->name);
+        LOG_DEBUG("HSM_Core::Transition entering node at \"%s\"", NodeName(entry_node));
         if (entry_node->entry_action) entry_node->entry_action(event);
     }
 
