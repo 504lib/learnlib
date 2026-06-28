@@ -246,6 +246,8 @@ int main(void)
   LOG_ERROR("test error log");
   LOG_WARN("test warn log");
   LOG_FATAL("test fatal log");
+  MulitKey_EnableLongPressRepeat(&key1,false);
+  MulitKey_EnableLongPressRepeat(&key2,false);
   /* USER CODE END 2 */
 
   /* Infinite loop */

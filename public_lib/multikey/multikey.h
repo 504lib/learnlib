@@ -1,15 +1,14 @@
 #pragma once
 
-#define KEY_DEBOUNCE_TIME 10      // 消抖时间，单位为扫描周期数
-#define KEY_LONGPRESS_TIME 500   // 长按时间，单位为扫描周期数
-#define KEY_LONGPRESS_REPEAT_TIME 100 // 长按重复触发时间，单位为扫描周期数
+#include <stdint.h>
+#include <stdbool.h>
 
-#define MENU_USE_BARE_METAL
+#define MENU_USE_BARE_METAL_HAL
 #if defined(MENU_USE_CMSIS_OS2)
     #include "cmsis_os2.h"
     #include "FreeRTOS.h"
     #define MULTIKEY_GET_TICK osKernelGetTickCount
-#elif defined(MENU_USE_BARE_METAL)
+#elif defined(MENU_USE_BARE_METAL_HAL)
     #include "main.h"
     #define MULTIKEY_GET_TICK HAL_GetTick
 #elif defined(MENU_USE_CUSTOM)
@@ -42,14 +41,22 @@ typedef enum{
     FALL_BORDER_TRIGGER,
 }BorderTrigger;
 
+typedef struct{
+    uint16_t Key_Debounce_Time;
+    uint16_t Key_LongPress_Time;
+    uint16_t Key_LongPress_Repeat_Time;
+} MulitKey_Time_t;
+
 
 struct MulitKey_t
 {
+    bool isEnable_LongPress_Repeat;
     BorderTrigger Border_trigger;
     KeyReadPinCallback readPin;
     KeyPressdCallback onPressed;
     KeyLongPressdCallback onLongPressed;
     KeyState state;
+    MulitKey_Time_t time;
     uint32_t press_last_time;    // 按键开始时间戳
 };
 
@@ -57,6 +64,8 @@ struct MulitKey_t
 
 void MulitKey_Init(MulitKey_t* key,KeyReadPinCallback readPin,KeyPressdCallback onPressed,KeyLongPressdCallback onLongPressed,BorderTrigger trigger);
 void MulitKey_Scan(MulitKey_t* key);
-void MulitKey_SetDebounceTime(uint16_t time);
-void MulitKey_SetLongPressTime(uint16_t time);
-void MulitKey_SetLongPressRepeatTime(uint16_t time);
+void MulitKey_EnableLongPressRepeat(MulitKey_t* key,bool enable);
+void MulitKey_SetDebounceTime(MulitKey_t* key,uint16_t time);
+void MulitKey_SetLongPressTime(MulitKey_t* key,uint16_t time);
+void MulitKey_SetLongPressRepeatTime(MulitKey_t* key,uint16_t time);
+

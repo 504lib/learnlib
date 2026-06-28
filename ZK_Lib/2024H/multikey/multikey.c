@@ -1,23 +1,31 @@
 #include "multikey.h"
 
-static uint16_t Key_Debounce_Time = KEY_DEBOUNCE_TIME;
-static uint16_t Key_LongPress_Time = KEY_LONGPRESS_TIME;
-static uint16_t Key_LongPress_Repeat_Time = KEY_LONGPRESS_REPEAT_TIME;
+
+#define KEY_DEBOUNCE_TIME 10      // 消抖时间，单位为扫描周期数
+#define KEY_LONGPRESS_TIME 500   // 长按时间，单位为扫描周期数
+#define KEY_LONGPRESS_REPEAT_TIME 100 // 长按重复触发时间，单位为扫描周期数
 
 void MulitKey_Init(MulitKey_t* key,KeyReadPinCallback readPin,KeyPressdCallback onPressed,KeyLongPressdCallback onLongPressed,BorderTrigger trigger)
 {
-    if(readPin == NULL) return;
+    if (!readPin) return;
     key->Border_trigger = trigger;
+    key->isEnable_LongPress_Repeat = true;
     key->readPin = readPin;
     key->onPressed = onPressed;
     key->onLongPressed = onLongPressed;
-
     key->state = KEY_IDLE;
     key->press_last_time = 0;
+    key->time.Key_Debounce_Time = KEY_DEBOUNCE_TIME;
+    key->time.Key_LongPress_Time = KEY_LONGPRESS_TIME;
+    key->time.Key_LongPress_Repeat_Time = KEY_LONGPRESS_REPEAT_TIME;
 }
 
 void MulitKey_Scan(MulitKey_t* key)
 {
+    if (!key->readPin)
+    {
+        return;
+    }
     uint8_t pin_state = key->readPin(key);
     
     switch(key->state)
@@ -33,10 +41,9 @@ void MulitKey_Scan(MulitKey_t* key)
             if((key->Border_trigger == RISE_BORDER_TRIGGER && pin_state) || (key->Border_trigger == FALL_BORDER_TRIGGER && !pin_state))
             {
 
-                if(MULTIKEY_GET_TICK() - key->press_last_time > Key_Debounce_Time)
+                if(MULTIKEY_GET_TICK() - key->press_last_time > key->time.Key_Debounce_Time)
                 {
                     key->state = KEY_PRESSED;
-                    if(key->onPressed) key->onPressed(key);
                     key->press_last_time = MULTIKEY_GET_TICK();
                 }
             }
@@ -48,15 +55,22 @@ void MulitKey_Scan(MulitKey_t* key)
         case KEY_PRESSED:
             if((key->Border_trigger == RISE_BORDER_TRIGGER && pin_state) || (key->Border_trigger == FALL_BORDER_TRIGGER && !pin_state))
             {
-                if(MULTIKEY_GET_TICK() - key->press_last_time >= Key_LongPress_Time)
+                if(MULTIKEY_GET_TICK() - key->press_last_time >= key->time.Key_LongPress_Time)
                 {
+                    if (key->onLongPressed)
+                    {
+                        key->onLongPressed(key);
+                    }
                     key->state = KEY_LONGPRESS;
-                    if(key->onLongPressed) key->onLongPressed(key);
                     key->press_last_time = MULTIKEY_GET_TICK();
                 }
             }
             else
             {
+                if (key->onPressed)
+                {
+                    key->onPressed(key);
+                }
                 key->state = KEY_IDLE; // 按键释放，返回空闲状态
             }
             break;
@@ -67,7 +81,7 @@ void MulitKey_Scan(MulitKey_t* key)
             }
             else
             {
-                if(MULTIKEY_GET_TICK() - key->press_last_time >= Key_LongPress_Repeat_Time)
+                if(MULTIKEY_GET_TICK() - key->press_last_time >= key->time.Key_LongPress_Repeat_Time && key->isEnable_LongPress_Repeat)
                 {
                     if(key->onLongPressed) key->onLongPressed(key);
                     key->press_last_time = MULTIKEY_GET_TICK();
@@ -80,17 +94,27 @@ void MulitKey_Scan(MulitKey_t* key)
     }
 }
 
-void MulitKey_SetDebounceTime(uint16_t time)
+void MulitKey_SetDebounceTime(MulitKey_t* key,uint16_t time)
 {
-    Key_Debounce_Time = time;
+    if(!key || !time) return;
+    key->time.Key_Debounce_Time = time;
 }
 
-void MulitKey_SetLongPressTime(uint16_t time)
+void MulitKey_SetLongPressTime(MulitKey_t* key,uint16_t time)
 {
-    Key_LongPress_Time = time;
+    if(!key || !time) return;
+    key->time.Key_LongPress_Time = time;
 }
 
-void MulitKey_SetLongPressRepeatTime(uint16_t time)
+void MulitKey_SetLongPressRepeatTime(MulitKey_t* key,uint16_t time)
 {
-    Key_LongPress_Repeat_Time = time;
+    if(!key || !time) return;
+    key->time.Key_LongPress_Repeat_Time = time;
 }
+
+void MulitKey_EnableLongPressRepeat(MulitKey_t* key,bool enable)
+{
+    if(!key) return;
+    key->isEnable_LongPress_Repeat = enable;
+}
+
