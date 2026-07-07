@@ -1,0 +1,2 @@
+C:\dev\llvm-mingw\bin\llvm-ar.exe qc libmultikey.a CMakeFiles/multikey.dir/multikey.c.obj
+C:\dev\llvm-mingw\bin\llvm-ranlib.exe libmultikey.a

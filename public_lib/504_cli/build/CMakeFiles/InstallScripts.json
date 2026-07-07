@@ -1,0 +1,9 @@
+{
+	"InstallScripts" : 
+	[
+		"C:/learnlib/public_lib/504_cli/build/cmake_install.cmake",
+		"C:/learnlib/public_lib/504_cli/build/static_queue/cmake_install.cmake",
+		"C:/learnlib/public_lib/504_cli/build/Log/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

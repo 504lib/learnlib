@@ -1,0 +1,11 @@
+C:/learnlib/public_lib/504_cli/build/CMakeFiles/504_CLI_LIB.dir
+C:/learnlib/public_lib/504_cli/build/CMakeFiles/edit_cache.dir
+C:/learnlib/public_lib/504_cli/build/CMakeFiles/rebuild_cache.dir
+C:/learnlib/public_lib/504_cli/build/static_queue/CMakeFiles/static_queue.dir
+C:/learnlib/public_lib/504_cli/build/static_queue/CMakeFiles/static_queue_demo.dir
+C:/learnlib/public_lib/504_cli/build/static_queue/CMakeFiles/edit_cache.dir
+C:/learnlib/public_lib/504_cli/build/static_queue/CMakeFiles/rebuild_cache.dir
+C:/learnlib/public_lib/504_cli/build/Log/CMakeFiles/Log.dir
+C:/learnlib/public_lib/504_cli/build/Log/CMakeFiles/test_log.dir
+C:/learnlib/public_lib/504_cli/build/Log/CMakeFiles/edit_cache.dir
+C:/learnlib/public_lib/504_cli/build/Log/CMakeFiles/rebuild_cache.dir

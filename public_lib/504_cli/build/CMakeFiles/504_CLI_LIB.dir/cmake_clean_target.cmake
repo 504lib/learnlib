@@ -1,0 +1,3 @@
+file(REMOVE_RECURSE
+  "lib504_CLI_LIB.a"
+)

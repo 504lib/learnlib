@@ -1,0 +1,156 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"childIndexes" : 
+					[
+						1,
+						2
+					],
+					"jsonFile" : "directory-.-Debug-d0094a50bb2071803777.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.16"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0
+					]
+				},
+				{
+					"build" : "static_queue",
+					"jsonFile" : "directory-static_queue-Debug-e77a4f46f8b89bf69b6b.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.16"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 1,
+					"source" : "static_queue",
+					"targetIndexes" : 
+					[
+						2,
+						3
+					]
+				},
+				{
+					"build" : "Log",
+					"jsonFile" : "directory-Log-Debug-65743027bca22074b98c.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.16"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 2,
+					"source" : "Log",
+					"targetIndexes" : 
+					[
+						1,
+						4
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"childIndexes" : 
+					[
+						1,
+						2
+					],
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "504_CLI_LIB",
+					"targetIndexes" : 
+					[
+						0
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						1
+					],
+					"name" : "static_queue",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						2,
+						3
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						2
+					],
+					"name" : "Log",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						1,
+						4
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "504_CLI_LIB::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-504_CLI_LIB-Debug-a33fa51363b8b303d1a4.json",
+					"name" : "504_CLI_LIB",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 2,
+					"id" : "Log::@ff0d9bc7e1aa2b6d9e83",
+					"jsonFile" : "target-Log-Debug-468fa5a00f4d3baab53e.json",
+					"name" : "Log",
+					"projectIndex" : 2
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "static_queue::@224082fe5e054dfcea28",
+					"jsonFile" : "target-static_queue-Debug-51d74fd59f62c09f39ec.json",
+					"name" : "static_queue",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "static_queue_demo::@224082fe5e054dfcea28",
+					"jsonFile" : "target-static_queue_demo-Debug-895a6cdf2f10006dc277.json",
+					"name" : "static_queue_demo",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 2,
+					"id" : "test_log::@ff0d9bc7e1aa2b6d9e83",
+					"jsonFile" : "target-test_log-Debug-10cc77ff31ee9e69d019.json",
+					"name" : "test_log",
+					"projectIndex" : 2
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "C:/learnlib/public_lib/504_cli/build",
+		"source" : "C:/learnlib/public_lib/504_cli"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 8
+	}
+}

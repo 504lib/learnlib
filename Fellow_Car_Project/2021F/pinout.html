@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2021F 跟随小车 — HSM 状态机 &amp; 引脚配置</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --panel: #ffffff;
+    --border: #dde1e6;
+    --text: #2c3038;
+    --dim: #7a7f8a;
+    --accent: #1a7fbf;
+    --green: #2d8a56;
+    --orange: #c75b1e;
+    --red: #c73e3e;
+    --yellow: #b8860b;
+    --purple: #7b4ea0;
+    --teal: #1a7a7f;
+    --st-idle: #e8edf2;
+    --st-go: #d4e6f5;
+    --st-wait: #fef3d5;
+    --st-turn: #fde5d5;
+    --st-end: #ddf0db;
+    --st-ret: #f0e3f5;
+    --st-sub: #faf5fd;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Microsoft YaHei','PingFang SC','Segoe UI',sans-serif;
+    padding: 24px;
+  }
+  .container { max-width: 1400px; margin: 0 auto; }
+
+  /* ====== 标题 ====== */
+  .header {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 6px; padding: 18px 24px; margin-bottom: 18px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .header h1 { font-size: 19px; color: #1a1c22; }
+  .header .sub { font-size: 11px; color: var(--dim); margin-top: 2px; }
+  .tags { display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+  .tag {
+    font-size: 9px; padding: 2px 9px; border-radius: 9px; font-weight: 600;
+  }
+  .tag.mcu { background: #d4e6f5; color: var(--accent); }
+  .tag.pkg { background: #fde5d5; color: var(--orange); }
+  .tag.freq { background: #ddf0db; color: var(--green); }
+
+  /* ====== 面板 ====== */
+  .section {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 6px; padding: 20px 24px; margin-bottom: 18px;
+  }
+  .section h2 {
+    font-size: 13px; color: var(--accent); margin-bottom: 16px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--border);
+    letter-spacing: 0.5px;
+  }
+  .section h3 {
+    font-size: 12px; color: #333840; margin: 18px 0 8px;
+    padding-left: 10px; border-left: 3px solid var(--accent);
+  }
+
+  .grid-2 {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+  }
+  @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  /* ====== HSM 图 ====== */
+  .hsm-container {
+    display: flex; flex-direction: column; gap: 0; align-items: center;
+    padding: 8px 0;
+  }
+  .hsm-row {
+    display: flex; align-items: center; justify-content: center; gap: 0;
+    flex-wrap: wrap;
+  }
+  .hsm-arrow {
+    color: var(--dim); font-size: 15px; padding: 0 6px;
+    flex-shrink: 0; font-weight: 700;
+  }
+  .hsm-arrow.down {
+    padding: 4px 0; font-size: 13px; text-align: center;
+  }
+
+  /* 状态节点 */
+  .st {
+    border: 2px solid #c8cdd5; border-radius: 8px;
+    padding: 10px 18px; text-align: center; min-width: 90px;
+    background: #fff; transition: box-shadow 0.15s;
+  }
+  .st:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+  .st .name { font-size: 13px; font-weight: 700; color: #1a1c22; }
+  .st .detail { font-size: 9px; color: var(--dim); margin-top: 3px; line-height: 1.4; }
+  .st .ctrl { font-size: 9px; color: var(--accent); margin-top: 2px; font-weight: 600; }
+
+  /* 状态配色 */
+  .st.idle  { border-color: #bcc4ce; background: var(--st-idle); }
+  .st.go    { border-color: #8ab8d8; background: var(--st-go); }
+  .st.wait  { border-color: #d4b84a; background: var(--st-wait); }
+  .st.turn  { border-color: #d4946a; background: var(--st-turn); }
+  .st.end   { border-color: #7dba7a; background: var(--st-end); }
+  .st.ret   { border-color: #a87dc2; background: var(--st-ret); }
+  .st.sub   { border-color: #c8b0d8; background: var(--st-sub); }
+
+  /* 父状态框（HSM 嵌套） */
+  .st.parent {
+    border: 2px dashed #a87dc2; border-radius: 10px;
+    padding: 14px 20px; background: #fcf8fe;
+    min-width: 280px;
+  }
+  .st.parent > .pname {
+    font-size: 11px; font-weight: 700; color: #6b3d8a;
+    text-align: center; margin-bottom: 10px;
+    letter-spacing: 0.5px;
+  }
+  .st.parent .children {
+    display: flex; align-items: center; justify-content: center; gap: 0;
+  }
+
+  /* 菱形判断 */
+  .diamond-wrap {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    margin: 0 6px;
+  }
+  .diamond {
+    width: 72px; height: 72px; background: #fff;
+    border: 2px solid var(--yellow);
+    transform: rotate(45deg);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .diamond span {
+    transform: rotate(-45deg);
+    font-size: 9px; font-weight: 700; color: #8b6910;
+    text-align: center; line-height: 1.4;
+  }
+  .branch-yes { font-size: 9px; color: var(--green); font-weight: 600; }
+  .branch-no  { font-size: 9px; color: var(--dim); }
+
+  /* 连线标签 */
+  .edge-label {
+    font-size: 9px; color: var(--dim); writing-mode: horizontal-tb;
+    white-space: nowrap;
+  }
+
+  /* ====== 表格 ====== */
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  thead th {
+    text-align: left; font-size: 9px; letter-spacing: 0.4px;
+    color: var(--dim); padding: 8px 10px;
+    border-bottom: 2px solid var(--border);
+    background: #fafbfc; white-space: nowrap;
+  }
+  tbody td {
+    padding: 7px 10px; border-bottom: 1px solid #edf0f4;
+    vertical-align: middle;
+  }
+  tbody tr:hover td { background: #f8f9fb; }
+  .pin {
+    display: inline-block; background: #eef1f5; padding: 2px 7px;
+    border-radius: 3px; font-family: 'Consolas','Courier New',monospace;
+    font-size: 10px; margin: 1px 2px;
+  }
+  .row-hdr td {
+    font-weight: 700; color: var(--accent); font-size: 11px;
+    padding-top: 14px; border-bottom: 1px solid var(--border);
+    background: transparent;
+  }
+  .badge {
+    display: inline-block; font-size: 8px; padding: 1px 6px;
+    border-radius: 8px; font-weight: 600; margin: 0 1px;
+  }
+  .badge.af  { background: #d4e6f5; color: var(--accent); }
+  .badge.dir { background: #fde5d5; color: var(--orange); }
+  .badge.pull{ background: #fef3d5; color: #8b6910; }
+
+  /* ====== 时钟树 ====== */
+  .clk { display: flex; flex-direction: column; gap: 5px; font-size: 11px; }
+  .clk-node {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 10px; background: #f8f9fb; border-radius: 4px;
+    border-left: 3px solid transparent;
+  }
+  .clk-node.src { border-left-color: var(--orange); }
+  .clk-node.pll { border-left-color: var(--accent); }
+  .clk-node.sys { border-left-color: var(--green); }
+  .clk-node.bus { border-left-color: var(--dim); }
+  .clk-node.tmr { border-left-color: var(--yellow); }
+  .clk-name { min-width: 65px; font-weight: 600; }
+  .clk-val  { color: var(--accent); font-weight: 700; font-family: 'Consolas',monospace; }
+  .clk-desc { color: var(--dim); font-size: 9px; margin-left: auto; }
+
+  .footer { text-align: center; font-size: 10px; color: var(--dim); padding: 8px; }
+
+  /* 双层 HSM 容器 */
+  .hsm-layer {
+    border: 1px dashed var(--border); border-radius: 6px;
+    padding: 16px; margin: 8px 0;
+    background: #fafbfc;
+  }
+  .hsm-layer > .layer-title {
+    font-size: 10px; color: var(--dim); letter-spacing: 0.8px;
+    margin-bottom: 10px; text-transform: uppercase;
+  }
+
+  /* 纵向下箭头 */
+  .v-arrow {
+    display: flex; flex-direction: column; align-items: center;
+    color: var(--dim); font-size: 12px; padding: 2px 0;
+  }
+  .v-arrow .edge-label { font-size: 8px; }
+
+  /* 表注 */
+  .tbl-note { font-size: 10px; color: var(--dim); margin-top: 10px; line-height: 1.6; }
+
+  /* 返程子状态机 */
+  .sub-sm {
+    display: flex; align-items: center; gap: 0; justify-content: center;
+    margin: 8px 0;
+  }
+
+  /* 实心底色标签 */
+  .chip-tag {
+    display: inline-block; font-size: 9px; padding: 1px 6px; border-radius: 3px;
+    font-weight: 600; margin: 0 2px; font-family: 'Consolas',monospace;
+  }
+  .chip-tag.tx  { background: #fde8e8; color: var(--red); }
+  .chip-tag.rx  { background: #dff0f5; color: var(--teal); }
+  .chip-tag.pwm { background: #fde5d5; color: var(--orange); }
+  .chip-tag.enc { background: #ddf0db; color: var(--green); }
+  .chip-tag.i2c { background: #f0e3f5; color: var(--purple); }
+  .chip-tag.spi { background: #d4e6f5; color: var(--accent); }
+  .chip-tag.gpio{ background: #fef3d5; color: #8b6910; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ═══════════ 标题 ═══════════ -->
+  <div class="header">
+    <div>
+      <h1>2021F 跟随小车 — HSM 状态机 &amp; 引脚配置</h1>
+      <div class="sub">STM32F407VET6 &middot; CubeMX v6.17.0 &middot; FW F4 v1.28.3</div>
+      <div class="tags">
+        <span class="tag mcu">Cortex-M4F + FPU</span>
+        <span class="tag pkg">LQFP100</span>
+        <span class="tag freq">168 MHz</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ 1. 任务 HSM（主状态机） ═══════════ -->
+  <div class="section">
+    <h2>1. 任务层次状态机 (HSM) — Task_FSM</h2>
+    <p style="font-size:10px;color:var(--dim);margin-bottom:14px">
+      实现在 <code>task/tasks.c</code>，基于 Protothread 协程调度。TASK_RETURN 为父状态，内部含 3 个子状态。
+    </p>
+
+    <!-- 去程 -->
+    <div class="hsm-container">
+
+      <!-- 第一行：IDLE → GO_TO_CROSS -->
+      <div class="hsm-row">
+        <div class="st idle">
+          <div class="name">TASK_IDLE</div>
+          <div class="detail">等待蓝牙指令</div>
+          <div class="ctrl">CTRL_MODE_IDLE</div>
+        </div>
+        <div class="hsm-arrow">→</div>
+        <div class="diamond-wrap">
+          <div class="diamond"><span>收到<br>0x01?</span></div>
+          <span class="branch-yes">是</span>
+        </div>
+        <div class="hsm-arrow">→</div>
+        <div class="st go">
+          <div class="name">TASK_GO_TO_CROSS</div>
+          <div class="detail">循迹前往路口<br>灰度 PID 沿黑线</div>
+          <div class="ctrl">CTRL_MODE_TRACKING</div>
+        </div>
+      </div>
+
+      <div class="v-arrow"><span>↓</span><span class="edge-label">检测到十字路口 (Control_IsCrossDetected)</span></div>
+
+      <!-- 第二行：WAITING_AT_CROSS 分支 -->
+      <div class="hsm-row">
+        <div class="st wait">
+          <div class="name">TASK_WAITING<br>_AT_CROSS</div>
+          <div class="detail">停车等待<br>转弯指令</div>
+          <div class="ctrl">CTRL_MODE_IDLE</div>
+        </div>
+        <div class="diamond-wrap">
+          <div class="diamond"><span>收到<br>0x02 / 0x03?</span></div>
+          <span class="branch-yes" style="margin-left:20px">0x02 →</span>
+        </div>
+        <div class="st turn">
+          <div class="name">TASK_TURN_LEFT</div>
+          <div class="detail">左转 90°<br>差速原地转向</div>
+          <div class="ctrl">手动轮速</div>
+        </div>
+        <div class="hsm-arrow">→</div>
+        <div class="st go">
+          <div class="name">TASK_GO_TO_CROSS</div>
+          <div class="detail">继续循迹</div>
+          <div class="ctrl">CTRL_MODE_TRACKING</div>
+        </div>
+      </div>
+
+      <!-- 右转分支 -->
+      <div class="hsm-row" style="margin-top:4px">
+        <span style="width:170px"></span>
+        <span class="branch-yes" style="margin-left:20px">0x03 →</span>
+        <div class="st turn">
+          <div class="name">TASK_TURN_RIGHT</div>
+          <div class="detail">右转 90°<br>差速原地转向</div>
+          <div class="ctrl">手动轮速</div>
+        </div>
+        <div class="hsm-arrow">→</div>
+        <div class="st go" style="opacity:0.6">
+          <div class="name">TASK_GO_TO_CROSS</div>
+          <div class="detail">继续循迹</div>
+          <div class="ctrl">CTRL_MODE_TRACKING</div>
+        </div>
+      </div>
+
+      <div class="v-arrow"><span>↓</span><span class="edge-label">gray_byte == 0xFF 且非首次 (到达终点白区)</span></div>
+
+      <!-- 第三行：GO_TO_END → WAIT_DELIVERY -->
+      <div class="hsm-row">
+        <div class="st end">
+          <div class="name">TASK_GO_TO_END</div>
+          <div class="detail">到达病房终点<br>电机停止</div>
+          <div class="ctrl">CTRL_MODE_IDLE</div>
+        </div>
+        <div class="hsm-arrow">→</div>
+        <div class="st wait">
+          <div class="name">TASK_WAIT<br>_DELIVERY_CONFIRM</div>
+          <div class="detail">等待送药确认<br>指令 0x04</div>
+          <div class="ctrl">CTRL_MODE_IDLE</div>
+        </div>
+        <div class="hsm-arrow">→</div>
+        <div class="diamond-wrap">
+          <div class="diamond"><span>收到<br>0x04?</span></div>
+        </div>
+        <div class="hsm-arrow">→</div>
+        <div class="st turn">
+          <div class="name">TASK_TURN<br>_AROUND</div>
+          <div class="detail">原地调头 180°<br>差速转向</div>
+          <div class="ctrl">手动轮速</div>
+        </div>
+      </div>
+
+      <div class="v-arrow"><span>↓</span><span class="edge-label">调头完成</span></div>
+
+      <!-- 第四行：TASK_RETURN 父状态（HSM 嵌套层） -->
+      <div class="st parent" style="width:100%;max-width:700px">
+        <div class="pname">◈ TASK_RETURN（HSM 父状态 — 返程子状态机）</div>
+        <div class="children">
+          <div class="st sub">
+            <div class="name">RET_POP_ACTION</div>
+            <div class="detail">从栈中弹出动作<br>← 直行动作<br>← 转弯动作(取反)</div>
+          </div>
+          <div class="hsm-arrow">→</div>
+          <div class="diamond-wrap">
+            <div class="diamond" style="width:60px;height:60px"><span>直行<br>还是<br>转弯?</span></div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;margin:0 4px">
+            <span class="branch-yes">直行 →</span>
+            <span class="branch-yes" style="margin-top:18px">转弯 →</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div class="st sub">
+              <div class="name">RET_EXEC_STRAIGHT</div>
+              <div class="detail">循迹离开路口<br>→ 回到 RET_POP_ACTION</div>
+              <div class="ctrl">CTRL_MODE_TRACKING</div>
+            </div>
+            <div class="st sub">
+              <div class="name">RET_EXEC_TURN</div>
+              <div class="detail">执行转弯(方向取反)<br>→ 转到 RET_EXEC_STRAIGHT</div>
+              <div class="ctrl">手动轮速</div>
+            </div>
+          </div>
+        </div>
+        <div style="text-align:center;margin-top:8px;font-size:9px;color:var(--dim)">
+          栈空 → 任务完成，回到 TASK_IDLE
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════ 2. FSM 框架层 ═══════════ -->
+  <div class="grid-2">
+    <div class="section">
+      <h2>2. FSM 应用层状态机 (f_sm.c)</h2>
+      <p style="font-size:10px;color:var(--dim);margin-bottom:12px">
+        基于自研 FSM 框架 <code>Finite_State_Machine</code> 的应用层状态机。每个状态进入时设置对应的控制模式。
+      </p>
+      <div class="hsm-container">
+        <div class="hsm-row">
+          <div class="st idle">
+            <div class="name">IDLE</div>
+            <div class="detail">上电空闲</div>
+          </div>
+          <div class="hsm-arrow">→</div>
+          <div class="st go">
+            <div class="name">STRAIGHT</div>
+            <div class="detail">锁定航向直行<br>角度 PID 保持</div>
+            <div class="ctrl">CTRL_MODE_STRAIGHT</div>
+          </div>
+          <div class="hsm-arrow">→</div>
+          <div class="st go">
+            <div class="name">TRACKING</div>
+            <div class="detail">灰度传感器循迹<br>灰度 PID 沿黑线</div>
+            <div class="ctrl">CTRL_MODE_TRACKING</div>
+          </div>
+          <div class="hsm-arrow">→</div>
+          <div class="st wait">
+            <div class="name">STOP_AT_WARD</div>
+            <div class="detail">病房前停车 3s<br>等待送药</div>
+            <div class="ctrl">CTRL_MODE_STOP</div>
+          </div>
+        </div>
+        <div class="v-arrow"><span>↓</span></div>
+        <div class="hsm-row">
+          <div class="st ret">
+            <div class="name">RETURN_TRACKING</div>
+            <div class="detail">返回循迹</div>
+            <div class="ctrl">CTRL_MODE_TRACKING</div>
+          </div>
+          <div class="hsm-arrow">←</div>
+          <div class="st ret">
+            <div class="name">RETURN_STRAIGHT</div>
+            <div class="detail">返回直行</div>
+            <div class="ctrl">CTRL_MODE_STRAIGHT</div>
+          </div>
+          <div class="hsm-arrow">←</div>
+          <div class="st end">
+            <div class="name">FINISH</div>
+            <div class="detail">任务完成<br>自动转 IDLE</div>
+            <div class="ctrl">CTRL_MODE_STOP</div>
+          </div>
+        </div>
+      </div>
+      <p class="tbl-note">
+        转移条件：STRAIGHT → TRACKING：<code>distance ≥ 0.65m 或 gray≠0xFF</code>（到达路口）<br>
+        TRACKING → STOP_AT_WARD：<code>Check_Ward_Detected()</code>（检测到病房标记）<br>
+        STOP_AT_WARD → RETURN_TRACKING：停留 3000ms 超时<br>
+        RETURN_STRAIGHT → FINISH：<code>distance ≥ 0.65m 或 gray≠0xFF</code>（到达药房）
+      </p>
+    </div>
+
+    <div class="section">
+      <h2>3. FSM 框架层设计</h2>
+      <p style="font-size:10px;color:var(--dim);margin-bottom:12px">
+        自研轻量 FSM 库 <code>Finite_State_Machine</code>，提供状态节点管理和事件处理。
+      </p>
+      <table>
+        <thead><tr><th>结构体</th><th>字段</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td rowspan="5"><b>FSM_State</b></td><td>on_enter / on_exit</td><td>进入 / 退出回调函数</td></tr>
+          <tr><td>enter_times / exit_times</td><td>进入 / 退出计数</td></tr>
+          <tr><td>state_id</td><td>状态唯一标识 (uint32_t)</td></tr>
+          <tr><td>last_enter_tick / last_exit_tick</td><td>上次进入 / 退出时间戳</td></tr>
+          <tr><td>total_time_in_state</td><td>累计状态停留时间</td></tr>
+          <tr><td rowspan="4"><b>FSM_Node</b></td><td>state_name[32]</td><td>状态名（如 "Straight"）</td></tr>
+          <tr><td>action</td><td>状态执行回调</td></tr>
+          <tr><td>event / last_event</td><td>事件位掩码</td></tr>
+          <tr><td>next_states</td><td>后继状态链表指针</td></tr>
+          <tr><td rowspan="3"><b>FSM</b></td><td>current_state</td><td>当前状态 ID</td></tr>
+          <tr><td>first_node</td><td>状态链表头指针</td></tr>
+          <tr><td>is_initialized</td><td>初始化标志</td></tr>
+        </tbody>
+      </table>
+      <p class="tbl-note">
+        API：<code>FSM_Init</code> / <code>FMS_Node_Init</code> / <code>FSM_Add_Node</code> / <code>FSM_Transition</code> / <code>FSM_Handle_Event</code><br>
+        事件类型（位掩码）：IDLE / START (1&lt;&lt;0) / STOP (1&lt;&lt;1) / PAUSE (1&lt;&lt;2)
+      </p>
+    </div>
+  </div>
+
+  <!-- ═══════════ 4. 控制模式 ═══════════ -->
+  <div class="section">
+    <h2>4. 控制模式 (CtrlMode_t)</h2>
+    <table>
+      <thead><tr><th>模式</th><th>枚举值</th><th>PID 控制器</th><th>传感器输入</th><th>执行器输出</th><th>对应状态</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>CTRL_MODE_IDLE</b></td><td>0</td><td>无</td><td>—</td><td>电机停止</td>
+          <td>IDLE / WAITING_AT_CROSS / GO_TO_END</td>
+        </tr>
+        <tr>
+          <td><b>CTRL_MODE_STRAIGHT</b></td><td>1</td><td>角度 PID (pidAngle)</td><td>MPU9250 yaw 角</td><td>左右轮差速修正航向</td>
+          <td>STRAIGHT / RETURN_STRAIGHT</td>
+        </tr>
+        <tr>
+          <td><b>CTRL_MODE_TRACKING</b></td><td>2</td><td>灰度 PID (pidGrayscale)</td><td>8 位灰度传感器 PE[0:7]</td><td>左右轮差速沿黑线</td>
+          <td>TRACKING / GO_TO_CROSS / RETURN_TRACKING</td>
+        </tr>
+        <tr>
+          <td><b>CTRL_MODE_STOP</b></td><td>3</td><td>无</td><td>—</td><td>电机刹车</td>
+          <td>STOP_AT_WARD / FINISH</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="tbl-note">
+      此外还有<b>手动轮速模式</b>（非 CtrlMode 枚举），用于转弯阶段：<code>Control_SetManualSpeeds(-TURN_SPEED, TURN_SPEED)</code>
+      直接设定左右轮目标速度，不经过 PID 闭环。
+    </p>
+  </div>
+
+  <!-- ═══════════ 5. 10ms 控制循环 ═══════════ -->
+  <div class="section">
+    <h2>5. 10ms 主控制循环（TIM4 中断回调）</h2>
+    <div class="hsm-container">
+      <div class="hsm-row">
+        <div class="st" style="border-color:var(--yellow);min-width:140px">
+          <div class="name">TIM4 IRQ 触发</div>
+          <div class="detail">PSC=3360 ARR=100<br>168MHz / 3360 / 100<br>= 500 Hz → 每 2 次 = 10ms</div>
+        </div>
+        <div class="hsm-arrow">→</div>
+        <div class="st" style="border-color:var(--green);min-width:130px">
+          <div class="name">读取传感器</div>
+          <div class="detail">MPU9250 姿态 (I2C1)<br>灰度 PE[0:7] 并口<br>编码器 TIM2/TIM3</div>
+        </div>
+        <div class="hsm-arrow">→</div>
+        <div class="st" style="border-color:var(--accent);min-width:120px">
+          <div class="name">PID 计算</div>
+          <div class="detail">根据 g_ctrl_mode<br>选择角度或灰度 PID<br>+ 速度环 PID</div>
+        </div>
+        <div class="hsm-arrow">→</div>
+        <div class="st" style="border-color:var(--orange);min-width:120px">
+          <div class="name">输出执行</div>
+          <div class="detail">TIM1 PWM (PE9/PE11)<br>GPIO 方向 (PE13/PB10)<br>OLED 刷新 (SPI3)</div>
+        </div>
+        <div class="hsm-arrow">→</div>
+        <div class="st" style="border-color:var(--dim);min-width:110px">
+          <div class="name">协程调度</div>
+          <div class="detail">Task_FSM 步进<br>FSM_App_Run 状态转移<br>通信处理</div>
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:8px;font-size:10px;color:var(--dim)">
+        ↑ 每 10ms 循环一次 &middot; 每 200ms 额外清零编码器并上报状态 ↑
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ 6. 引脚配置表 ═══════════ -->
+  <div class="section">
+    <h2>6. 引脚配置表（按功能分组）</h2>
+    <table>
+      <thead><tr><th>引脚</th><th>端口位</th><th>功能</th><th>模式</th><th>上下拉</th><th>速度</th><th>复用</th><th>端口</th></tr></thead>
+      <tbody>
+        <tr class="row-hdr"><td colspan="8">电源 / 系统 / 晶振</td></tr>
+        <tr><td>VBAT</td><td>—</td><td>备份电源</td><td>—</td><td>—</td><td>—</td><td>—</td><td>RTC</td></tr>
+        <tr><td>VDD ×7</td><td>—</td><td>数字电源 3.3V</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>VSS ×5</td><td>—</td><td>数字地</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>VDDA / VSSA</td><td>—</td><td>模拟电源 / 地</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td>VREF+</td><td>—</td><td>ADC 基准 3.3V</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td><span class="pin">PH0</span></td><td>OSC_IN</td><td>HSE 晶振输入 (25MHz)</td><td>—</td><td>—</td><td>—</td><td>—</td><td>RCC</td></tr>
+        <tr><td><span class="pin">PH1</span></td><td>OSC_OUT</td><td>HSE 晶振输出</td><td>—</td><td>—</td><td>—</td><td>—</td><td>RCC</td></tr>
+        <tr><td><span class="pin">NRST</span></td><td>—</td><td>外部复位引脚</td><td>—</td><td>—</td><td>—</td><td>—</td><td>SYSCFG</td></tr>
+        <tr><td><span class="pin">PB2</span></td><td>BOOT1</td><td>启动模式选择</td><td>—</td><td>—</td><td>—</td><td>—</td><td>SYSCFG</td></tr>
+        <tr><td><span class="pin">BOOT0</span></td><td>—</td><td>启动模式选择</td><td>—</td><td>—</td><td>—</td><td>—</td><td>SYSCFG</td></tr>
+
+        <tr class="row-hdr"><td colspan="8">调试接口 SWD</td></tr>
+        <tr><td><span class="pin">PA13</span></td><td>PIN_13</td><td>SWDIO 数据线</td><td>AF 复用</td><td>—</td><td>—</td><td><span class="badge af">SYS_AF</span></td><td>SYS</td></tr>
+        <tr><td><span class="pin">PA14</span></td><td>PIN_14</td><td>SWCLK 时钟线</td><td>AF 复用</td><td>—</td><td>—</td><td><span class="badge af">SYS_AF</span></td><td>SYS</td></tr>
+
+        <tr class="row-hdr"><td colspan="8">GPIO 输出（推挽、低速）</td></tr>
+        <tr><td><span class="chip-tag gpio">PC4</span></td><td>PIN_4</td><td>LED3</td><td>推挽输出</td><td>无</td><td>低速</td><td>—</td><td>GPIOC</td></tr>
+        <tr><td><span class="chip-tag gpio">PC5</span></td><td>PIN_5</td><td>LED4</td><td>推挽输出</td><td>无</td><td>低速</td><td>—</td><td>GPIOC</td></tr>
+        <tr><td><span class="chip-tag gpio">PE13</span></td><td>PIN_13</td><td>电机1 方向 AIN</td><td>推挽输出</td><td>无</td><td>低速</td><td>—</td><td>GPIOE</td></tr>
+        <tr><td><span class="chip-tag gpio">PB10</span></td><td>PIN_10</td><td>电机2 方向 BIN</td><td>推挽输出</td><td>无</td><td>低速</td><td>—</td><td>GPIOB</td></tr>
+        <tr><td><span class="chip-tag gpio">PD0</span></td><td>PIN_0</td><td>OLED 复位 RES</td><td>推挽输出</td><td>无</td><td>低速</td><td>—</td><td>GPIOD</td></tr>
+        <tr><td><span class="chip-tag gpio">PD1</span></td><td>PIN_1</td><td>OLED 数据/命令 DC</td><td>推挽输出</td><td>无</td><td>低速</td><td>—</td><td>GPIOD</td></tr>
+        <tr><td><span class="chip-tag gpio">PD2</span></td><td>PIN_2</td><td>OLED 片选 CS</td><td>推挽输出</td><td>无</td><td>低速</td><td>—</td><td>GPIOD</td></tr>
+
+        <tr class="row-hdr"><td colspan="8">GPIO 输入 — 按键（下拉）</td></tr>
+        <tr><td><span class="chip-tag gpio">PB15</span></td><td>PIN_15</td><td>按键1</td><td>输入</td><td><span class="badge pull">下拉</span></td><td>—</td><td>—</td><td>GPIOB</td></tr>
+        <tr><td><span class="chip-tag gpio">PB14</span></td><td>PIN_14</td><td>按键2</td><td>输入</td><td><span class="badge pull">下拉</span></td><td>—</td><td>—</td><td>GPIOB</td></tr>
+        <tr><td><span class="chip-tag gpio">PD12</span></td><td>PIN_12</td><td>按键3</td><td>输入</td><td><span class="badge pull">下拉</span></td><td>—</td><td>—</td><td>GPIOD</td></tr>
+        <tr><td><span class="chip-tag gpio">PD14</span></td><td>PIN_14</td><td>按键4</td><td>输入</td><td><span class="badge pull">下拉</span></td><td>—</td><td>—</td><td>GPIOD</td></tr>
+
+        <tr class="row-hdr"><td colspan="8">GPIO 输入 — 8 位灰度传感器并口（无上下拉，读 GPIOE→IDR &amp; 0xFF）</td></tr>
+        <tr><td><span class="chip-tag gpio">PE0</span></td><td>PIN_0</td><td>灰度 D0 (LSB)</td><td>输入</td><td>无</td><td>—</td><td>—</td><td>GPIOE</td></tr>
+        <tr><td><span class="chip-tag gpio">PE1</span></td><td>PIN_1</td><td>灰度 D1</td><td>输入</td><td>无</td><td>—</td><td>—</td><td>GPIOE</td></tr>
+        <tr><td><span class="chip-tag gpio">PE2</span></td><td>PIN_2</td><td>灰度 D2</td><td>输入</td><td>无</td><td>—</td><td>—</td><td>GPIOE</td></tr>
+        <tr><td><span class="chip-tag gpio">PE3</span></td><td>PIN_3</td><td>灰度 D3</td><td>输入</td><td>无</td><td>—</td><td>—</td><td>GPIOE</td></tr>
+        <tr><td><span class="chip-tag gpio">PE4</span></td><td>PIN_4</td><td>灰度 D4</td><td>输入</td><td>无</td><td>—</td><td>—</td><td>GPIOE</td></tr>
+        <tr><td><span class="chip-tag gpio">PE5</span></td><td>PIN_5</td><td>灰度 D5</td><td>输入</td><td>无</td><td>—</td><td>—</td><td>GPIOE</td></tr>
+        <tr><td><span class="chip-tag gpio">PE6</span></td><td>PIN_6</td><td>灰度 D6</td><td>输入</td><td>无</td><td>—</td><td>—</td><td>GPIOE</td></tr>
+        <tr><td><span class="chip-tag gpio">PE7</span></td><td>PIN_7</td><td>灰度 D7 (MSB)</td><td>输入</td><td>无</td><td>—</td><td>—</td><td>GPIOE</td></tr>
+
+        <tr class="row-hdr"><td colspan="8">USART 串口（AF7、推挽、高速）</td></tr>
+        <tr><td><span class="chip-tag tx">PA9</span></td><td>PIN_9</td><td>USART1 TX</td><td>AF 推挽</td><td>无</td><td>高速</td><td><span class="badge af">AF7</span></td><td>USART1</td></tr>
+        <tr><td><span class="chip-tag rx">PA10</span></td><td>PIN_10</td><td>USART1 RX</td><td>AF 推挽</td><td>无</td><td>高速</td><td><span class="badge af">AF7</span></td><td>USART1</td></tr>
+        <tr><td><span class="chip-tag tx">PA2</span></td><td>PIN_2</td><td>USART2 TX → K210</td><td>AF 推挽</td><td>无</td><td>高速</td><td><span class="badge af">AF7</span></td><td>USART2</td></tr>
+        <tr><td><span class="chip-tag rx">PA3</span></td><td>PIN_3</td><td>USART2 RX ← K210</td><td>AF 推挽</td><td>无</td><td>高速</td><td><span class="badge af">AF7</span></td><td>USART2</td></tr>
+        <tr><td><span class="chip-tag rx">PB11</span></td><td>PIN_11</td><td>USART3 RX ← 蓝牙</td><td>AF 推挽</td><td>无</td><td>高速</td><td><span class="badge af">AF7</span></td><td>USART3</td></tr>
+        <tr><td><span class="chip-tag tx">PD8</span></td><td>PIN_8</td><td>USART3 TX → 蓝牙 / printf</td><td>AF 推挽</td><td>无</td><td>高速</td><td><span class="badge af">AF7</span></td><td>USART3</td></tr>
+
+        <tr class="row-hdr"><td colspan="8">SPI3 — OLED 显示屏（AF6、推挽、高速、主机模式）</td></tr>
+        <tr><td><span class="chip-tag spi">PC10</span></td><td>PIN_10</td><td>SPI3 SCK</td><td>AF 推挽</td><td>无</td><td>高速</td><td><span class="badge af">AF6</span></td><td>SPI3</td></tr>
+        <tr><td><span class="chip-tag spi">PC11</span></td><td>PIN_11</td><td>SPI3 MISO</td><td>AF 推挽</td><td>无</td><td>高速</td><td><span class="badge af">AF6</span></td><td>SPI3</td></tr>
+        <tr><td><span class="chip-tag spi">PC12</span></td><td>PIN_12</td><td>SPI3 MOSI</td><td>AF 推挽</td><td>无</td><td>高速</td><td><span class="badge af">AF6</span></td><td>SPI3</td></tr>
+
+        <tr class="row-hdr"><td colspan="8">I2C1 — MPU9250 姿态传感器（AF4、开漏、外置上拉、100kHz）</td></tr>
+        <tr><td><span class="chip-tag i2c">PB6</span></td><td>PIN_6</td><td>I2C1 SCL</td><td>AF 开漏</td><td>外置上拉</td><td>—</td><td><span class="badge af">AF4</span></td><td>I2C1</td></tr>
+        <tr><td><span class="chip-tag i2c">PB7</span></td><td>PIN_7</td><td>I2C1 SDA</td><td>AF 开漏</td><td>外置上拉</td><td>—</td><td><span class="badge af">AF4</span></td><td>I2C1</td></tr>
+
+        <tr class="row-hdr"><td colspan="8">TIM1 — 电机 PWM 输出（AF1、推挽、高速、50Hz）</td></tr>
+        <tr><td><span class="chip-tag pwm">PE9</span></td><td>PIN_9</td><td>TIM1 CH1 → 电机1 PWM</td><td>AF 推挽</td><td>无</td><td>高速</td><td><span class="badge af">AF1</span></td><td>TIM1</td></tr>
+        <tr><td><span class="chip-tag pwm">PE11</span></td><td>PIN_11</td><td>TIM1 CH2 → 电机2 PWM</td><td>AF 推挽</td><td>无</td><td>高速</td><td><span class="badge af">AF1</span></td><td>TIM1</td></tr>
+
+        <tr class="row-hdr"><td colspan="8">TIM2 — 电机A 编码器（AF1、TI1 模式、32 位）</td></tr>
+        <tr><td><span class="chip-tag enc">PA0</span></td><td>PIN_0</td><td>TIM2 CH1 编码器A</td><td>AF 推挽</td><td>无</td><td>—</td><td><span class="badge af">AF1</span></td><td>TIM2</td></tr>
+        <tr><td><span class="chip-tag enc">PA1</span></td><td>PIN_1</td><td>TIM2 CH2 编码器A</td><td>AF 推挽</td><td>无</td><td>—</td><td><span class="badge af">AF1</span></td><td>TIM2</td></tr>
+
+        <tr class="row-hdr"><td colspan="8">TIM3 — 电机B 编码器（AF2、TI1 模式、16 位）</td></tr>
+        <tr><td><span class="chip-tag enc">PA6</span></td><td>PIN_6</td><td>TIM3 CH1 编码器B</td><td>AF 推挽</td><td>无</td><td>—</td><td><span class="badge af">AF2</span></td><td>TIM3</td></tr>
+        <tr><td><span class="chip-tag enc">PA7</span></td><td>PIN_7</td><td>TIM3 CH2 编码器B</td><td>AF 推挽</td><td>无</td><td>—</td><td><span class="badge af">AF2</span></td><td>TIM3</td></tr>
+
+        <tr class="row-hdr"><td colspan="8">TIM4 — 系统控制定时器（仅内部，无外部引脚）</td></tr>
+        <tr><td style="color:var(--dim)">—</td><td style="color:var(--dim)">—</td><td style="color:var(--dim)">10ms 控制循环中断</td><td style="color:var(--dim)">—</td><td style="color:var(--dim)">—</td><td style="color:var(--dim)">—</td><td style="color:var(--dim)">—</td><td style="color:var(--dim)">TIM4</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══════════ 7. 外设 + 时钟 ═══════════ -->
+  <div class="grid-2">
+    <div class="section">
+      <h2>7. 外设参数汇总</h2>
+      <table>
+        <thead><tr><th>外设</th><th>模式</th><th>关键参数</th><th>中断</th></tr></thead>
+        <tbody>
+          <tr><td>USART1</td><td>异步收发</td><td>115200-8-N-1</td><td>—</td></tr>
+          <tr><td>USART2</td><td>异步收发</td><td>115200-8-N-1 &middot; K210 通信</td><td>IRQ 优先级 0.0</td></tr>
+          <tr><td>USART3</td><td>异步收发</td><td>115200-8-N-1 &middot; 蓝牙 + printf</td><td>IRQ 优先级 0.0</td></tr>
+          <tr><td>SPI3</td><td>全双工主机</td><td>CPOL=0 CPHA=1, 2分频, 软NSS</td><td>—</td></tr>
+          <tr><td>I2C1</td><td>标准主机</td><td>100 kHz &middot; MPU9250</td><td>—</td></tr>
+          <tr><td>TIM1</td><td>PWM CH1+CH2</td><td>PSC=3360 ARR=100, 50Hz</td><td>—</td></tr>
+          <tr><td>TIM2</td><td>编码器 TI1</td><td>ARR=2³²-1, 电机A 测速</td><td>—</td></tr>
+          <tr><td>TIM3</td><td>编码器 TI1</td><td>ARR=65535, 电机B 测速</td><td>—</td></tr>
+          <tr><td>TIM4</td><td>基础定时器</td><td>PSC=3360 ARR=100, 10ms</td><td>IRQ 优先级 4.0</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <h2>8. 时钟树</h2>
+      <div class="clk">
+        <div class="clk-node src">
+          <span class="clk-name">HSI RC</span>
+          <span class="clk-val">16 MHz</span>
+          <span class="clk-desc">内部高速振荡器（系统时钟源）</span>
+        </div>
+        <div class="clk-node pll">
+          <span class="clk-name">PLL</span>
+          <span class="clk-val">168 MHz</span>
+          <span class="clk-desc">M=8 N=168 P=2 Q=4</span>
+        </div>
+        <div class="clk-node sys">
+          <span class="clk-name">SYSCLK</span>
+          <span class="clk-val">168 MHz</span>
+          <span class="clk-desc">时钟源 = PLLCLK</span>
+        </div>
+        <div class="clk-node bus">
+          <span class="clk-name">HCLK</span>
+          <span class="clk-val">168 MHz</span>
+          <span class="clk-desc">AHB 总线 / 内核 / DMA</span>
+        </div>
+        <div class="clk-node bus">
+          <span class="clk-name">APB1</span>
+          <span class="clk-val">42 MHz</span>
+          <span class="clk-desc">HCLK/4 → TIM2/3/4、I2C1、USART2/3、SPI3</span>
+        </div>
+        <div class="clk-node tmr">
+          <span class="clk-name">APB1 Timer</span>
+          <span class="clk-val">84 MHz</span>
+          <span class="clk-desc">×2 倍频（PPRE1≠1 时）</span>
+        </div>
+        <div class="clk-node bus">
+          <span class="clk-name">APB2</span>
+          <span class="clk-val">84 MHz</span>
+          <span class="clk-desc">HCLK/2 → TIM1、USART1</span>
+        </div>
+        <div class="clk-node tmr">
+          <span class="clk-name">APB2 Timer</span>
+          <span class="clk-val">168 MHz</span>
+          <span class="clk-desc">×2 倍频（PPRE2≠1 时）</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    2021F 跟随小车 &middot; STM32F407VET6 &middot; 数据来源：2021F.ioc / f_sm.c / tasks.c / Finite_State_Machine.c
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,4 @@
+C:/Users/whyP762/Desktop/static_queue/build/CMakeFiles/static_queue.dir
+C:/Users/whyP762/Desktop/static_queue/build/CMakeFiles/static_queue_demo.dir
+C:/Users/whyP762/Desktop/static_queue/build/CMakeFiles/edit_cache.dir
+C:/Users/whyP762/Desktop/static_queue/build/CMakeFiles/rebuild_cache.dir

@@ -1,0 +1,8 @@
+[
+{
+  "directory": "C:/learnlib/public_lib/multikey/build",
+  "command": "C:\\dev\\llvm-mingw\\bin\\clang.exe  @CMakeFiles/multikey.dir/includes_C.rsp -g -o CMakeFiles\\multikey.dir\\multikey.c.obj -c C:\\learnlib\\public_lib\\multikey\\multikey.c",
+  "file": "C:/learnlib/public_lib/multikey/multikey.c",
+  "output": "CMakeFiles/multikey.dir/multikey.c.obj"
+}
+]

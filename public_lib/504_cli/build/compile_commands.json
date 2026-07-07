@@ -1,0 +1,32 @@
+[
+{
+  "directory": "C:/learnlib/public_lib/504_cli/build",
+  "command": "C:\\dev\\llvm-mingw\\bin\\clang.exe  @CMakeFiles/504_CLI_LIB.dir/includes_C.rsp -g -std=gnu11 -o CMakeFiles\\504_CLI_LIB.dir\\504_cli.c.obj -c C:\\learnlib\\public_lib\\504_cli\\504_cli.c",
+  "file": "C:/learnlib/public_lib/504_cli/504_cli.c",
+  "output": "CMakeFiles/504_CLI_LIB.dir/504_cli.c.obj"
+},
+{
+  "directory": "C:/learnlib/public_lib/504_cli/build/static_queue",
+  "command": "C:\\dev\\llvm-mingw\\bin\\clang.exe  @CMakeFiles/static_queue.dir/includes_C.rsp -g -std=gnu11 -o CMakeFiles\\static_queue.dir\\static_queue_demo.c.obj -c C:\\learnlib\\public_lib\\504_cli\\static_queue\\static_queue_demo.c",
+  "file": "C:/learnlib/public_lib/504_cli/static_queue/static_queue_demo.c",
+  "output": "static_queue/CMakeFiles/static_queue.dir/static_queue_demo.c.obj"
+},
+{
+  "directory": "C:/learnlib/public_lib/504_cli/build/static_queue",
+  "command": "C:\\dev\\llvm-mingw\\bin\\clang.exe  @CMakeFiles/static_queue_demo.dir/includes_C.rsp -g -std=gnu11 -o CMakeFiles\\static_queue_demo.dir\\static_queue_demo.c.obj -c C:\\learnlib\\public_lib\\504_cli\\static_queue\\static_queue_demo.c",
+  "file": "C:/learnlib/public_lib/504_cli/static_queue/static_queue_demo.c",
+  "output": "static_queue/CMakeFiles/static_queue_demo.dir/static_queue_demo.c.obj"
+},
+{
+  "directory": "C:/learnlib/public_lib/504_cli/build/Log",
+  "command": "C:\\dev\\llvm-mingw\\bin\\clang.exe  @CMakeFiles/Log.dir/includes_C.rsp -g -std=c11 -o CMakeFiles\\Log.dir\\Log.c.obj -c C:\\learnlib\\public_lib\\504_cli\\Log\\Log.c",
+  "file": "C:/learnlib/public_lib/504_cli/Log/Log.c",
+  "output": "Log/CMakeFiles/Log.dir/Log.c.obj"
+},
+{
+  "directory": "C:/learnlib/public_lib/504_cli/build/Log",
+  "command": "C:\\dev\\llvm-mingw\\bin\\clang.exe  @CMakeFiles/test_log.dir/includes_C.rsp -g -std=c11 -o CMakeFiles\\test_log.dir\\test_log.c.obj -c C:\\learnlib\\public_lib\\504_cli\\Log\\test_log.c",
+  "file": "C:/learnlib/public_lib/504_cli/Log/test_log.c",
+  "output": "Log/CMakeFiles/test_log.dir/test_log.c.obj"
+}
+]

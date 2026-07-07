@@ -1,0 +1,26 @@
+cmake_minimum_required(VERSION 3.16)
+
+project(static_queue LANGUAGES C)
+
+
+
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+
+add_library(static_queue STATIC
+	static_queue_demo.c
+	static_queue.h
+)
+
+add_executable(static_queue_demo 
+	static_queue_demo.c
+)
+
+target_link_libraries(static_queue_demo PRIVATE
+    static_queue
+)
+
+target_include_directories(static_queue PUBLIC
+	${CMAKE_CURRENT_SOURCE_DIR}
+)
+
