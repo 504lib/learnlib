@@ -33,6 +33,8 @@
 #include "mpu6050_user.h"
 #include "MadgwickAHRS.h"
 #include "ZDT_Motor_Serial.h"
+#include "multikey.h"
+#include "PID_Node.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -42,7 +44,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define IMU_UPDATE_PERIOD_MS 20u
+#define IMU_UPDATE_PERIOD_MS 2u        // TIM2中断周期 2ms
+#define PID_DT              0.002f     // 控制周期(秒)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -55,6 +58,10 @@
 /* USER CODE BEGIN PV */
 MPU6050_Data_t* mpu_data = NULL;
 ZDT_Motor_Handle_t x_asix_motor;
+MulitKey_t key2;
+MulitKey_t key3;
+PID_Node x_axis_pid;
+volatile float x_axis_target_angle = 0.0f;  // 目标角度，单位：度
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -71,6 +78,51 @@ void ZDT_Send_Tx_callback(uint8_t *pData, uint16_t Size)
 {
     HAL_UART_Transmit(&huart2, pData, Size, HAL_MAX_DELAY);
 }
+
+uint8_t Key2_ReadPin(MulitKey_t* key)
+{
+    return HAL_GPIO_ReadPin(KEY2_GPIO_Port, KEY2_Pin) == GPIO_PIN_SET ? 1 : 0;
+}
+
+uint8_t Key3_ReadPin(MulitKey_t* key)
+{
+    return HAL_GPIO_ReadPin(KEY3_GPIO_Port, KEY3_Pin) == GPIO_PIN_SET ? 1 : 0;
+}
+
+void Key2_PressedCallback(MulitKey_t* key)
+{
+  x_axis_target_angle += 10.0f;  // 每次按下增加10度
+  PID_Node_SetSetpoint(&x_axis_pid, x_axis_target_angle);
+}
+
+void Key3_PressedCallback(MulitKey_t* key)
+{
+  x_axis_target_angle -= 10.0f;  // 每次按下减少10度
+  PID_Node_SetSetpoint(&x_axis_pid, x_axis_target_angle);
+}
+
+void Key2_LongPressedCallback(MulitKey_t* key)
+{
+  x_axis_target_angle += 10.0f;  // 每次按下增加10度
+  PID_Node_SetSetpoint(&x_axis_pid, x_axis_target_angle);
+}
+
+
+void Key3_LongPressedCallback(MulitKey_t* key)
+{
+  x_axis_target_angle -= 10.0f;  // 每次按下减少10度
+  PID_Node_SetSetpoint(&x_axis_pid, x_axis_target_angle);
+}
+
+/* -------- 云台控制 -------- */
+static float Gimbal_Error(float setpoint, float measured)
+{
+    float err = setpoint - measured;
+    if      (err >  180.0f) err -= 360.0f;
+    else if (err < -180.0f) err += 360.0f;
+    return err;
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -112,8 +164,11 @@ int main(void)
   MX_I2C3_Init();
   MX_SPI3_Init();
   MX_TIM2_Init();
+  MulitKey_Init(&key2,Key2_ReadPin,Key2_PressedCallback,Key2_LongPressedCallback,FALL_BORDER_TRIGGER);
+  MulitKey_Init(&key3,Key3_ReadPin,Key3_PressedCallback,Key3_LongPressedCallback,FALL_BORDER_TRIGGER);
   /* USER CODE BEGIN 2 */
   char buffer[32] = {0};
+  uint32_t last_tick = HAL_GetTick();
   LOG_Snprintf(buffer, sizeof(buffer), "Hello, World!\n");
   OLED_Init();
   OLED_Clear(); 
@@ -128,24 +183,40 @@ int main(void)
   MadgwickAHRSsetSampleFreq(1000.0f / IMU_UPDATE_PERIOD_MS);
   ZDT_Init(&x_asix_motor,0x00,ZDT_Send_Tx_callback);
   HAL_TIM_Base_Start_IT(&htim2);
-  
+
+  /* PID初始化: kp=角度→RPM, ki=消除静差, kd=微分预判减速 */
+  PID_Node_Init(&x_axis_pid, "gimbal_x", 3.0f, 0.05f, 0.8f);
+  PID_Node_SetSetpoint(&x_axis_pid, 0.0f);
+  PID_Custom_Functions custom = { .custom_error_calculation = Gimbal_Error };
+  PID_Node_SetCustomCallback(&x_axis_pid, custom);
+  PID_Node_SetLimit(&x_axis_pid,(PID_Limit){
+    .setpoint_min   = -180.0f,
+    .setpoint_max   =  180.0f,
+    .input_min      = -180.0f,
+    .input_max      =  180.0f,
+    .output_min     = -500.0f,
+    .output_max     =  500.0f,
+    .integral_max   =  200.0f,
+    .derivative_max =  200.0f,
+    .deadband       =    0.1f,
+  });
+  // ZDT_VelMode(&x_asix_motor, ZDT_DIR_CW, 0);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-//		for (size_t i = 0; i < 3200; i += 100)
-//    {
-//      Emm_V5_Pos_Control(1, 0, 100, 0, i, 1, 0);
-//      HAL_Delay(200);
-//    }
-    MPU6050_Update();
-
-    LOG_Snprintf(buffer, sizeof(buffer), "yaw = %.2f", mpu_data->yaw);
-    OLED_ShowString(0, 1, (uint8_t*)buffer, 16, 1);
-    OLED_Refresh();
-    HAL_Delay(IMU_UPDATE_PERIOD_MS);
+    if (HAL_GetTick() - last_tick >= 20)
+    {
+      LOG_Snprintf(buffer, sizeof(buffer), "yaw = %.2f", mpu_data->yaw);
+      OLED_ShowString(0, 0, (uint8_t*)buffer, 16, 1);
+      LOG_Snprintf(buffer, sizeof(buffer), "target = %.2f", x_axis_target_angle);
+      OLED_ShowString(0,16, (uint8_t*)buffer, 16, 1);
+      OLED_Refresh();
+    }
+    MulitKey_Scan(&key2);
+    MulitKey_Scan(&key3);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -202,15 +273,27 @@ void SystemClock_Config(void)
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   static uint32_t counter = 0;
-  if (htim->Instance == TIM2)
-  {
+  if (htim->Instance == TIM2) 
+	{
+    MPU6050_Update();
+
+		/* 角度误差 → PID算目标速率 */
+		PID_Node_UpdateMeasurement(&x_axis_pid, mpu_data->yaw);
+		PID_ExecuteNode(&x_axis_pid, PID_DT);
+
+		float vel_cmd = x_axis_pid.output;
+
+
+		/* 发速度指令 */
+		uint8_t  dir = (vel_cmd >= 0) ? ZDT_DIR_CCW : ZDT_DIR_CW;
+		uint16_t vel = (uint16_t)(vel_cmd >= 0 ? vel_cmd : -vel_cmd);
+		if (counter % 10 == 0)
+		{
+			ZDT_VelMode(&x_asix_motor, dir, vel);
+		}
     counter++;
-    if (counter % 20 == 0)
-    {
-      MPU6050_Update();
-      ZDT_MoveToAngle(&x_asix_motor, mpu_data->yaw);  // 内部自动处理±180°跳变
-    }
-  }
+	}
+
 }
 
 /* USER CODE END 4 */

@@ -336,7 +336,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32F411xE</Define>
               <Undefine></Undefine>
-              <IncludePath>../Core/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F4xx/Include;../Drivers/CMSIS/Include;../ZDT_Motor_Serial;../static_queue;../Log;../SPI_OLED;../multikey;../MPU_9250</IncludePath>
+              <IncludePath>../Core/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F4xx/Include;../Drivers/CMSIS/Include;../ZDT_Motor_Serial;../static_queue;../Log;../SPI_OLED;../multikey;../MPU_9250;..\PID_fibric</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -794,6 +794,21 @@
               <FileName>multikey.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\multikey\multikey.h</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>PID_Controller</GroupName>
+          <Files>
+            <File>
+              <FileName>PID_Node.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\PID_fibric\PID_Node.c</FilePath>
+            </File>
+            <File>
+              <FileName>PID_Node.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\PID_fibric\PID_Node.h</FilePath>
             </File>
           </Files>
         </Group>
