@@ -61,34 +61,9 @@ void __uart1_tx(const char* buffer, size_t buffer_size)
 
 /* Private variables ---------------------------------------------------------*/
 
-/*
- *  ========== 通信协议说明 ==========
- *  物理层: MaxiCam UART0 → STM32 UART6, 115200-8N1
- *  帧格式: AA 55 <TYPE> <LEN> <PAYLOAD...> <CHK_H> <CHK_L> 0D 0A
- *  接收链路:
- *    UART6 RX中断 → App_Protocol_FeedByte()
- *                → 协议状态机逐字节解析
- *                → 完整帧触发 __on_frame() 回调
- *                → g_ball_pos / g_ball_updated
- *   主循环 App_Protocol_Loop() x16 驱动状态机
- *
- *  帧类型 0x10: 球位置 int32_t (单位 cm*100, 大端)
- *    e.g. 00 00 00 64 = 100 = 1.00cm
- *
- *  OLED 显示: rcv:<球位置>
- *  UART1 输出 LOG (115200, ST-Link VCP)
- *
- *  【注意事项】
- *   - LOG_LEVEL_INFO 以上, 避免 DEBUG 日志冲串口缓冲
- *   - 解析看门狗已关闭 (帧间隔 1s 超时反杀)
- *   - 禁止 UART6 同时开两路 IT (Receive_IT + ReceiveToIdle_IT)
- */
-
 /* USER CODE BEGIN PV */
 volatile uint8_t rx_byte = 0;
 
-DECLARE_STATIC_QUEUE(RxQ, uint8_t, 64)
-RxQ_t rx_queue;
 
 volatile uint8_t  rx_buffer[128] = {0};
 volatile uint8_t  text_buffer[10] = {0};
@@ -203,7 +178,7 @@ int main(void)
   MX_I2C3_Init();
   MX_SPI3_Init();
   MX_TIM2_Init();
-  /* USER CODE BEGIN 2 */ 
+  /* USER CODE BEGIN 2 */
   LOG_Init(__uart1_tx);
   LOG_Set_Level(LOG_LEVEL_INFO);
   char buffer[32] = {0};
@@ -221,7 +196,7 @@ int main(void)
   mpu_data = MPU6050_GetHandle();
   MadgwickAHRSsetSampleFreq(1000.0f / IMU_UPDATE_PERIOD_MS);
   ZDT_Init(&x_asix_motor,0x00,ZDT_Send_Tx_callback);
-//  HAL_TIM_Base_Start_IT(&htim2);
+  HAL_TIM_Base_Start_IT(&htim2);
 
   /* PID初始化: kp=角度→RPM, ki=消除静差, kd=微分预判减速 */
   PID_Node_Init(&x_axis_pid, "gimbal_x", 3.0f, 0.05f, 0.8f);
@@ -240,7 +215,6 @@ int main(void)
     .deadband       =    0.1f,
   });
   ZDT_VelMode(&x_asix_motor, ZDT_DIR_CW, 0);
-  RxQ_INIT(&rx_queue);
   App_Protocol_Init();
 	HAL_UART_Receive_IT(&huart6, (uint8_t*)&rx_byte, 1);
   // HAL_UARTEx_ReceiveToIdle_IT(&huart6, rx_buffer, sizeof(rx_buffer));
