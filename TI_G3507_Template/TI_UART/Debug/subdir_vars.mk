@@ -11,7 +11,7 @@ SYSCFG_SRCS += \
 C_SRCS += \
 ../empty.c \
 ./ti_msp_dl_config.c \
-D:/TI/CSS/mspm0_sdk_2_10_00_04/source/ti/devices/msp/m0p/startup_system_files/ticlang/startup_mspm0g350x_ticlang.c 
+C:/ti/mspm0_sdk_2_02_00_05/source/ti/devices/msp/m0p/startup_system_files/ticlang/startup_mspm0g350x_ticlang.c 
 
 GEN_CMDS += \
 ./device_linker.cmd 
@@ -64,6 +64,6 @@ SYSCFG_SRCS__QUOTED += \
 
 C_SRCS__QUOTED += \
 "./ti_msp_dl_config.c" \
-"D:/TI/CSS/mspm0_sdk_2_10_00_04/source/ti/devices/msp/m0p/startup_system_files/ticlang/startup_mspm0g350x_ticlang.c" 
+"C:/ti/mspm0_sdk_2_02_00_05/source/ti/devices/msp/m0p/startup_system_files/ticlang/startup_mspm0g350x_ticlang.c" 
 
 
