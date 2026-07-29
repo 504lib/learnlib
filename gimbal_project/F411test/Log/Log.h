@@ -26,7 +26,7 @@ typedef enum {
 } StaticBufferError;
 #endif
 
-#define LOG_USE_QUEUE 0
+#define LOG_USE_QUEUE 1
 
 
 typedef enum LOG_LEVEL

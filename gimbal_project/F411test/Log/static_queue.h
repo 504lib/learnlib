@@ -18,7 +18,7 @@
 #define STATIC_QUEUE_EXIT_CRITICAL() ((void)0)
 #endif
 
-#define STATIC_QUEUE_MAX_CAPACITY 64
+#define STATIC_QUEUE_MAX_CAPACITY 127
 
 #define DECLARE_STATIC_QUEUE(NAME,TYPE,CAPACITY)\
     typedef char NAME##_buffer_check[(CAPACITY) > 0 ? 1 : -1];\

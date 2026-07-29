@@ -26,6 +26,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+// #define STATIC_QUEUE_ENTER_CRITICAL() __disable_irq()
+// #define STATIC_QUEUE_EXIT_CRITICAL()  __enable_irq()
 #include <stdbool.h>
 #include "oled.h"
 #include "Log.h"
@@ -51,13 +53,48 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+void __uart1_tx(const char* buffer, size_t buffer_size)
+{
+    HAL_UART_Transmit(&huart1, (uint8_t*)buffer, buffer_size, 100);
+}
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
 
+/*
+ *  ========== 通信协议说明 ==========
+ *  物理层: MaxiCam UART0 → STM32 UART6, 115200-8N1
+ *  帧格式: AA 55 <TYPE> <LEN> <PAYLOAD...> <CHK_H> <CHK_L> 0D 0A
+ *  接收链路:
+ *    UART6 RX中断 → App_Protocol_FeedByte()
+ *                → 协议状态机逐字节解析
+ *                → 完整帧触发 __on_frame() 回调
+ *                → g_ball_pos / g_ball_updated
+ *   主循环 App_Protocol_Loop() x16 驱动状态机
+ *
+ *  帧类型 0x10: 球位置 int32_t (单位 cm*100, 大端)
+ *    e.g. 00 00 00 64 = 100 = 1.00cm
+ *
+ *  OLED 显示: rcv:<球位置>
+ *  UART1 输出 LOG (115200, ST-Link VCP)
+ *
+ *  【注意事项】
+ *   - LOG_LEVEL_INFO 以上, 避免 DEBUG 日志冲串口缓冲
+ *   - 解析看门狗已关闭 (帧间隔 1s 超时反杀)
+ *   - 禁止 UART6 同时开两路 IT (Receive_IT + ReceiveToIdle_IT)
+ */
+
 /* USER CODE BEGIN PV */
 volatile uint8_t rx_byte = 0;
+
+DECLARE_STATIC_QUEUE(RxQ, uint8_t, 64)
+RxQ_t rx_queue;
+
+volatile uint8_t  rx_buffer[128] = {0};
+volatile uint8_t  text_buffer[10] = {0};
+size_t text_len = 0;
+bool text_buffer_updated = false;
+volatile uint32_t rx_total = 0;
 MPU6050_Data_t* mpu_data = NULL;
 ZDT_Motor_Handle_t x_asix_motor;
 MulitKey_t key2;
@@ -166,7 +203,9 @@ int main(void)
   MX_I2C3_Init();
   MX_SPI3_Init();
   MX_TIM2_Init();
-  /* USER CODE BEGIN 2 */
+  /* USER CODE BEGIN 2 */ 
+  LOG_Init(__uart1_tx);
+  LOG_Set_Level(LOG_LEVEL_INFO);
   char buffer[32] = {0};
   uint32_t last_tick = HAL_GetTick();
   LOG_Snprintf(buffer, sizeof(buffer), "Hello, World!\n");
@@ -182,7 +221,7 @@ int main(void)
   mpu_data = MPU6050_GetHandle();
   MadgwickAHRSsetSampleFreq(1000.0f / IMU_UPDATE_PERIOD_MS);
   ZDT_Init(&x_asix_motor,0x00,ZDT_Send_Tx_callback);
-  HAL_TIM_Base_Start_IT(&htim2);
+//  HAL_TIM_Base_Start_IT(&htim2);
 
   /* PID初始化: kp=角度→RPM, ki=消除静差, kd=微分预判减速 */
   PID_Node_Init(&x_axis_pid, "gimbal_x", 3.0f, 0.05f, 0.8f);
@@ -200,7 +239,11 @@ int main(void)
     .derivative_max =  200.0f,
     .deadband       =    0.1f,
   });
-  // ZDT_VelMode(&x_asix_motor, ZDT_DIR_CW, 0);
+  ZDT_VelMode(&x_asix_motor, ZDT_DIR_CW, 0);
+  RxQ_INIT(&rx_queue);
+  App_Protocol_Init();
+	HAL_UART_Receive_IT(&huart6, (uint8_t*)&rx_byte, 1);
+  // HAL_UARTEx_ReceiveToIdle_IT(&huart6, rx_buffer, sizeof(rx_buffer));
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -209,14 +252,25 @@ int main(void)
   {
     if (HAL_GetTick() - last_tick >= 20)
     {
-      LOG_Snprintf(buffer, sizeof(buffer), "yaw = %.2f", mpu_data->yaw);
+      last_tick = HAL_GetTick();
+      LOG_Snprintf(buffer, sizeof(buffer), "yaw:%f", mpu_data->yaw);
       OLED_ShowString(0, 0, (uint8_t*)buffer, 16, 1);
-      LOG_Snprintf(buffer, sizeof(buffer), "target = %.2f", x_axis_target_angle);
-      OLED_ShowString(0,16, (uint8_t*)buffer, 16, 1);
       OLED_Refresh();
     }
+    // {
+    //   uint8_t b;
+    //   while (RxQ_POP(&rx_queue, &b))
+    //     App_Protocol_FeedByte(b);
+    // }
+    for (int _i = 0; _i < 16; _i++)
+      App_Protocol_Loop();
     MulitKey_Scan(&key2);
     MulitKey_Scan(&key3);
+    #if LOG_USE_QUEUE == 1
+   LOG_Process();
+    #endif
+    // LOG_DEBUG("rx:0x%2x", rx_byte);
+    // HAL_Delay(300);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -295,13 +349,26 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	}
 
 }
+
+
+// void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
+// {
+//   if (huart->Instance == USART6)
+//   {
+//     APP_Protocol_FeedBuffer(rx_buffer, Size);
+// 		HAL_UARTEx_ReceiveToIdle_IT(&huart6, rx_buffer, sizeof(rx_buffer));
+//   }
+// }
+volatile bool rx_pending = false;
+
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
   if (huart->Instance == USART6)
   {
+//		LOG_INFO("rcv:0x%02x",rx_byte);
     App_Protocol_FeedByte(rx_byte);
+    HAL_UART_Receive_IT(&huart6, (uint8_t*)&rx_byte, 1);
   }
-  
 }
 /* USER CODE END 4 */
 
