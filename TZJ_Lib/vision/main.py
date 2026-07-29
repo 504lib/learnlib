@@ -143,7 +143,7 @@ PIXEL_TO_CM = 0.05   # 像素→厘米换算系数 (需根据实际距离标定)
 COLOR_RED    = getattr(image, 'COLOR_RED',    0xF800)  # R=31,G=0,B=0
 COLOR_GREEN  = getattr(image, 'COLOR_GREEN',  0x07E0)  # R=0,G=63,B=0
 COLOR_BLUE   = getattr(image, 'COLOR_BLUE',   0x001F)  # R=0,G=0,B=31
-COLOR_ORANGE = 0xFC00  # RGB565: R=31,G=32,B=0 (255,128,0)
+COLOR_ORANGE = image.Color.from_rgb(255, 128, 0)
 
 # ============================================================
 # 七、水管参考框
@@ -156,7 +156,7 @@ COLOR_ORANGE = 0xFC00  # RGB565: R=31,G=32,B=0 (255,128,0)
 #   h — 框高 (对应水管直径方向)
 # 程序将根据 (球心_x - 框左_x) / 框宽 × 50cm 计算球在水管中的位置
 PIPE_ROI = (20, 80, 184, 100)   # (x, y, w, h)
-PIPE_CM  = 50.0               # 水管实际长度 (cm)
+PIPE_CM  = 25.0               # 水管实际长度 (cm)
 
 # ============================================================
 # 八、数据结构 & 工具函数
@@ -433,7 +433,7 @@ while not app.need_exit():
 
     # ———— 步骤1: 双路混合检测 ————
     blob_candidates = detect_blobs(img)                          # 路1: 颜色色块
-    raw_objs = detector.detect(img, conf_th=CONF_TH, iou_th=IOU_TH, dual_buff=False)  # 路2: YOLOv5 (关闭双缓冲，检测与当前帧同步)
+    raw_objs = detector.detect(img, conf_th=CONF_TH, iou_th=IOU_TH)  # 路2: YOLOv5 (关闭双缓冲，检测与当前帧同步)
     yolo_candidates = filter_yolo_objs(img, raw_objs)            # YOLO 后处理
     final_objs = merge_deduplicate(blob_candidates, yolo_candidates)  # 合并去重
 
