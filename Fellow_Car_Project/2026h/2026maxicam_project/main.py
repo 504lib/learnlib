@@ -11,6 +11,11 @@ ip = w.get_ip()
 
 # ========== 屏幕 ==========
 disp = display.Display()
+# 启动画面: 显示 IP 和 URL
+bg = image.Image(disp.width(), disp.height(), image.Format.FMT_RGB888)
+bg.draw_string(10, 10, f"IP: {ip}", color=image.Color.from_rgb(255, 255, 255))
+bg.draw_string(10, 40, f"http://{ip}:8000", color=image.Color.from_rgb(0, 255, 0))
+disp.show(bg)
 print(f"Stream: http://{ip}:8000")
 
 # ========== 摄像头 + 图传 ==========
@@ -59,12 +64,12 @@ while not app.need_exit():
     stream.write(jpg)
 
     # 每秒发一次测试帧 (类型 0x10, uint32 计数器)
-    now = time.ticks_ms()
-    if now - last_send >= 200:
-        last_send = now
-        counter += 1
-        send_frame(0x10, struct.pack('>I', counter))
-        print(f"sent: {counter}")
+    # now = time.ticks_ms()
+    # if now - last_send >= 200:
+    #     last_send = now
+    #     counter += 1
+    #     send_frame(0x10, struct.pack('>I', counter))
+    #     print(f"sent: {counter}")
 
     time.sleep_ms(33)
 

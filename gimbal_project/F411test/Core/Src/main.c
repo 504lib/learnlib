@@ -227,8 +227,14 @@ int main(void)
     if (HAL_GetTick() - last_tick >= 20)
     {
       last_tick = HAL_GetTick();
-      LOG_Snprintf(buffer, sizeof(buffer), "yaw:%f", mpu_data->yaw);
+      LOG_Snprintf(buffer, sizeof(buffer), "yaw:%.2f", mpu_data->yaw);
       OLED_ShowString(0, 0, (uint8_t*)buffer, 16, 1);
+      if (App_Protocol_IsBallPosUpdated())
+      {
+        LOG_Snprintf(buffer, sizeof(buffer), "ball_pos:%d", App_Protocol_GetBallPos());
+        OLED_ShowString(0, 16, (uint8_t*)buffer, 16, 1);
+      }
+      
       OLED_Refresh();
     }
     // {
