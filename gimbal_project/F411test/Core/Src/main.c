@@ -35,6 +35,7 @@
 #include "ZDT_Motor_Serial.h"
 #include "multikey.h"
 #include "PID_Node.h"
+#include "app_protocol.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -56,6 +57,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+volatile uint8_t rx_byte = 0;
 MPU6050_Data_t* mpu_data = NULL;
 ZDT_Motor_Handle_t x_asix_motor;
 MulitKey_t key2;
@@ -164,8 +166,6 @@ int main(void)
   MX_I2C3_Init();
   MX_SPI3_Init();
   MX_TIM2_Init();
-  MulitKey_Init(&key2,Key2_ReadPin,Key2_PressedCallback,Key2_LongPressedCallback,FALL_BORDER_TRIGGER);
-  MulitKey_Init(&key3,Key3_ReadPin,Key3_PressedCallback,Key3_LongPressedCallback,FALL_BORDER_TRIGGER);
   /* USER CODE BEGIN 2 */
   char buffer[32] = {0};
   uint32_t last_tick = HAL_GetTick();
@@ -295,7 +295,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	}
 
 }
-
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+  if (huart->Instance == USART6)
+  {
+    App_Protocol_FeedByte(rx_byte);
+  }
+  
+}
 /* USER CODE END 4 */
 
 /**

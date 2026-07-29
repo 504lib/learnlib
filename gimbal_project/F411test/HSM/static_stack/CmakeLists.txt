@@ -1,0 +1,24 @@
+cmake_minimum_required(VERSION 3.16)
+
+project(static_stack LANGUAGES C)
+
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS OFF)
+
+option(STATIC_STACK_BUILD_TESTS "Build static_stack standalone tests" OFF)
+
+add_library(static_stack INTERFACE)
+
+target_include_directories(static_stack INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../Log
+)
+
+if(STATIC_STACK_BUILD_TESTS)
+    add_executable(static_stack_test
+        tests/static_stack_test.c
+    )
+
+    target_link_libraries(static_stack_test PRIVATE static_stack)
+endif()
