@@ -6,7 +6,10 @@
 #include "control.h"
 /* ======== 电机行动信号 ======== */
 /* ======== 状态机 ======== */
-
+float last_distance = 0.0f;
+float current_distance = 0.0f;
+const float curve_target_distance = 5.14f;
+const float straight_target_distance = 1.0f;
 /* ---- 状态声明 ---- */
 static bool Root_Handler(HSM_Event_Package ev);
 static void Root_Entry(HSM_Event_Package ev);
@@ -119,6 +122,7 @@ static void Straight_Entry(HSM_Event_Package ev)
     (void)ev;
     Control_Start();
     OLED_Clear();
+    last_distance = Control_GetCurrentDistance();
     App_Timer_Start();
     LOG_DEBUG("-> Straight");
 }
@@ -133,12 +137,14 @@ static void Straight_Continuous(void)
 {
     char buffer[32] = {0};
     Control_GrayByte_Window_Filter(3);
-    if (Control_IsAtEnd()) {
-        LOG_DEBUG("Stop line");
+    current_distance = Control_GetCurrentDistance() - last_distance;
+    if (current_distance >= straight_target_distance)
+    {
         App_FSM_SendEvent(EV_STOP);
         return;
     }
-    OLED_ShowString(0, 0, (uint8_t*)"Straight", 16, 1);
+    LOG_Snprintf(buffer,sizeof(buffer),"Straight:%.2fm",current_distance);
+    OLED_ShowString(0, 0, (uint8_t*)buffer, 16, 1);
     LOG_Snprintf(buffer,sizeof(buffer),"Ave_vel=%.2f",Control_GetAverageSpeed());
     OLED_ShowString(0, 16, (uint8_t*)buffer, 16, 1);
     OLED_Refresh();
@@ -160,6 +166,7 @@ static void Curve_Entry(HSM_Event_Package ev)
     (void)ev;
     Control_Start();
     OLED_Clear();
+    last_distance = Control_GetCurrentDistance();
     App_Timer_Start();
     LOG_DEBUG("-> Curve");
 }
@@ -174,17 +181,15 @@ static void Curve_Continuous(void)
 {
     static uint8_t gray_times = 0;
     char buffer[32] = {0};
-    Control_GrayByte_Window_Filter(3);
-    if (Control_IsAtEnd()) {
-        gray_times++;
-        if (gray_times >= 2)
-        {
-            LOG_DEBUG("Stop line");
-            App_FSM_SendEvent(EV_STOP);
-            return;
-        }
+    // Control_GrayByte_Window_Filter(3);
+    current_distance = Control_GetCurrentDistance() - last_distance;
+    if (current_distance >= curve_target_distance)
+    {
+        App_FSM_SendEvent(EV_STOP);
+        return;
     }
-    OLED_ShowString(0, 0, (uint8_t*)"Curve", 16, 1);
+    LOG_Snprintf(buffer,sizeof(buffer),"Curve:%.2fm",current_distance);
+    OLED_ShowString(0, 0, (uint8_t*)buffer, 16, 1);
     LOG_Snprintf(buffer,sizeof(buffer),"Ave_vel=%.2f",Control_GetAverageSpeed());
     OLED_ShowString(0, 16, (uint8_t*)buffer, 16, 1);
     OLED_Refresh();
@@ -231,6 +236,9 @@ void App_FSM_Process(void)
     App_Timer_Update();
     App_Timer_GetString(buffer,sizeof(buffer));
     OLED_ShowString(0,32,buffer,16,1);
+    LOG_Snprintf(buffer,sizeof(buffer),"Distance: % .2fm",Control_GetCurrentDistance());
+    OLED_ShowString(0, 48, (uint8_t*)buffer, 16, 1);
+    OLED_Refresh();
 }
 
 void App_FSM_SendEvent(uint8_t event_id)

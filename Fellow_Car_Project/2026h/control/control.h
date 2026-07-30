@@ -34,6 +34,6 @@ void Control_Start(void);
 void Control_Stop(void);
 bool Control_IsAtEnd(void);
 float Control_GetAverageSpeed(void);
-
+float Control_GetCurrentDistance(void);
 
 #endif

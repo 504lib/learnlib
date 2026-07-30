@@ -13,6 +13,7 @@ uint8_t ctrl_mode = CTRL_MODE_STOP;
 float Actual_Speed_A = 0.0f;
 float Actual_Speed_B = 0.0f;
 float Average_Speed = 0.0f;
+float distance = 0.0f;
 volatile uint8_t gray_byte = 0;
 float gray_error = 0.0f;
 
@@ -90,6 +91,7 @@ void Control_UpdateSpeedFeedback(int32_t diff_A, int32_t diff_B, float dt)
     Actual_Speed_A = filtered_A;
     Actual_Speed_B = filtered_B;
     Average_Speed = (filtered_A + filtered_B) / 2.0f;
+    distance += Average_Speed * dt_s;
 }
 
 /* ---- 主控制更新 (周期性调用) ---- */
@@ -193,4 +195,9 @@ bool Control_IsAtEnd(void)
 float Control_GetAverageSpeed(void)
 {
     return Average_Speed;
+}
+
+float Control_GetCurrentDistance(void)
+{
+    return distance;
 }
