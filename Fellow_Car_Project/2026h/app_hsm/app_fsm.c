@@ -131,6 +131,7 @@ static void Straight_Exit(HSM_Event_Package ev)
 
 static void Straight_Continuous(void)
 {
+    char buffer[32] = {0};
     Control_GrayByte_Window_Filter(3);
     if (Control_IsAtEnd()) {
         LOG_DEBUG("Stop line");
@@ -138,6 +139,8 @@ static void Straight_Continuous(void)
         return;
     }
     OLED_ShowString(0, 0, (uint8_t*)"Straight", 16, 1);
+    LOG_Snprintf(buffer,sizeof(buffer),"Ave_vel=%.2f",Control_GetAverageSpeed());
+    OLED_ShowString(0, 16, (uint8_t*)buffer, 16, 1);
     OLED_Refresh();
 }
 
@@ -170,6 +173,7 @@ static void Curve_Exit(HSM_Event_Package ev)
 static void Curve_Continuous(void)
 {
     static uint8_t gray_times = 0;
+    char buffer[32] = {0};
     Control_GrayByte_Window_Filter(3);
     if (Control_IsAtEnd()) {
         gray_times++;
@@ -181,6 +185,8 @@ static void Curve_Continuous(void)
         }
     }
     OLED_ShowString(0, 0, (uint8_t*)"Curve", 16, 1);
+    LOG_Snprintf(buffer,sizeof(buffer),"Ave_vel=%.2f",Control_GetAverageSpeed());
+    OLED_ShowString(0, 16, (uint8_t*)buffer, 16, 1);
     OLED_Refresh();
 }
 
@@ -224,7 +230,7 @@ void App_FSM_Process(void)
     HSM_Process(hsm);
     App_Timer_Update();
     App_Timer_GetString(buffer,sizeof(buffer));
-    OLED_ShowString(0,16,buffer,16,1);
+    OLED_ShowString(0,32,buffer,16,1);
 }
 
 void App_FSM_SendEvent(uint8_t event_id)

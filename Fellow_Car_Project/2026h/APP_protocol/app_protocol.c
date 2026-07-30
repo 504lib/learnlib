@@ -56,6 +56,14 @@ bool App_Protocol_SendBallPos(float pos_cm)
                                         APP_FRAME_BALL_POS, sizeof(buf));
 }
 
+bool App_Protocol_SendVel(float average_vel)
+{
+    uint8_t buf[4];
+    wr_f32_be(buf, average_vel);
+    return Uart_Protocol_Transmit_Frame(&g_app_protocol, buf,
+                                        APP_FRAME_SEND_VEL, sizeof(buf));
+}
+
 /* ---- 发送系统状态 ---- */
 bool App_Protocol_SendSysState(SysState state, uint32_t elapsed_ms)
 {

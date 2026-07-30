@@ -7,6 +7,7 @@ typedef enum {
     APP_FRAME_BALL_POS   = 0x10,  // 球位置 (float cm)
     APP_FRAME_SYS_STATE  = 0x11,  // 系统状态 + 计时
     APP_FRAME_CMD        = 0x20,  // 指令
+    APP_FRAME_SEND_VEL   = 0x21
 } App_FrameType;
 
 /* 系统状态 */
@@ -25,3 +26,5 @@ void App_Protocol_Loop(void);
 /* 发送接口 */
 bool App_Protocol_SendBallPos(float pos_cm);
 bool App_Protocol_SendSysState(SysState state, uint32_t elapsed_ms);
+bool App_Protocol_SendVel(float average_vel);
+
