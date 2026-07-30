@@ -8,7 +8,7 @@
 /* ======== 状态机 ======== */
 float last_distance = 0.0f;
 float current_distance = 0.0f;
-const float curve_target_distance = 5.14f;
+const float curve_target_distance = 4.2f;
 const float straight_target_distance = 1.0f;
 /* ---- 状态声明 ---- */
 static bool Root_Handler(HSM_Event_Package ev);
@@ -236,7 +236,7 @@ void App_FSM_Process(void)
     App_Timer_Update();
     App_Timer_GetString(buffer,sizeof(buffer));
     OLED_ShowString(0,32,buffer,16,1);
-    LOG_Snprintf(buffer,sizeof(buffer),"Distance: % .2fm",Control_GetCurrentDistance());
+    LOG_Snprintf(buffer,sizeof(buffer),"Distance: % .2fm",current_distance);
     OLED_ShowString(0, 48, (uint8_t*)buffer, 16, 1);
     OLED_Refresh();
 }

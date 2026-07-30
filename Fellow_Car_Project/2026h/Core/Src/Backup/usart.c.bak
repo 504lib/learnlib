@@ -22,6 +22,7 @@
 
 /* USER CODE BEGIN 0 */
 #include <stdio.h>
+#include <string.h>
 /* USER CODE END 0 */
 
 UART_HandleTypeDef huart1;
@@ -346,9 +347,33 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
 }
 
 /* USER CODE BEGIN 1 */
-int fputc(int ch,FILE *f)
+int fputc(int ch, FILE *f)
 {
-	HAL_UART_Transmit(&huart3,(uint8_t *)&ch,1,100);
+    // 关键：使用阻塞式发送函数，直到字符成功发送
+    HAL_UART_Transmit(&huart3, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
+    return ch;
+}
+
+int fputs(const char *_ptr, FILE *_fp)
+{
+    uint16_t i, len;
+    len = strlen(_ptr);
+    for (i = 0; i < len; i++)
+    {
+        // 复用 fputc 逐个字符发送
+        fputc(_ptr[i], _fp);
+    }
+    return len;
+}
+
+int puts(const char *_ptr)
+{
+    int count;
+    // 先发送字符串本身
+    count = fputs(_ptr, stdout);
+    // 再发送一个换行符
+    count += fputs("\n", stdout);
+    return count;
 }
 /* USER CODE END 1 */
 
