@@ -1,24 +1,65 @@
 from maix import camera, time, app, http, image, display, network, err, uart
 import struct
 
-# ========== WiFi ==========
-SSID = "iQOO800"
-PASS = "Zhaokaiyyds123."
-w = network.wifi.Wifi()
-e = w.connect(SSID, PASS, wait=True, timeout=60)
-err.check_raise(e, "WiFi connect failed")
-ip = w.get_ip()
-
 # ========== 屏幕 ==========
 disp = display.Display()
-ip_shown = False
-print(f"Stream: http://{ip}:8000")
 
-# ========== 摄像头 + 图传 ==========
+# ========== 摄像头 ==========
 cam = camera.Camera(640, 480)
-stream = http.JpegStreamer()
-stream.start()
-print("http://{}:{}".format(stream.host(), stream.port()))
+
+# ========== WiFi (可选, 失败不阻塞主功能) ==========
+SSID = "iQOO800"
+PASS = "Zhaokaiyyds123."
+stream = None
+ip = "N/A"
+WIFI_TIMEOUT = 60
+
+try:
+    w = network.wifi.Wifi()
+    w.connect(SSID, PASS, wait=False)
+    t0 = time.ticks_ms()
+    while time.ticks_ms() - t0 < WIFI_TIMEOUT * 1000:
+        elapsed = (time.ticks_ms() - t0) / 1000.0
+        # 用摄像头画面显示连接进度
+        frm = cam.read()
+        if frm:
+            frm.draw_string(10, 10, f"WiFi: {SSID}",
+                            color=image.Color.from_rgb(255, 255, 255))
+            frm.draw_string(10, 50, f"connecting... {elapsed:.0f}s/60s",
+                            color=image.Color.from_rgb(255, 255, 0))
+            disp.show(frm)
+        try:
+            ip = w.get_ip()
+            if ip and ip != "0.0.0.0":
+                break
+        except Exception:
+            pass
+        time.sleep_ms(200)
+
+    if ip and ip != "0.0.0.0":
+        frm = cam.read()
+        if frm:
+            frm.draw_string(10, 10, f"IP: {ip}",
+                            color=image.Color.from_rgb(255, 255, 255))
+            frm.draw_string(10, 50, f"http://{ip}:8000",
+                            color=image.Color.from_rgb(0, 255, 0))
+            disp.show(frm)
+        print(f"WiFi OK, Stream: http://{ip}:8000")
+        stream = http.JpegStreamer()
+        stream.start()
+    else:
+        frm = cam.read()
+        if frm:
+            frm.draw_string(10, 10, "WiFi failed",
+                            color=image.Color.from_rgb(255, 0, 0))
+            frm.draw_string(10, 50, "skip stream (6pts)",
+                            color=image.Color.from_rgb(255, 255, 0))
+            disp.show(frm)
+        print("WiFi failed, skip streaming")
+except Exception as ex:
+    print(f"WiFi error: {ex}")
+
+ip_shown = False
 
 # ================================================================
 #  【通信协议说明】
@@ -61,9 +102,16 @@ while not app.need_exit():
     img_copy.draw_string(10, 40, f"http://{ip}:8000",
                     color=image.Color.from_rgb(0, 255, 0))
 
-    disp.show(img_copy)
-    jpg = img.to_jpeg()
-    stream.write(jpg)
+    try:
+        disp.show(img_copy)
+    except Exception:
+        pass
+    if stream is not None:
+        try:
+            jpg = img.to_jpeg()
+            stream.write(jpg)
+        except Exception:
+            pass
 
     now = time.ticks_ms()
     # if now - last_send >= 200:
