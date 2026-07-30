@@ -121,16 +121,8 @@ def _uart_transmit(data: bytes) -> bool:
         return False
     return True
 
-need_calib = False
-
 def _on_frame_received(ty: int, payload: bytes, length: int):
-    """接收回调: 0x12=STM32请求校准, 其他=日志"""
-    global need_calib
-    if ty == 0x12:
-        need_calib = True
-        print("CAL requested by STM32")
-    else:
-        print(f"RX frame: type=0x{ty:02X}, len={length}")
+    print(f"RX frame: type=0x{ty:02X}, len={length}")
 
 def _on_timeout(ty: int):
     """ACK 超时回调 (未启用 ACK 时不会被调用)"""
@@ -483,7 +475,8 @@ def merge_deduplicate(blob_candidates: list, yolo_candidates: list) -> list:
 # ============================================================
 last_send = time.ticks_ms()   # 上次 UART 发送时间
 SEND_INTERVAL = 20           # UART 发送间隔 (ms)
-calib_px = 224                # 零点像素 (初始=画面中心)
+calib_px = 224
+frame_no = 0                  # 帧计数器 (初始=画面中心)
 
 print("[5ball] Hybrid detector started: find_blobs + YOLOv5")
 print("[5ball] Press USER key to set ball zero position")
@@ -530,13 +523,6 @@ while not app.need_exit():
     px_to_cm = PIPE_CM / pw if pw > 0 else 0
 
     # ———— 步骤3: 绘制钢球检测框 ————
-    if need_calib and final_objs:
-        obj = max(final_objs, key=lambda o: o.score)
-        calib_px = int(obj.x + obj.w / 2)
-        need_calib = False
-        print(f"CAL OK: zero={calib_px}")
-        proto.transmit_frame(0x11, struct.pack(">I", calib_px))
-
     best_obj = None  # 最高分球 (用于 UART 上报 & 水管位置计算)
     for obj in final_objs:
         # 红色边界框

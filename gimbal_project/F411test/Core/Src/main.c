@@ -231,7 +231,7 @@ int main(void)
       OLED_ShowString(0, 0, (uint8_t*)buffer, 16, 1);
       LOG_Snprintf(buffer, sizeof(buffer), "zero:%lu", g_zero_px);
       OLED_ShowString(0, 16, (uint8_t*)buffer, 16, 1);
-      LOG_Snprintf(buffer, sizeof(buffer), "ball_pos:%d", g_ball_pos);
+      LOG_Snprintf(buffer, sizeof(buffer), "ball_pos:%d  ", g_ball_pos);
       OLED_ShowString(0, 32, (uint8_t*)buffer, 16, 1);
       
       OLED_Refresh();
