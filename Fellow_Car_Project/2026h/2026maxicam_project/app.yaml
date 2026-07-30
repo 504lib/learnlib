@@ -1,0 +1,9 @@
+id: vision
+name: vision
+version: 1.0.0
+author: ZK
+icon: app.png
+desc: VISION
+files:
+  - main.py
+  - protocol.py

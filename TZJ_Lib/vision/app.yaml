@@ -14,7 +14,7 @@ files:
   - app.png
   - app.yaml
   - main.py
-  - protocol.py
   - model_309453.cvimodel
   - model_309453.mud
+  - protocol.py
   - report.json
