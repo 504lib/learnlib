@@ -17,21 +17,53 @@
                               └→ HTTP JPEG 图传推流
 """
 
-from maix import camera, time, app, http, image, display, network, err, uart, nn
+from maix import camera, time, app, http, image, display, network, err, uart, nn, touchscreen, key
 from maix._maix.image import COLOR_BLACK
 from protocol import UartProtocol
 import struct
 import os
 
 # ============================================================
+# 零、屏幕 & 摄像头
+# ============================================================
+disp = display.Display()
+ts = touchscreen.TouchScreen()
+cam = camera.Camera(448, 448)
+
+# ============================================================
 # 一、WiFi 连接
 # ============================================================
 SSID = "iQOO800"
 PASS = "Zhaokaiyyds123."
-w = network.wifi.Wifi()
-e = w.connect(SSID, PASS, wait=True, timeout=60)
-err.check_raise(e, "WiFi connect failed")
-ip = w.get_ip()
+stream = None
+ip = "N/A"
+WIFI_TIMEOUT = 60
+
+try:
+    w = network.wifi.Wifi()
+    w.connect(SSID, PASS, wait=False)
+    t0 = time.ticks_ms()
+    while time.ticks_ms() - t0 < WIFI_TIMEOUT * 1000:
+        elapsed = (time.ticks_ms() - t0) / 1000.0
+        frm = cam.read()
+        if frm:
+            frm.draw_string(10, 10, f"WiFi: {SSID}",
+                            color=image.Color.from_rgb(255, 255, 255))
+            frm.draw_string(10, 50, f"connecting... {elapsed:.0f}s/{WIFI_TIMEOUT}s",
+                            color=image.Color.from_rgb(255, 255, 0))
+            disp.show(frm)
+        try:
+            ip = w.get_ip()
+            if ip and ip != "0.0.0.0":
+                break
+        except Exception:
+            pass
+        time.sleep_ms(200)
+    if not ip or ip == "0.0.0.0":
+        raise Exception("timeout")
+except Exception as ex:
+    print(f"WiFi failed: {ex}, skip streaming (6pts)")
+    ip = "N/A"
 
 # ============================================================
 # 二、加载 YOLOv5 模型
@@ -46,36 +78,35 @@ input_w = detector.input_width()   # 模型输入宽度 (448)
 input_h = detector.input_height()  # 模型输入高度 (448)
 print(f"Model input: {input_w}x{input_h}")
 
+
 # ============================================================
 # 三、摄像头 & 显示屏 & 图传初始化
 # ============================================================
-# 摄像头按模型输入尺寸打开，确保图像与模型输入尺寸一致
-cam = camera.Camera(input_w, input_h, detector.input_format())
-disp = display.Display()
 
-# HTTP JPEG 推流 — 浏览器访问 http://<ip>:<port> 即可看到实时画面
-stream = http.JpegStreamer()
-stream.start()
-
-# ---- 启动画面：显示 IP + 推流地址 ----
+# ---- 启动画面 & 图传 ----
 # 安全获取颜色值：逐级检查避免 image.Color 不存在时崩溃
 try:
     COLOR_WHITE = image.Color.from_rgb(255, 255, 255)
     COLOR_GREEN_VAL = image.Color.from_rgb(0, 255, 0)
 except (AttributeError, TypeError):
-    COLOR_WHITE = 0xFFFF       # RGB565 白
-    COLOR_GREEN_VAL = 0x07E0   # RGB565 绿
+    COLOR_WHITE = 0xFFFF
+    COLOR_GREEN_VAL = 0x07E0
 
-stream_url = f"http://{ip}:{stream.port()}"
-print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>"+f"IP:  {ip}");
-try:
-    bg = image.Image(disp.width(), disp.height(), image.Format.FMT_RGB888)
-    bg.draw_string(10, 10, f"IP: {ip}", color=COLOR_WHITE)
-    bg.draw_string(10, 40, stream_url, color=COLOR_GREEN_VAL)
-    disp.show(bg)
-except Exception as ex:
-    print(f"Startup screen error: {ex}")
-print(f"Stream: {stream_url}")
+if ip != "N/A":
+    try:
+        stream = http.JpegStreamer()
+        stream.start()
+        stream_url = f"http://{ip}:{stream.port()}"
+        bg = image.Image(disp.width(), disp.height(), image.Format.FMT_RGB888)
+        bg.draw_string(10, 10, f"IP: {ip}", color=COLOR_WHITE)
+        bg.draw_string(10, 40, stream_url, color=COLOR_GREEN_VAL)
+        disp.show(bg)
+        print(f"Stream: {stream_url}")
+    except Exception as ex:
+        print(f"Stream start error: {ex}")
+        stream = None
+else:
+    print("WiFi unavailable, local display mode")
 
 # ============================================================
 # 四、UART 串口 & 协议 (TX=A16, RX=A17, 波特率 115200)
@@ -90,11 +121,16 @@ def _uart_transmit(data: bytes) -> bool:
         return False
     return True
 
+need_calib = False
+
 def _on_frame_received(ty: int, payload: bytes, length: int):
-    """接收到完整帧的回调 (预留，当前仅日志)
-    注意: 高频接收时会刷屏，正式使用时应改为节流日志或去掉 print。
-    """
-    print(f"RX frame: type=0x{ty:02X}, len={length}")
+    """接收回调: 0x12=STM32请求校准, 其他=日志"""
+    global need_calib
+    if ty == 0x12:
+        need_calib = True
+        print("CAL requested by STM32")
+    else:
+        print(f"RX frame: type=0x{ty:02X}, len={length}")
 
 def _on_timeout(ty: int):
     """ACK 超时回调 (未启用 ACK 时不会被调用)"""
@@ -446,9 +482,11 @@ def merge_deduplicate(blob_candidates: list, yolo_candidates: list) -> list:
 # 十一、主循环
 # ============================================================
 last_send = time.ticks_ms()   # 上次 UART 发送时间
-SEND_INTERVAL = 200           # UART 发送间隔 (ms)
+SEND_INTERVAL = 20           # UART 发送间隔 (ms)
+calib_px = 224                # 零点像素 (初始=画面中心)
 
 print("[5ball] Hybrid detector started: find_blobs + YOLOv5")
+print("[5ball] Press USER key to set ball zero position")
 
 while not app.need_exit():
     frame_start = time.ticks_ms()  # 帧耗时起点
@@ -465,13 +503,40 @@ while not app.need_exit():
     yolo_candidates = filter_yolo_objs(img, raw_objs)            # YOLO 后处理
     final_objs = merge_deduplicate(blob_candidates, yolo_candidates)  # 合并去重
 
+    # ———— 触摸校准按钮 ————
+    # 画面 448x448 在 480x640 屏幕上居中, 偏移量 (16, 96)
+    tx, ty, tpressed = ts.read()
+    ix = tx - (disp.width()  - img.width())  // 2  # 屏幕→画面坐标
+    iy = ty - (disp.height() - img.height()) // 2
+    cal_btn = [img.width() - 85, 5, 80, 40]
+    if tpressed and ix > cal_btn[0] and ix < cal_btn[0] + cal_btn[2] and iy > cal_btn[1] and iy < cal_btn[1] + cal_btn[3]:
+        if final_objs:
+            obj = max(final_objs, key=lambda o: o.score)
+            calib_px = int(obj.x + obj.w / 2)
+            print(f"CAL OK: zero={calib_px}")
+            proto.transmit_frame(0x11, struct.pack(">I", calib_px))
+
+    # ———— 步骤1: 双路混合检测 ————
+
     # ———— 步骤2: 绘制水管参考框 ————
     px, py, pw, ph = PIPE_ROI
+    # 触摸校准按钮 (右上角)
+    img.draw_rect(cal_btn[0], cal_btn[1], cal_btn[2], cal_btn[3], color=COLOR_ORANGE, thickness=-1)
+    img.draw_string(cal_btn[0] + 8, cal_btn[1] + 10, "CAL", color=COLOR_WHITE)
+
     img.draw_rect(px, py, pw, ph, color=COLOR_BLACK)
+    img.draw_string(2, 2, f"IP:{ip} Z:{calib_px}", color=image.Color.from_rgb(255, 255, 0))
     # 比例换算: 画面中水管宽度 pw 像素 ↔ 实际水管长度 PIPE_CM
     px_to_cm = PIPE_CM / pw if pw > 0 else 0
 
     # ———— 步骤3: 绘制钢球检测框 ————
+    if need_calib and final_objs:
+        obj = max(final_objs, key=lambda o: o.score)
+        calib_px = int(obj.x + obj.w / 2)
+        need_calib = False
+        print(f"CAL OK: zero={calib_px}")
+        proto.transmit_frame(0x11, struct.pack(">I", calib_px))
+
     best_obj = None  # 最高分球 (用于 UART 上报 & 水管位置计算)
     for obj in final_objs:
         # 红色边界框
@@ -498,20 +563,16 @@ while not app.need_exit():
 
     # ———— 步骤5: UART 发送球偏移量 ————
     now = time.ticks_ms()
-    if time.ticks_diff(now, last_send) >= SEND_INTERVAL:
+    if now - last_send >= SEND_INTERVAL:
         last_send = now
         if best_obj is not None:
-            # 计算球心相对画面中心的偏移 (cm)
+            # 发送像素偏移量, STM32 端查表换算 cm
             center_x = best_obj.x + best_obj.w / 2
-            offset_pixel = center_x - img.width() / 2
-            offset_cm = offset_pixel * PIXEL_TO_CM
-            # 放大 100 倍取整，避免浮点精度问题
-            offset_int = int(round(offset_cm * 100))
-            payload = struct.pack('>i', offset_int)  # int32 大端
+            offset_pixel = int(center_x - calib_px)
+            payload = struct.pack('>i', offset_pixel)
             proto.transmit_frame(0x10, payload)
-            print(f"send offset: {offset_cm:.2f} cm ({offset_int})")
+            print(f"send px: {offset_pixel}")
         else:
-            # 无球时发送 0
             payload = struct.pack('>i', 0)
             proto.transmit_frame(0x10, payload)
 
@@ -527,11 +588,13 @@ while not app.need_exit():
     proto.loop()  # 驱动协议状态机 (ACK 检查 + 帧解析)
 
     # ———— 步骤6: 图传推流 & 屏幕显示 ————
-    jpg = img.to_jpeg()          # RGB → JPEG 编码
-    stream.write(jpg)            # 推送到 HTTP 客户端
-    # disp.show(img)               # 本地屏幕显示
+    if stream is not None:
+        try:
+            jpg = img.to_jpeg()
+            stream.write(jpg)
+        except Exception:
+            pass
+    disp.show(img)
 
-    # 帧率控制: 扣除处理耗时后补充 sleep，尽量稳定帧率
     elapsed = time.ticks_ms() - frame_start
-    sleep_ms = max(1, 33 - elapsed)
-    time.sleep_ms(sleep_ms)
+    time.sleep_ms(max(1, 33 - elapsed))

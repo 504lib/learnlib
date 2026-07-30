@@ -2,8 +2,9 @@
 #include "Log.h"
 #include "usart.h"
 
-volatile int32_t g_ball_pos    = 0;
-volatile bool    g_ball_updated = false;
+volatile int32_t  g_ball_pos    = 0;
+volatile uint32_t g_zero_px     = 320;
+volatile bool     g_ball_updated = false;
 
 static UART_protocol_t g_proto = {0};
 
@@ -14,10 +15,13 @@ static bool __uart6_tx(const uint8_t* data, uint16_t len)
 
 static void __on_frame(uint8_t type, const uint8_t* payload, uint16_t len)
 {
-    if (type == APP_FRAME_BALL_POS) {
-        LOG_INFO("ball pos: %d", (int32_t)rd_u32_be(payload));
+    if (type == APP_FRAME_BALL_POS && len >= 4) {
         g_ball_pos     = (int32_t)rd_u32_be(payload);
         g_ball_updated = true;
+    }
+    if (type == APP_FRAME_CALIB && len >= 4) {
+        g_zero_px = rd_u32_be(payload);
+        LOG_INFO("CAL OK zero=%lu", g_zero_px);
     }
 }
 
