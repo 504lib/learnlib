@@ -9,7 +9,11 @@ static float    targets[3]  = {0.0f, 5.0f, -5.0f}; // cm, 相对零点
 /* 像素→cm 线性插值 (标定后替换) */
 static float PxToCm(int32_t px)
 {
-    return px * 0.05f;   // TODO: 实地标定
+    // 标定: -5cm=-85px, +5cm=+83px, 分左右线性
+    if (px < 0)
+        return px * (5.0f / 85.0f);   // 左半: 0.0588 cm/px
+    else
+        return px * (5.0f / 83.0f);   // 右半: 0.0602 cm/px
 }
 
 void Task3_Init(ZDT_Motor_Handle_t* m)

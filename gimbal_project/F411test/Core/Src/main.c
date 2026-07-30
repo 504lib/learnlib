@@ -57,7 +57,9 @@
 /* USER CODE BEGIN PM */
 void __uart2_tx(const char* buffer, size_t buffer_size)
 {
-    HAL_UART_Transmit(&huart2, (uint8_t*)buffer, buffer_size, 100);
+  (void)buffer;
+  (void)buffer_size;
+  // HAL_UART_Transmit(&huart6, (uint8_t*)buffer, buffer_size, HAL_MAX_DELAY);
 }
 /* USER CODE END PM */
 
@@ -95,7 +97,7 @@ void SystemClock_Config(void);
 
 void ZDT_Send_Tx_callback(uint8_t *pData, uint16_t Size)
 {
-    HAL_UART_Transmit(&huart2, pData, Size, HAL_MAX_DELAY);
+    HAL_UART_Transmit(&huart6, pData, Size, HAL_MAX_DELAY);
 }
 
 
@@ -164,7 +166,7 @@ int main(void)
   Task3_Init(&x_asix_motor);
   HAL_TIM_Base_Start_IT(&htim2);
 
-  /* PID初始化: kp=角度→RPM, ki=消除静差, kd=微分预判减速 */
+  // /* PID初始化: kp=角度→RPM, ki=消除静差, kd=微分预判减速 */
    App_Protocol_Init();
    App_Menu_Init();
 	HAL_UART_Receive_IT(&huart6, (uint8_t*)&rx_byte, 1);
@@ -187,8 +189,16 @@ int main(void)
         switch (App_Menu_GetMode())
         {
         case MENU_ZDT_TEST:
-          LOG_Snprintf(buffer, sizeof(buffer), "tar_angle: %.2f\n", x_axis_target_angle);
+          LOG_Snprintf(buffer, sizeof(buffer), "tar_angle: %.2f", x_axis_target_angle);
           OLED_ShowString(0, 8, (uint8_t*)buffer, 8, 1);
+          LOG_Snprintf(buffer, sizeof(buffer), "vel: %.2f", g_vel_value);
+          OLED_ShowString(0, 16, (uint8_t*)buffer, 8, 1);
+          LOG_Snprintf(buffer, sizeof(buffer), "zero: %u", g_zero_px);
+          OLED_ShowString(0, 24, (uint8_t*)buffer, 8, 1);
+          LOG_Snprintf(buffer, sizeof(buffer), "cur_px: %d", g_ball_pos);
+          OLED_ShowString(0, 32, (uint8_t*)buffer, 8, 1);
+          LOG_Snprintf(buffer, sizeof(buffer), "yaw: %.2f", mpu_data->yaw);
+          OLED_ShowString(0, 40, (uint8_t*)buffer, 8, 1);
           break;
         case MENU_BALL_PID:
           LOG_Snprintf(buffer, sizeof(buffer), "target: %.2f\n", Task3_GetTarget());
@@ -210,7 +220,8 @@ int main(void)
     //   while (RxQ_POP(&rx_queue, &b))
     //     App_Protocol_FeedByte(b);
     // }
-    App_Menu_Process();
+    // HAL_UART_Transmit(&huart6, (uint8_t*)"test\n", sizeof("test\n"), HAL_MAX_DELAY);
+		// HAL_Delay(200);
     for (size_t i = 0; i < 16; i++)
     {
       App_Protocol_Loop();
@@ -322,9 +333,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
+  char buffer[32];
   if (huart->Instance == USART6)
   {
+    // LOG_Snprintf(buffer, sizeof(buffer), "rcv:0x%02x\n",rx_byte);
+    // HAL_UART_Transmit(&huart6, (uint8_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
 		// LOG_INFO("rcv:0x%02x",rx_byte);
+    HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
     App_Protocol_FeedByte(rx_byte);
     HAL_UART_Receive_IT(&huart6, (uint8_t*)&rx_byte, 1);
   }

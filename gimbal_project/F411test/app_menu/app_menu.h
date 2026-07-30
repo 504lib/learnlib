@@ -9,6 +9,10 @@ typedef enum {
     MENU_COUNT
 } MenuMode;
 
+
+
+
+
 void App_Menu_Init(void);
 void App_Menu_Process(void);
 MenuMode App_Menu_GetMode(void);

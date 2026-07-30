@@ -54,7 +54,7 @@ void App_Protocol_Init(void)
     params.frame_received_handler = __on_frame_u1;
     Uart_Protocol_Init(&g_proto_u1, params);
     Uart_Protocol_Register_Parse_WatchDog(&g_proto_u1, HAL_GetTick, 500);
-    LOG_INFO("Protocol init done (UART6+UART1)");
+    // LOG_INFO("Protocol init done (UART6+UART1)");
 }
 
 void App_Protocol_Loop(void)

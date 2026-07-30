@@ -70,9 +70,9 @@ except Exception as ex:
 # ============================================================
 # model_309453: 单类检测 "ball", 输入 448×448 RGB
 # 训练平台: MaixHub, 7.0M 参数
-model_path = "model_309453.mud"
+model_path = "model_313145.mud"
 if not os.path.exists(model_path):
-    model_path = "/root/models/maixhub/309453/model_309453.mud"
+    model_path = "/root/models/maixhub/309453/model_313145.mud"
 detector = nn.YOLOv5(model=model_path)
 input_w = detector.input_width()   # 模型输入宽度 (448)
 input_h = detector.input_height()  # 模型输入高度 (448)
@@ -208,7 +208,7 @@ except (AttributeError, TypeError):
 #   w — 框宽 (对应水管长度方向)
 #   h — 框高 (对应水管直径方向)
 # 程序将根据 (球心_x - 框左_x) / 框宽 × PIPE_CM 计算球在水管中的位置
-PIPE_ROI = (40, 180, 400, 100)   # (x, y, w, h) ⚠️ 448分辨率需重新测量
+PIPE_ROI = (0, 150, 435, 100)   # (x, y, w, h) ⚠️ 448分辨率需重新测量
 PIPE_CM  = 25.0               # 水管实际长度 (cm)
 
 # ============================================================
