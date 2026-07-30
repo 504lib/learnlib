@@ -8,9 +8,9 @@
   两路结果经几何过滤 + IoU 去重后合并输出
 
 数据流:
-  摄像头(224×224 RGB)
+  摄像头(448×448 RGB)
     ├→ find_blobs(LAB色块) ─┐
-    ├→ YOLOv5(model_307967) ─┤
+    ├→ YOLOv5(model_309453) ─┤
     └→ 几何过滤 + IoU去重 ──→ 红框绘制
                               ├→ 橙框水管参考 + 位置cm显示
                               ├→ UART 200ms/次 发送偏移量
@@ -18,6 +18,8 @@
 """
 
 from maix import camera, time, app, http, image, display, network, err, uart, nn
+from maix._maix.image import COLOR_BLACK
+from protocol import UartProtocol
 import struct
 import os
 
@@ -34,14 +36,14 @@ ip = w.get_ip()
 # ============================================================
 # 二、加载 YOLOv5 模型
 # ============================================================
-# model_307967: 单类检测 "ball", 输入 224×224 RGB
-# 训练平台: MaixHub, 200 epochs, 最佳 val_acc ≈ 72.7%
-model_path = "model_307967.mud"
+# model_309453: 单类检测 "ball", 输入 448×448 RGB
+# 训练平台: MaixHub, 7.0M 参数
+model_path = "model_309453.mud"
 if not os.path.exists(model_path):
-    model_path = "/root/models/maixhub/307967/model_307967.mud"
+    model_path = "/root/models/maixhub/309453/model_309453.mud"
 detector = nn.YOLOv5(model=model_path)
-input_w = detector.input_width()   # 模型输入宽度 (224)
-input_h = detector.input_height()  # 模型输入高度 (224)
+input_w = detector.input_width()   # 模型输入宽度 (448)
+input_h = detector.input_height()  # 模型输入高度 (448)
 print(f"Model input: {input_w}x{input_h}")
 
 # ============================================================
@@ -51,7 +53,11 @@ print(f"Model input: {input_w}x{input_h}")
 cam = camera.Camera(input_w, input_h, detector.input_format())
 disp = display.Display()
 
-# ---- 启动画面：显示 IP 供浏览器访问 ----
+# HTTP JPEG 推流 — 浏览器访问 http://<ip>:<port> 即可看到实时画面
+stream = http.JpegStreamer()
+stream.start()
+
+# ---- 启动画面：显示 IP + 推流地址 ----
 # 安全获取颜色值：逐级检查避免 image.Color 不存在时崩溃
 try:
     COLOR_WHITE = image.Color.from_rgb(255, 255, 255)
@@ -60,40 +66,50 @@ except (AttributeError, TypeError):
     COLOR_WHITE = 0xFFFF       # RGB565 白
     COLOR_GREEN_VAL = 0x07E0   # RGB565 绿
 
+stream_url = f"http://{ip}:{stream.port()}"
+print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>"+f"IP:  {ip}");
 try:
     bg = image.Image(disp.width(), disp.height(), image.Format.FMT_RGB888)
     bg.draw_string(10, 10, f"IP: {ip}", color=COLOR_WHITE)
-    bg.draw_string(10, 40, f"http://{ip}:8000", color=COLOR_GREEN_VAL)
+    bg.draw_string(10, 40, stream_url, color=COLOR_GREEN_VAL)
     disp.show(bg)
 except Exception as ex:
     print(f"Startup screen error: {ex}")
-print(f"Stream: http://{ip}:8000")
-
-# HTTP JPEG 推流 — 浏览器访问 http://<ip>:8000 即可看到实时画面
-stream = http.JpegStreamer()
-stream.start()
-print(f"JpegStreamer: http://{stream.host()}:{stream.port()}")
+print(f"Stream: {stream_url}")
 
 # ============================================================
-# 四、UART 串口 (TX=A16, RX=A17, 波特率 115200)
+# 四、UART 串口 & 协议 (TX=A16, RX=A17, 波特率 115200)
 # ============================================================
 uart_dev = uart.UART("/dev/ttyS0", 115200)
 
-def send_frame(ty: int, payload: bytes):
+def _uart_transmit(data: bytes) -> bool:
+    """UART 发送，返回是否成功"""
+    n = uart_dev.write(data)
+    if n != len(data):
+        print(f"UART write fail: {n}/{len(data)}")
+        return False
+    return True
+
+def _on_frame_received(ty: int, payload: bytes, length: int):
+    """接收到完整帧的回调 (预留，当前仅日志)
+    注意: 高频接收时会刷屏，正式使用时应改为节流日志或去掉 print。
     """
-    自定义二进制帧协议
-    ┌────┬────┬──────┬──────┬─────────┬───────┬───────┬──────┬──────┐
-    │ AA │ 55 │ TYPE │ LEN  │ PAYLOAD │ CHK_H │ CHK_L │ 0D   │ 0A   │
-    │ 帧头│ 帧头│ 类型  │ 长度  │ 数据     │ 校验和(高8位)│ 校验和(低8位)│ 帧尾  │ 帧尾  │
-    └────┴────┴──────┴──────┴─────────┴───────┴───────┴──────┴──────┘
-    校验和: 从 TYPE 字节到 PAYLOAD 末字节的累加和低16位
-    """
-    buf = bytes([0xAA, 0x55, ty, len(payload)]) + payload
-    cs = sum(buf[2:]) & 0xFFFF
-    buf += bytes([(cs >> 8) & 0xFF, cs & 0xFF, 0x0D, 0x0A])
-    n = uart_dev.write(buf)
-    if n != len(buf):
-        print(f"UART write fail: {n}/{len(buf)}")
+    print(f"RX frame: type=0x{ty:02X}, len={length}")
+
+def _on_timeout(ty: int):
+    """ACK 超时回调 (未启用 ACK 时不会被调用)"""
+    print(f"TX timeout, frame type=0x{ty:02X}")
+
+# 创建协议实例: 帧头 AA 55, 帧尾 0D 0A, 校验和从 TYPE 到 payload 末尾
+# ACK 暂未启用 — 如需双向通信 + 自动重传，取消下面两行的注释:
+#   get_tick=time.ticks_ms,
+#   timeout_handler=_on_timeout,
+proto = UartProtocol(
+    header1=0xAA, header2=0x55,
+    tail1=0x0D, tail2=0x0A,
+    transmit_func=_uart_transmit,
+    frame_received_handler=_on_frame_received,
+)
 
 # ============================================================
 # 五、检测参数
@@ -117,15 +133,17 @@ BLOB_THRESHOLDS = [
     (140, 255,  -18,  18,  -18,  18),   # 强反光镜面高亮区
     (100, 180,  -12,  12,  -12,  12),   # 一般亮度金属灰区
 ]
-BLOB_AREA_MIN = 25     # 最小色块面积 (像素)，过滤噪点
-BLOB_AREA_MAX = 8000   # 最大色块面积，过滤大片背景
+BLOB_AREA_MIN = 25     # 最小色块面积 (像素)，过滤噪点 (有意偏小，兼顾远球)
+BLOB_AREA_MAX = 32000  # 最大色块面积，过滤大片背景 (448×448 标定)
 BLOB_MERGE    = True   # 合并相邻同色色块 (避免一个球碎成多个块)
 BLOB_MARGIN   = 5      # 合并时的边缘容差 (像素)
 
 # ———— 几何过滤 ————
 # 钢球的几何特征：圆形 (w≈h)，尺寸在一定范围内
-MIN_SIZE        = 6     # 最小宽/高 (像素)
-MAX_SIZE        = 180   # 最大宽/高 (像素)
+# 注意: 尺寸阈值基于 448×448 分辨率标定，更换模型分辨率后需重新调整
+#       MIN_SIZE 保持较小值以兼顾远处小球，MAX_SIZE 已按 2x 缩放
+MIN_SIZE        = 6     # 最小宽/高 (像素) — 未缩放，远球可能在 10px 以下
+MAX_SIZE        = 360   # 最大宽/高 (像素) — 180×2，近球在 448 下可达 ~300px
 ASPECT_MIN      = 0.65  # 最小宽高比 (w/h)
 ASPECT_MAX      = 1.50  # 最大宽高比 (球理想值为 1.0)
 CIRCULARITY_MIN = 0.55  # 最小圆形度 (面积/外接矩形面积, 正圆≈0.785)
@@ -134,28 +152,31 @@ CIRCULARITY_MIN = 0.55  # 最小圆形度 (面积/外接矩形面积, 正圆≈0
 IOU_MERGE_TH = 0.45  # IoU > 此值视为同一目标，去重保留高分
 
 # ———— UART 坐标换算 ————
-PIXEL_TO_CM = 0.05   # 像素→厘米换算系数 (需根据实际距离标定)
+PIXEL_TO_CM = 0.025  # 像素→厘米换算系数 (448×448, 需根据实际距离标定)
 
 # ============================================================
 # 六、颜色常量 (MaixPy 兼容 + RGB565 回退)
 # ============================================================
 # RGB565 格式: R=5bit, G=6bit, B=5bit
-COLOR_RED    = getattr(image, 'COLOR_RED',    0xF800)  # R=31,G=0,B=0
-COLOR_GREEN  = getattr(image, 'COLOR_GREEN',  0x07E0)  # R=0,G=63,B=0
-COLOR_BLUE   = getattr(image, 'COLOR_BLUE',   0x001F)  # R=0,G=0,B=31
-COLOR_ORANGE = image.Color.from_rgb(255, 128, 0)
+COLOR_RED    = getattr(image, 'COLOR_RED',    0xF800)  # R=31,G=0,B=0  → 球框+分数
+COLOR_GREEN  = getattr(image, 'COLOR_GREEN',  0x07E0)  # R=0,G=63,B=0  → 预留
+COLOR_BLUE   = getattr(image, 'COLOR_BLUE',   0x001F)  # R=0,G=0,B=31  → 预留
+try:
+    COLOR_ORANGE = image.Color.from_rgb(255, 128, 0)
+except (AttributeError, TypeError):
+    COLOR_ORANGE = 0xFC00        # RGB565 橙 (R=31,G=32,B=0)
 
 # ============================================================
 # 七、水管参考框
 # ============================================================
-# 橙色矩形框用于标记 50cm 半圆水管在画面中的区域。
+# 橙色矩形框用于标记 25cm 半圆水管在画面中的区域。
 # 调整此四元组使橙框精确套住水管：
 #   x — 框左上角横坐标
 #   y — 框左上角纵坐标
 #   w — 框宽 (对应水管长度方向)
 #   h — 框高 (对应水管直径方向)
-# 程序将根据 (球心_x - 框左_x) / 框宽 × 50cm 计算球在水管中的位置
-PIPE_ROI = (20, 80, 184, 100)   # (x, y, w, h)
+# 程序将根据 (球心_x - 框左_x) / 框宽 × PIPE_CM 计算球在水管中的位置
+PIPE_ROI = (40, 180, 400, 100)   # (x, y, w, h) ⚠️ 448分辨率需重新测量
 PIPE_CM  = 25.0               # 水管实际长度 (cm)
 
 # ============================================================
@@ -256,10 +277,11 @@ def color_verify_roi(img, obj: DetObj) -> bool:
     except Exception:
         return True  # API 异常则放行，避免漏检
 
+    # stats 布局: [L*8][A*8][B*8]，每通道 [mean, median, mode, std, min, max, Q1, Q3]
     l_mean = stats[0]   # L 均值
     l_std  = stats[3]   # L 标准差
-    a_std  = stats[11]  # A 标准差
-    b_std  = stats[19]  # B 标准差
+    a_std  = stats[11]  # A 标准差 (偏移 8 + 3)
+    b_std  = stats[19]  # B 标准差 (偏移 16 + 3)
 
     bright  = l_mean >= 90           # 够亮 (反光)
     neutral = a_std <= 30 and b_std <= 30  # 够灰 (无彩色)
@@ -319,6 +341,9 @@ def detect_blobs(img) -> list:
     核心思路: 钢球是银白反光物体 → L高、A≈0、B≈0。
     对每组合格的 LAB 阈值调用 find_blobs，
     返回通过几何过滤的 DetObj 列表 (source="blob")。
+
+    x_stride=4 在 448×448 下等效于旧版 224×224 的 stride=2，
+    保持扫描密度不变的同时控制性能。
     """
     candidates = []
     for th in BLOB_THRESHOLDS:
@@ -326,7 +351,7 @@ def detect_blobs(img) -> list:
             blobs = img.find_blobs(
                 [th],                          # 当前 LAB 阈值
                 roi=None,                      # 全图搜索
-                x_stride=2, y_stride=2,        # 步长 (越大越快，越粗糙)
+                x_stride=4, y_stride=4,        # 步长 (越大越快，越粗糙; 448分辨率用4保持速度)
                 area_threshold=BLOB_AREA_MIN,  # 面积阈值
                 pixels_threshold=BLOB_AREA_MIN,# 像素数阈值
                 merge=BLOB_MERGE,              # 合并相邻块
@@ -361,7 +386,10 @@ def filter_yolo_objs(img, objs) -> list:
     YOLOv5 检测结果后处理:
       高置信度 (≥0.65) → 直接信任，跳过颜色验证
       低置信度 (<0.65) → 必须通过颜色验证才保留
-      所有结果 → 必须通过几何过滤
+      所有结果 → 必须通过几何过滤 (尺寸+宽高比)
+    注意: YOLO 不提供像素面积，因此跳过圆形度检查。
+          这是有意为之 — YOLO 的形状特征已隐含在检测中，
+          而 blob 路径的圆形度检查用于弥补颜色检测的形状盲区。
     """
     valid = []
     for obj in objs:
@@ -433,13 +461,13 @@ while not app.need_exit():
 
     # ———— 步骤1: 双路混合检测 ————
     blob_candidates = detect_blobs(img)                          # 路1: 颜色色块
-    raw_objs = detector.detect(img, conf_th=CONF_TH, iou_th=IOU_TH)  # 路2: YOLOv5 (关闭双缓冲，检测与当前帧同步)
+    raw_objs = detector.detect(img, conf_th=CONF_TH, iou_th=IOU_TH)  # 路2: YOLOv5 推理
     yolo_candidates = filter_yolo_objs(img, raw_objs)            # YOLO 后处理
     final_objs = merge_deduplicate(blob_candidates, yolo_candidates)  # 合并去重
 
     # ———— 步骤2: 绘制水管参考框 ————
     px, py, pw, ph = PIPE_ROI
-    img.draw_rect(px, py, pw, ph, color=COLOR_ORANGE)
+    img.draw_rect(px, py, pw, ph, color=COLOR_BLACK)
     # 比例换算: 画面中水管宽度 pw 像素 ↔ 实际水管长度 PIPE_CM
     px_to_cm = PIPE_CM / pw if pw > 0 else 0
 
@@ -462,12 +490,15 @@ while not app.need_exit():
         # 球心距水管左端的实际距离 (cm)
         pos_in_pipe_cm = (ball_cx - px) * px_to_cm
         pipe_msg = f'pipe: {pos_in_pipe_cm:.1f}cm'
+        px_msg = f'px:{ball_cx - px}'
         # 显示在水管框正下方
-        img.draw_string(px, py + ph + 4, pipe_msg, color=COLOR_ORANGE)
+        img.draw_string(px, py + ph + 4, pipe_msg, color=COLOR_ORANGE,scale=2)
+        img.draw_string(px, py + ph + 20, px_msg, color=COLOR_ORANGE,scale=2)
+
 
     # ———— 步骤5: UART 发送球偏移量 ————
     now = time.ticks_ms()
-    if now - last_send >= SEND_INTERVAL:
+    if time.ticks_diff(now, last_send) >= SEND_INTERVAL:
         last_send = now
         if best_obj is not None:
             # 计算球心相对画面中心的偏移 (cm)
@@ -477,19 +508,30 @@ while not app.need_exit():
             # 放大 100 倍取整，避免浮点精度问题
             offset_int = int(round(offset_cm * 100))
             payload = struct.pack('>i', offset_int)  # int32 大端
-            send_frame(0x10, payload)
+            proto.transmit_frame(0x10, payload)
             print(f"send offset: {offset_cm:.2f} cm ({offset_int})")
         else:
             # 无球时发送 0
             payload = struct.pack('>i', 0)
-            send_frame(0x10, payload)
+            proto.transmit_frame(0x10, payload)
+
+    # ———— 步骤5.5: UART 接收处理 ————
+    try:
+        n = uart_dev.any()
+        if n > 0:
+            data = uart_dev.read(min(n, 64))
+            if data:
+                proto.process_buffer(data)
+    except Exception:
+        pass  # UART 读取失败则跳过，不影响主流程
+    proto.loop()  # 驱动协议状态机 (ACK 检查 + 帧解析)
 
     # ———— 步骤6: 图传推流 & 屏幕显示 ————
     jpg = img.to_jpeg()          # RGB → JPEG 编码
     stream.write(jpg)            # 推送到 HTTP 客户端
-    disp.show(img)               # 本地屏幕显示
+    # disp.show(img)               # 本地屏幕显示
 
-    # 帧率控制: 扣除处理耗时后补充 sleep，稳定 ~30fps
+    # 帧率控制: 扣除处理耗时后补充 sleep，尽量稳定帧率
     elapsed = time.ticks_ms() - frame_start
     sleep_ms = max(1, 33 - elapsed)
     time.sleep_ms(sleep_ms)
