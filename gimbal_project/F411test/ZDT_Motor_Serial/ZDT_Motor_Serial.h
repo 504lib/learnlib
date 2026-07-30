@@ -25,7 +25,8 @@ typedef struct
 
     float   prev_raw;       // 上一帧原始角度(内部用于±180°跳变展开)
     bool    unwrap_inited;   // 展开初始化标志
-    int32_t acc_clk;        // 展开后的累积绝对位置(clk)
+    float   acc_deg_f;       // 浮点累积绝对角度(°), 避免整数截断漂移
+    int32_t acc_clk;        // 保留兼容
 
     void   (*Tx)(uint8_t *pData, uint16_t Size);
 } ZDT_Motor_Handle_t;

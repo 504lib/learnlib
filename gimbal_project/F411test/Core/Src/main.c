@@ -38,6 +38,8 @@
 #include "multikey.h"
 #include "PID_Node.h"
 #include "app_protocol.h"
+#include "app_menu.h"
+#include "Task_Control.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -71,10 +73,14 @@ bool text_buffer_updated = false;
 volatile uint32_t rx_total = 0;
 MPU6050_Data_t* mpu_data = NULL;
 ZDT_Motor_Handle_t x_asix_motor;
+MulitKey_t key1;
 MulitKey_t key2;
 MulitKey_t key3;
 PID_Node x_axis_pid;
 volatile float x_axis_target_angle = 0.0f;  // 目标角度，单位：度
+static uint8_t Oled_page_index = 0;
+static bool Enter_Oled_page = false;
+static bool Task3_excuting = false;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -92,49 +98,8 @@ void ZDT_Send_Tx_callback(uint8_t *pData, uint16_t Size)
     HAL_UART_Transmit(&huart2, pData, Size, HAL_MAX_DELAY);
 }
 
-uint8_t Key2_ReadPin(MulitKey_t* key)
-{
-    return HAL_GPIO_ReadPin(KEY2_GPIO_Port, KEY2_Pin) == GPIO_PIN_SET ? 1 : 0;
-}
-
-uint8_t Key3_ReadPin(MulitKey_t* key)
-{
-    return HAL_GPIO_ReadPin(KEY3_GPIO_Port, KEY3_Pin) == GPIO_PIN_SET ? 1 : 0;
-}
-
-void Key2_PressedCallback(MulitKey_t* key)
-{
-  x_axis_target_angle += 10.0f;  // 每次按下增加10度
-  PID_Node_SetSetpoint(&x_axis_pid, x_axis_target_angle);
-}
-
-void Key3_PressedCallback(MulitKey_t* key)
-{
-  x_axis_target_angle -= 10.0f;  // 每次按下减少10度
-  PID_Node_SetSetpoint(&x_axis_pid, x_axis_target_angle);
-}
-
-void Key2_LongPressedCallback(MulitKey_t* key)
-{
-  x_axis_target_angle += 10.0f;  // 每次按下增加10度
-  PID_Node_SetSetpoint(&x_axis_pid, x_axis_target_angle);
-}
-
-
-void Key3_LongPressedCallback(MulitKey_t* key)
-{
-  x_axis_target_angle -= 10.0f;  // 每次按下减少10度
-  PID_Node_SetSetpoint(&x_axis_pid, x_axis_target_angle);
-}
 
 /* -------- 云台控制 -------- */
-static float Gimbal_Error(float setpoint, float measured)
-{
-    float err = setpoint - measured;
-    if      (err >  180.0f) err -= 360.0f;
-    else if (err < -180.0f) err += 360.0f;
-    return err;
-}
 
 /* USER CODE END 0 */
 
@@ -196,47 +161,47 @@ int main(void)
   mpu_data = MPU6050_GetHandle();
   MadgwickAHRSsetSampleFreq(1000.0f / IMU_UPDATE_PERIOD_MS);
   ZDT_Init(&x_asix_motor,0x00,ZDT_Send_Tx_callback);
+  Task3_Init(&x_asix_motor);
   HAL_TIM_Base_Start_IT(&htim2);
 
   /* PID初始化: kp=角度→RPM, ki=消除静差, kd=微分预判减速 */
-  PID_Node_Init(&x_axis_pid, "gimbal_x", 3.0f, 0.05f, 0.8f);
-  PID_Node_SetSetpoint(&x_axis_pid, 0.0f);
-  PID_Custom_Functions custom = { .custom_error_calculation = Gimbal_Error };
-  PID_Node_SetCustomCallback(&x_axis_pid, custom);
-  PID_Node_SetLimit(&x_axis_pid,(PID_Limit){
-    .setpoint_min   = -180.0f,
-    .setpoint_max   =  180.0f,
-    .input_min      = -180.0f,
-    .input_max      =  180.0f,
-    .output_min     = -500.0f,
-    .output_max     =  500.0f,
-    .integral_max   =  200.0f,
-    .derivative_max =  200.0f,
-    .deadband       =    0.1f,
-  });
-  ZDT_VelMode(&x_asix_motor, ZDT_DIR_CW, 0);
-  App_Protocol_Init();
+   App_Protocol_Init();
+   App_Menu_Init();
 	HAL_UART_Receive_IT(&huart6, (uint8_t*)&rx_byte, 1);
   HAL_UART_Receive_IT(&huart1, (uint8_t*)&rx_byte_uart1, 1);
-
-  // HAL_UARTEx_ReceiveToIdle_IT(&huart6, rx_buffer, sizeof(rx_buffer));
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    App_Menu_Process();  // 读取按键，显示模式
     if (HAL_GetTick() - last_tick >= 20)
     {
       last_tick = HAL_GetTick();
-      LOG_Snprintf(buffer, sizeof(buffer), "yaw:%.2f", mpu_data->yaw);
-      OLED_ShowString(0, 0, (uint8_t*)buffer, 16, 1);
-      LOG_Snprintf(buffer, sizeof(buffer), "zero:%lu", g_zero_px);
-      OLED_ShowString(0, 16, (uint8_t*)buffer, 16, 1);
-      LOG_Snprintf(buffer, sizeof(buffer), "ball_pos:%d  ", g_ball_pos);
-      OLED_ShowString(0, 32, (uint8_t*)buffer, 16, 1);
-      LOG_Snprintf(buffer, sizeof(buffer), "vel:%.2f", g_vel_value);
-      OLED_ShowString(0, 48, (uint8_t*)buffer, 16, 1);
+      char buf[32] = {0};
+      App_Menu_GetModeNameAndStatus(buf, sizeof(buf));
+      OLED_ShowString(32, 0, (uint8_t*)buf, 8, 1);
+      if (App_Menu_IsRunning())
+      {
+        switch (App_Menu_GetMode())
+        {
+        case MENU_ZDT_TEST:
+          LOG_Snprintf(buffer, sizeof(buffer), "tar_angle: %.2f\n", x_axis_target_angle);
+          OLED_ShowString(0, 8, (uint8_t*)buffer, 8, 1);
+          break;
+        case MENU_BALL_PID:
+          LOG_Snprintf(buffer, sizeof(buffer), "target: %.2f\n", Task3_GetTarget());
+          OLED_ShowString(0, 8, (uint8_t*)buffer, 8, 1);
+          LOG_Snprintf(buffer, sizeof(buffer), "current: %.2f\n", Task3_GetCurrent());
+          OLED_ShowString(0, 16, (uint8_t*)buffer, 8, 1);
+          LOG_Snprintf(buffer, sizeof(buffer), "step: %d\n", Task3_GetStep());
+          OLED_ShowString(0, 24, (uint8_t*)buffer, 8, 1);
+          break;
+        default:
+          break;
+        }
+      }
       
       OLED_Refresh();
     }
@@ -245,12 +210,11 @@ int main(void)
     //   while (RxQ_POP(&rx_queue, &b))
     //     App_Protocol_FeedByte(b);
     // }
+    App_Menu_Process();
     for (size_t i = 0; i < 16; i++)
     {
       App_Protocol_Loop();
     }
-    MulitKey_Scan(&key2);
-    MulitKey_Scan(&key3);
     #if LOG_USE_QUEUE == 1
    LOG_Process();
     #endif
@@ -317,18 +281,29 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     MPU6050_Update();
 
 		/* 角度误差 → PID算目标速率 */
-		PID_Node_UpdateMeasurement(&x_axis_pid, mpu_data->yaw);
-		PID_ExecuteNode(&x_axis_pid, PID_DT);
-
-		float vel_cmd = x_axis_pid.output;
-
+    Task3_Update(2.0f);
 
 		/* 发速度指令 */
-		uint8_t  dir = (vel_cmd >= 0) ? ZDT_DIR_CCW : ZDT_DIR_CW;
-		uint16_t vel = (uint16_t)(vel_cmd >= 0 ? vel_cmd : -vel_cmd);
 		if (counter % 10 == 0)
 		{
-			// ZDT_VelMode(&x_asix_motor, dir, vel);
+      if (App_Menu_IsRunning()) 
+      {
+          switch (App_Menu_GetMode()) 
+          {
+          case MENU_ZDT_TEST:
+              x_axis_target_angle += 0.5f;
+              if (x_axis_target_angle >= 43.0f)
+              {
+                x_axis_target_angle = 0.0f;
+              }
+              ZDT_MoveToAngle(&x_asix_motor, x_axis_target_angle);
+              break;
+          case MENU_BALL_PID:
+              Task3_Control_Send();
+              break;
+          default: break;
+          }
+      }
 		}
     counter++;
 	}

@@ -58,10 +58,9 @@ void ZDT_MoveToAngle(ZDT_Motor_Handle_t *h, float raw_deg)
     else if (delta < -180.0f) delta += 360.0f;
     h->prev_raw   = raw_deg;
 
-    /* 累加到展开后的绝对角度 */
-    h->acc_clk += ZDT_AngleToClk(delta);
-
-    ZDT_MoveToClk(h, h->acc_clk);
+    /* 浮点累积 (避免整数截断漂移) */
+    h->acc_deg_f += delta;
+    ZDT_MoveToClk(h, ZDT_AngleToClk(h->acc_deg_f));
 }
 
 void ZDT_MoveToClk(ZDT_Motor_Handle_t *h, int32_t clk)
