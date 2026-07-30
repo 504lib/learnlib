@@ -241,8 +241,10 @@ int main(void)
     //   while (RxQ_POP(&rx_queue, &b))
     //     App_Protocol_FeedByte(b);
     // }
-    for (int _i = 0; _i < 16; _i++)
+    for (size_t i = 0; i < 16; i++)
+    {
       App_Protocol_Loop();
+    }
     MulitKey_Scan(&key2);
     MulitKey_Scan(&key3);
     #if LOG_USE_QUEUE == 1
@@ -322,7 +324,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		uint16_t vel = (uint16_t)(vel_cmd >= 0 ? vel_cmd : -vel_cmd);
 		if (counter % 10 == 0)
 		{
-			ZDT_VelMode(&x_asix_motor, dir, vel);
+			// ZDT_VelMode(&x_asix_motor, dir, vel);
 		}
     counter++;
 	}
@@ -344,7 +346,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
   if (huart->Instance == USART6)
   {
-//		LOG_INFO("rcv:0x%02x",rx_byte);
+		// LOG_INFO("rcv:0x%02x",rx_byte);
     App_Protocol_FeedByte(rx_byte);
     HAL_UART_Receive_IT(&huart6, (uint8_t*)&rx_byte, 1);
   }

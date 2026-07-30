@@ -17,6 +17,7 @@ static void __on_frame(uint8_t type, const uint8_t* payload, uint16_t len)
 {
     if (type == APP_FRAME_BALL_POS && len >= 4) {
         g_ball_pos     = (int32_t)rd_u32_be(payload);
+        LOG_INFO("BALL_POS %d", g_ball_pos);
         g_ball_updated = true;
     }
     if (type == APP_FRAME_CALIB && len >= 4) {
@@ -33,7 +34,7 @@ void App_Protocol_Init(void)
         .frame_received_handler = __on_frame,
     };
     Uart_Protocol_Init(&g_proto, params);
-    Uart_Protocol_Register_Parse_WatchDog(&g_proto, HAL_GetTick, 100);
+    Uart_Protocol_Register_Parse_WatchDog(&g_proto, HAL_GetTick, 1000);
     // 帧间隔 1s, 不需要看门狗
 
     LOG_INFO("Protocol init done (UART6)");

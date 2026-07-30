@@ -8,7 +8,7 @@
 
 
 #ifndef LOG_BUFFER_SIZE
-#define LOG_BUFFER_SIZE 64
+#define LOG_BUFFER_SIZE 127
 #endif // !LOG_BUFFER_SIZE
 
 

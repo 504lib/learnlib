@@ -558,9 +558,7 @@ while not app.need_exit():
             payload = struct.pack('>i', offset_pixel)
             proto.transmit_frame(0x10, payload)
             print(f"send px: {offset_pixel}")
-        else:
-            payload = struct.pack('>i', 0)
-            proto.transmit_frame(0x10, payload)
+        # 无球不发送
 
     # ———— 步骤5.5: UART 接收处理 ————
     try:
