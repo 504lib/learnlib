@@ -97,7 +97,7 @@ void SystemClock_Config(void);
 
 void ZDT_Send_Tx_callback(uint8_t *pData, uint16_t Size)
 {
-    HAL_UART_Transmit(&huart6, pData, Size, HAL_MAX_DELAY);
+    HAL_UART_Transmit(&huart2, pData, Size, HAL_MAX_DELAY);
 }
 
 
