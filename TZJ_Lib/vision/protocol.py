@@ -5,11 +5,30 @@ UART 简易协议帧 Python 版本
 作者: whyP762 (原 C 版本)
 """
 
+from __future__ import annotations  # 使所有类型标注惰性求值，兼容无 typing 的嵌入式环境
 import struct
-import logging
 from collections import deque
-from typing import Optional, Callable, Union, List
+
+# ---- typing（嵌入式平台可能缺失，仅用于标注） ----
+try:
+    from typing import Optional, Callable, Union, List
+except ImportError:
+    pass  # 标注在 __future__ 下不会求值，缺失无影响
+
+# ---- enum（嵌入式平台通常内置） ----
 from enum import IntFlag, IntEnum
+
+# ---- logging（嵌入式平台可能缺失，回退到 print） ----
+try:
+    import logging
+    logger = logging.getLogger("UartProtocol")
+except ImportError:
+    class _Logger:
+        def info(self, msg):    print(f"[UART] {msg}")
+        def debug(self, msg):   print(f"[UART DEBUG] {msg}")
+        def warning(self, msg): print(f"[UART WARN] {msg}")
+        def error(self, msg):   print(f"[UART ERROR] {msg}")
+    logger = _Logger()
 
 # ---------- 默认参数 ----------
 DEFAULT_FRAME_BUFFER_LEN = 16
@@ -19,8 +38,6 @@ DEFAULT_MAX_RETRY_TIMES = 3
 FRAME_OVERHEAD = 8
 PAYLOAD_OFFSET = 4
 ACK_TYPE = 0xFF
-
-logger = logging.getLogger("UartProtocol")
 
 # ---------- 标志位 ----------
 class Flag(IntFlag):
