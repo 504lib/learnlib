@@ -1,6 +1,7 @@
 #include "app_fsm.h"
 #include "app_log.h"
 #include "multikey.h"
+#include "app_protocol.h"
 #include "oled.h"
 #include "app_timer.h"
 #include "control.h"
@@ -135,6 +136,7 @@ static void Straight_Exit(HSM_Event_Package ev)
 
 static void Straight_Continuous(void)
 {
+    static uint8_t last_time = 0;
     char buffer[32] = {0};
     Control_GrayByte_Window_Filter(3);
     current_distance = Control_GetCurrentDistance() - last_distance;
@@ -142,6 +144,11 @@ static void Straight_Continuous(void)
     {
         App_FSM_SendEvent(EV_STOP);
         return;
+    }
+    if (HAL_GetTick() - last_time >= 20)
+    {
+        App_Protocol_SendVel(Control_GetAverageSpeed());
+        last_time = HAL_GetTick();
     }
     LOG_Snprintf(buffer,sizeof(buffer),"Straight:%.2fm",current_distance);
     OLED_ShowString(0, 0, (uint8_t*)buffer, 16, 1);
@@ -179,7 +186,7 @@ static void Curve_Exit(HSM_Event_Package ev)
 
 static void Curve_Continuous(void)
 {
-    static uint8_t gray_times = 0;
+    static uint8_t last_time = 0;
     char buffer[32] = {0};
     // Control_GrayByte_Window_Filter(3);
     current_distance = Control_GetCurrentDistance() - last_distance;
@@ -187,6 +194,11 @@ static void Curve_Continuous(void)
     {
         App_FSM_SendEvent(EV_STOP);
         return;
+    }
+    if (HAL_GetTick() - last_time >= 100)
+    {
+        App_Protocol_SendVel(Control_GetAverageSpeed());
+        last_time = HAL_GetTick();
     }
     LOG_Snprintf(buffer,sizeof(buffer),"Curve:%.2fm",current_distance);
     OLED_ShowString(0, 0, (uint8_t*)buffer, 16, 1);

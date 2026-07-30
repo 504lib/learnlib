@@ -40,6 +40,7 @@
 #include "app_log.h"
 #include "app_fsm.h"
 #include "app_timer.h"
+#include "app_protocol.h"
 //#include "f_sm.h"
 /* USER CODE END Includes */
 
@@ -90,6 +91,10 @@ void SetMotor1IN1(uint8_t level) {
 void SetMotor2IN1(uint8_t level) {
     HAL_GPIO_WritePin(BIN_GPIO_Port, BIN_Pin, (GPIO_PinState)level);
 }
+void __log_uart_tx(const char* buffer, size_t buffer_size)
+{
+    HAL_UART_Transmit(&huart3, (uint8_t*)buffer, buffer_size, HAL_MAX_DELAY);
+}
 /* USER CODE END 0 */
 
 /**
@@ -135,12 +140,14 @@ int main(void)
   App_Timer_Init();
   App_Log_Init();
   App_FSM_Init();
+  App_Protocol_Init();
   OLED_Init();
   OLED_Clear();
   OLED_ShowString(0, 16, (uint8_t*)"Keep Still!", 16, 1);
   OLED_Refresh();
   OLED_Clear();
-  
+  LOG_Init(__log_uart_tx);
+  LOG_INFO("Log system initialized");
   MotorInit_AT46950(&motor1, SetMotor1PWM, SetMotor1IN1, 100); // ARR = 999
   MotorInit_AT46950(&motor2, SetMotor2PWM, SetMotor2IN1, 100);
   SetDefaultDirection(&motor1, High_Level);
@@ -172,7 +179,7 @@ int main(void)
   while (1)
   {
     App_FSM_Process();
-    /* USER CODE END WHILE */
+     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
   }
@@ -272,6 +279,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     if (huart->Instance == USART2)   // 摄像头 → 独立协议实例
     {
         rx_count++;
+        LOG_INFO("Received byte: %d", uart2_rx_byte);
         HAL_UART_Receive_IT(&huart2, (uint8_t*)&uart2_rx_byte, 1);
     }
     else if (huart->Instance == USART3)   // 蓝牙 → 独立协议实例

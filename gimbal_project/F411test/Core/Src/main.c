@@ -53,9 +53,9 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-void __uart1_tx(const char* buffer, size_t buffer_size)
+void __uart2_tx(const char* buffer, size_t buffer_size)
 {
-    HAL_UART_Transmit(&huart1, (uint8_t*)buffer, buffer_size, 100);
+    HAL_UART_Transmit(&huart2, (uint8_t*)buffer, buffer_size, 100);
 }
 /* USER CODE END PM */
 
@@ -63,10 +63,9 @@ void __uart1_tx(const char* buffer, size_t buffer_size)
 
 /* USER CODE BEGIN PV */
 volatile uint8_t rx_byte = 0;
+volatile uint8_t rx_byte_uart1 = 0;
 
 
-volatile uint8_t  rx_buffer[128] = {0};
-volatile uint8_t  text_buffer[10] = {0};
 size_t text_len = 0;
 bool text_buffer_updated = false;
 volatile uint32_t rx_total = 0;
@@ -179,8 +178,9 @@ int main(void)
   MX_SPI3_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-  LOG_Init(__uart1_tx);
+  LOG_Init(__uart2_tx);
   LOG_Set_Level(LOG_LEVEL_INFO);
+  LOG_INFO("Hello, World!\n");
   char buffer[32] = {0};
   uint32_t last_tick = HAL_GetTick();
   LOG_Snprintf(buffer, sizeof(buffer), "Hello, World!\n");
@@ -217,6 +217,8 @@ int main(void)
   ZDT_VelMode(&x_asix_motor, ZDT_DIR_CW, 0);
   App_Protocol_Init();
 	HAL_UART_Receive_IT(&huart6, (uint8_t*)&rx_byte, 1);
+  HAL_UART_Receive_IT(&huart1, (uint8_t*)&rx_byte_uart1, 1);
+
   // HAL_UARTEx_ReceiveToIdle_IT(&huart6, rx_buffer, sizeof(rx_buffer));
   /* USER CODE END 2 */
 
@@ -233,6 +235,8 @@ int main(void)
       OLED_ShowString(0, 16, (uint8_t*)buffer, 16, 1);
       LOG_Snprintf(buffer, sizeof(buffer), "ball_pos:%d  ", g_ball_pos);
       OLED_ShowString(0, 32, (uint8_t*)buffer, 16, 1);
+      LOG_Snprintf(buffer, sizeof(buffer), "vel:%.2f", g_vel_value);
+      OLED_ShowString(0, 48, (uint8_t*)buffer, 16, 1);
       
       OLED_Refresh();
     }
@@ -340,7 +344,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 // 		HAL_UARTEx_ReceiveToIdle_IT(&huart6, rx_buffer, sizeof(rx_buffer));
 //   }
 // }
-volatile bool rx_pending = false;
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
@@ -350,6 +353,12 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     App_Protocol_FeedByte(rx_byte);
     HAL_UART_Receive_IT(&huart6, (uint8_t*)&rx_byte, 1);
   }
+  if (huart->Instance == USART1)
+  {
+    App_Protocol_FeedByte_UART1(rx_byte_uart1);
+    HAL_UART_Receive_IT(&huart1, (uint8_t*)&rx_byte_uart1, 1);
+  }
+  
 }
 /* USER CODE END 4 */
 

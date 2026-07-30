@@ -122,7 +122,11 @@ def _uart_transmit(data: bytes) -> bool:
     return True
 
 def _on_frame_received(ty: int, payload: bytes, length: int):
-    print(f"RX frame: type=0x{ty:02X}, len={length}")
+    if ty == 0x21 and len >= 4:
+        vel = struct.unpack('>f', payload[:4])[0]
+        print(f"RX vel: {vel:.3f} m/s")
+    else:
+        print(f"RX frame: type=0x{ty:02X}, len={length}")
 
 def _on_timeout(ty: int):
     """ACK 超时回调 (未启用 ACK 时不会被调用)"""
