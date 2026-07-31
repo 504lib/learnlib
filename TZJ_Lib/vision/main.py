@@ -478,7 +478,7 @@ def merge_deduplicate(blob_candidates: list, yolo_candidates: list) -> list:
 # 十一、主循环
 # ============================================================
 last_send = time.ticks_ms()   # 上次 UART 发送时间
-SEND_INTERVAL = 20           # UART 发送间隔 (ms)
+SEND_INTERVAL = 2           # UART 发送间隔 (ms)
 calib_px = 224
 frame_no = 0                  # 帧计数器 (初始=画面中心)
 

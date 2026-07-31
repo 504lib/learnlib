@@ -70,7 +70,7 @@ void ZDT_MoveToClk(ZDT_Motor_Handle_t *h, int32_t clk)
     uint8_t dir = (clk >= 0) ? ZDT_DIR_CW : ZDT_DIR_CCW;
     if (clk < 0) clk = -clk;
 
-    uint8_t cmd[13];
+    uint8_t cmd[14];
     cmd[0]  = h->addr;
     cmd[1]  = 0xFD;
     cmd[2]  = dir;
@@ -84,6 +84,7 @@ void ZDT_MoveToClk(ZDT_Motor_Handle_t *h, int32_t clk)
     cmd[10] = 0x01;   // 绝对位置模式
     cmd[11] = 0x00;   // 不启用多机同步
     cmd[12] = 0x6B;
+    // cmd[13] = '\0';   // 测试,看看是否能把帧分开
 
     __send(h, cmd, 13);
 }
@@ -129,10 +130,10 @@ void ZDT_ZeroPos(ZDT_Motor_Handle_t *h)
 /* ================================================================
    回零
    ================================================================ */
-void ZDT_SetHomeOrigin(ZDT_Motor_Handle_t *h)
+void ZDT_SetHomeOrigin(ZDT_Motor_Handle_t *h, bool save_to_flash)
 {
     if (!h) return;
-    uint8_t cmd[] = { h->addr, 0x93, 0x88, 0x00, 0x6B };
+    uint8_t cmd[] = { h->addr, 0x93, 0x88, save_to_flash ? 0x01 : 0x00, 0x6B };
     __send(h, cmd, 5);
 }
 

@@ -169,7 +169,9 @@ int main(void)
   ZDT_Init(&x_asix_motor,0x00,ZDT_Send_Tx_callback);
   ZDT_Enable(&x_asix_motor);
   Task3_Init(&x_asix_motor);
-  // MulitKey_Init(&key2, read_key2, on_key2, on_key2, FALL_BORDER_TRIGGER);
+  // ZDT_SetHomeOrigin(&x_asix_motor, true);
+  ZDT_TriggerHome(&x_asix_motor, ZDT_HOME_NEAREST);
+  HAL_Delay(1000);
   HAL_TIM_Base_Start_IT(&htim2);
 
   // /* PID初始化: kp=角度→RPM, ki=消除静差, kd=微分预判减速 */
@@ -185,7 +187,6 @@ int main(void)
   while (1)
   {
     App_Menu_Process();
-    // MulitKey_Scan(&key2);
     if (HAL_GetTick() - last_tick >= 20)
     {
       last_tick = HAL_GetTick();
@@ -299,8 +300,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     MPU6050_Update();
 
 		/* 角度误差 → PID算目标速率 */
-    Task3_Update(2.0f);
 
+    Task3_Update(2.0f);
 		/* 发速度指令 */
 		if (counter % 10 == 0)
 		{
@@ -309,17 +310,18 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
           switch (App_Menu_GetMode()) 
           {
           case MENU_ZDT_TEST:
-              x_axis_target_angle -= 0.1f;
-              if (x_axis_target_angle <= -15.0f)
+              x_axis_target_angle += 1.0f;
+              if (x_axis_target_angle >= 26.0f)
               {
-                x_axis_target_angle = 0.0f;
+                x_axis_target_angle = 26.0f;
               }
               ZDT_MoveToAngle(&x_asix_motor, x_axis_target_angle);
               break;
           case MENU_BALL_PID:
               Task3_Control_Send();
               break;
-          default: break;
+          default: 
+          break;
           }
       }
 		}

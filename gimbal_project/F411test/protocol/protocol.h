@@ -11,7 +11,7 @@
 #pragma once
 
 #ifndef UART_PROTOCOL_FRAME_BUFFER_LEN
-#define UART_PROTOCOL_FRAME_BUFFER_LEN 32u
+#define UART_PROTOCOL_FRAME_BUFFER_LEN 128u
 #endif
 
 #include <string.h>

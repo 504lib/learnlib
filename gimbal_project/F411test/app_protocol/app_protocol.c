@@ -48,12 +48,12 @@ void App_Protocol_Init(void)
         .frame_received_handler = __on_frame,
     };
     Uart_Protocol_Init(&g_proto, params);
-    Uart_Protocol_Register_Parse_WatchDog(&g_proto, HAL_GetTick, 1000);
+    Uart_Protocol_Register_Parse_WatchDog(&g_proto, HAL_GetTick, 1);
 
     params.transmit_function = __uart1_tx;
     params.frame_received_handler = __on_frame_u1;
     Uart_Protocol_Init(&g_proto_u1, params);
-    Uart_Protocol_Register_Parse_WatchDog(&g_proto_u1, HAL_GetTick, 500);
+    Uart_Protocol_Register_Parse_WatchDog(&g_proto_u1, HAL_GetTick, 1);
     // LOG_INFO("Protocol init done (UART6+UART1)");
 }
 

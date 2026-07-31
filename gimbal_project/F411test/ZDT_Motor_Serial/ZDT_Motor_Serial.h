@@ -4,8 +4,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-/* 16细分下 3200 clk = 360° */
-#define ZDT_MICROSTEP       16
+/* 32细分下 6400 clk = 360° */
+#define ZDT_MICROSTEP       32
 #define ZDT_CLK_PER_REV     (200 * ZDT_MICROSTEP)
 
 /* 回零模式 */
@@ -53,7 +53,7 @@ void ZDT_Stop(ZDT_Motor_Handle_t *h);
 void ZDT_ZeroPos(ZDT_Motor_Handle_t *h);
 
 // === 回零 ===
-void ZDT_SetHomeOrigin(ZDT_Motor_Handle_t *h);
+void ZDT_SetHomeOrigin(ZDT_Motor_Handle_t *h, bool save_to_flash);
 void ZDT_TriggerHome  (ZDT_Motor_Handle_t *h, uint8_t mode);
 void ZDT_AbortHome    (ZDT_Motor_Handle_t *h);
 
