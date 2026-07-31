@@ -31,13 +31,13 @@ extern MotorAT4950 motor2;
 #define EFFECTIVE_PPR        1040       // 每转脉冲数
 
 /* 速度参数 */
-static float base_speed = 0.25f;    // 循迹速度 (m/s)
+static float base_speed = 0.33f;    // 循迹速度 (m/s)
 
 /* ---- 初始化 ---- */
 void Control_Init(void)
 {
     /* 灰度 PID */
-    PID_Node_Init(&pidGrayscale, "Gray", 0.05f, 0.001f, 0.5f);
+    PID_Node_Init(&pidGrayscale, "Gray", 0.7f, 0.002f, 0.5f);
     PID_Limit gray_limit = {
         .output_max     = 0.6f,
         .output_min     = -0.6f,
