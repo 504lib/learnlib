@@ -204,7 +204,7 @@ int main(void)
           OLED_ShowString(0, 24, (uint8_t*)buffer, 8, 1);
           LOG_Snprintf(buffer, sizeof(buffer), "cur_px: %d", g_ball_pos);
           OLED_ShowString(0, 32, (uint8_t*)buffer, 8, 1);
-          LOG_Snprintf(buffer, sizeof(buffer), "yaw: %.2f", mpu_data->yaw);
+          LOG_Snprintf(buffer, sizeof(buffer), "ball_vel: %.2f", g_ball_vel);
           OLED_ShowString(0, 40, (uint8_t*)buffer, 8, 1);
           break;
         case MENU_BALL_PID:
@@ -216,6 +216,8 @@ int main(void)
           OLED_ShowString(0, 24, (uint8_t*)buffer, 8, 1);
           LOG_Snprintf(buffer, sizeof(buffer), "output: %.2f\n", Task3_GetOutput());
           OLED_ShowString(0, 32, (uint8_t*)buffer, 8, 1);
+          LOG_Snprintf(buffer, sizeof(buffer), "ball_vel: %.2f", g_ball_vel);
+          OLED_ShowString(0, 40, (uint8_t*)buffer, 8, 1);
           break;
         default:
           break;

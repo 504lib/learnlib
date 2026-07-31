@@ -9,6 +9,7 @@
 #define APP_FRAME_VEL       0x21
 
 extern volatile int32_t  g_ball_pos;
+extern volatile int32_t  g_ball_vel;
 extern volatile uint32_t g_zero_px;
 extern volatile float    g_vel_value;
 extern volatile bool     g_ball_updated;

@@ -3,6 +3,7 @@
 #include "usart.h"
 
 volatile int32_t  g_ball_pos    = 0;
+volatile int32_t  g_ball_vel    = 0;
 volatile uint32_t g_zero_px     = 320;
 volatile float     g_vel_value   = 0.0f;
 volatile bool     g_ball_updated = false;
@@ -22,9 +23,10 @@ static bool __uart1_tx(const uint8_t* data, uint16_t len)
 
 static void __on_frame(uint8_t type, const uint8_t* payload, uint16_t len)
 {
-    if (type == APP_FRAME_BALL_POS && len >= 4) {
+    if (type == APP_FRAME_BALL_POS && len >= 8) {
         g_ball_pos     = (int32_t)rd_u32_be(payload);
-        LOG_INFO("BALL_POS %d", g_ball_pos);
+        g_ball_vel     = (int32_t)rd_u32_be(payload + 4);
+        LOG_INFO("BALL %d mm, %d mm/s", g_ball_pos, g_ball_vel);
         g_ball_updated = true;
     }
     if (type == APP_FRAME_CALIB && len >= 4) {

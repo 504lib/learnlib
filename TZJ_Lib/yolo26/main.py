@@ -1,14 +1,15 @@
-from maix import camera, display, image, nn, app, time, sys
-
+from maix import camera, display, image, nn, app, time, sys, uart, touchscreen
 from ball_position import (
     AdaptiveAlphaBetaFilter,
     axis_point,
     position_from_pixel,
     validate_calibration,
 )
+from protocol import UartProtocol
+import struct
 
 # 输入打印. 关掉后提升帧率
-DEBUG_LOG=True
+DEBUG_LOG=False
 
 def print_debug(s):
     if DEBUG_LOG:
@@ -23,10 +24,10 @@ LOW_LATENCY_MODE = True
 USE_RTSP=False
 
 # HTTP JPEG流
-USE_JPEG=False
+USE_JPEG=True
 
 # WEBRTC流
-USE_WEBRTC=True
+USE_WEBRTC=False
 
 # 使能畸变校准
 LENS_CORR_ENABLE=False
@@ -67,12 +68,27 @@ detector = nn.YOLO26(
     dual_buff=not LOW_LATENCY_MODE,
 )
 
-AXIS_START_PX = (5, detector.input_height() // 2)
-AXIS_END_PX = (detector.input_width() - 5, detector.input_height() // 2)
+AXIS_START_PX = (5, detector.input_height() // 2 - 40)
+AXIS_END_PX = (detector.input_width() - 5, detector.input_height() // 2 - 40)
 
 cam = camera.Camera(detector.input_width(), detector.input_height(), detector.input_format())
 disp = display.Display()
+ts = touchscreen.TouchScreen()
 position_filter = AdaptiveAlphaBetaFilter()
+
+# ---- UART & 协议 ----
+uart_dev = uart.UART("/dev/ttyS0", 115200)
+def _uart_tx(data: bytes) -> bool:
+    n = uart_dev.write(data)
+    return n == len(data)
+def _on_frame(ty: int, payload: bytes, length: int):
+    pass  # 暂不处理接收
+
+proto = UartProtocol(
+    header1=0xAA, header2=0x55, tail1=0x0D, tail2=0x0A,
+    transmit_func=_uart_tx,
+    frame_received_handler=_on_frame,
+)
 
 if USE_RTSP:
     from maix import rtsp
@@ -83,9 +99,29 @@ if USE_RTSP:
     print(server.get_url())
 
 if USE_JPEG:
-    from maix import http
+    from maix import http, network
+    # 连接热点
+    SSID = "iQOO800"
+    PASS = "Zhaokaiyyds123."
+    ip = "N/A"
+    try:
+        w = network.wifi.Wifi()
+        w.connect(SSID, PASS, wait=False)
+        t0 = time.ticks_ms()
+        while time.ticks_ms() - t0 < 15000:
+            try:
+                ip = w.get_ip()
+                if ip and ip != "0.0.0.0":
+                    break
+            except Exception:
+                pass
+            time.sleep_ms(200)
+    except Exception:
+        pass
     jpeg_server = http.JpegStreamer()
     jpeg_server.start()
+    stream_url = f"http://{ip}:{jpeg_server.port()}"
+    print(f"Stream: {stream_url}")
 
 if USE_WEBRTC:
     from maix import webrtc
@@ -183,17 +219,12 @@ while not app.need_exit():
             color=image.COLOR_WHITE, scale=1.4, thickness=2,
         )
 
-        # ==================== 在这里向主控发送数据 ====================
-        # 建议每次识别成功都发送以下信息：
-        #   valid = 1                         当前钢珠坐标有效
-        #   x_cm = position_cm                沿摆杆轴线的位置，单位：厘米
-        #   vx_pixel_s = position_filter.vx   估算的横向像素速度，单位：像素/秒
-        #   confidence = ball.score           YOLO 检测置信度
-        #   frame_time_ms = now_ms            本次结果的时间戳，单位：毫秒
-        #
-        # 如果使用文本串口协议，可以在初始化好 serial 后取消下面两行的注释：
-        # tx_data = f"$BALL,1,{position_cm:.2f},{position_filter.vx:.1f},{ball.score:.2f},{now_ms}*\n"
-        # serial.write_str(tx_data)
+        # 发送球位置+速度: pos(mm) int32, vel(mm/s) int32 (type 0x10, 8字节)
+        px_per_cm = (AXIS_END_PX[0] - AXIS_START_PX[0]) / (AXIS_END_CM - AXIS_START_CM)
+        vel_cm_s = position_filter.vx / px_per_cm if px_per_cm > 0 else 0.0
+        pos_mm = int(position_cm * 10)
+        vel_mm_s = int(vel_cm_s * 10)
+        proto.transmit_frame(0x10, struct.pack('>ii', pos_mm, vel_mm_s))
     else:
         position_filter.mark_missing(now_ms)
 
@@ -203,11 +234,8 @@ while not app.need_exit():
             color=image.COLOR_RED, scale=1.4, thickness=2,
         )
 
-        # ==================== 丢检时也要向主控发送 ====================
-        # 应发送 valid=0，明确告诉主控当前坐标无效；不能继续把旧坐标当成新数据。
-        # 文本协议示例：
-        # serial.write_str(f"$BALL,0,0,0,0,{now_ms}*\n")
-
+    if ip != "N/A":
+        img.draw_string(2, img.height() - 18, stream_url, color=image.COLOR_GREEN)
     fps_str = "FPS:" + str(0 if loop_ms == 0 else 1000//loop_ms)
     img.draw_string(
         img.width() - image.string_size(fps_str, scale=1.4, thickness=2).width(), 5, fps_str,
@@ -217,4 +245,5 @@ while not app.need_exit():
 
     if USE_JPEG:
         jpeg_server.write(img)
+    proto.loop()
     disp.show(img)
