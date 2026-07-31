@@ -88,7 +88,11 @@ static bool Task3_excuting = false;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-
+// static uint8_t read_key2(MulitKey_t* k) { (void)k; return HAL_GPIO_ReadPin(KEY2_GPIO_Port, KEY2_Pin) == GPIO_PIN_SET ? 1 : 0; }
+// static void on_key2(MulitKey_t* k) {
+//     (void)k;
+//     x_axis_target_angle -= 10.0f;
+// }
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -163,7 +167,9 @@ int main(void)
   mpu_data = MPU6050_GetHandle();
   MadgwickAHRSsetSampleFreq(1000.0f / IMU_UPDATE_PERIOD_MS);
   ZDT_Init(&x_asix_motor,0x00,ZDT_Send_Tx_callback);
+  ZDT_Enable(&x_asix_motor);
   Task3_Init(&x_asix_motor);
+  // MulitKey_Init(&key2, read_key2, on_key2, on_key2, FALL_BORDER_TRIGGER);
   HAL_TIM_Base_Start_IT(&htim2);
 
   // /* PID初始化: kp=角度→RPM, ki=消除静差, kd=微分预判减速 */
@@ -171,21 +177,21 @@ int main(void)
    App_Menu_Init();
 	HAL_UART_Receive_IT(&huart6, (uint8_t*)&rx_byte, 1);
   HAL_UART_Receive_IT(&huart1, (uint8_t*)&rx_byte_uart1, 1);
+  
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    App_Menu_Process();  // 读取按键，显示模式
+    App_Menu_Process();
+    // MulitKey_Scan(&key2);
     if (HAL_GetTick() - last_tick >= 20)
     {
       last_tick = HAL_GetTick();
       char buf[32] = {0};
       App_Menu_GetModeNameAndStatus(buf, sizeof(buf));
       OLED_ShowString(32, 0, (uint8_t*)buf, 8, 1);
-      if (App_Menu_IsRunning())
-      {
         switch (App_Menu_GetMode())
         {
         case MENU_ZDT_TEST:
@@ -207,11 +213,12 @@ int main(void)
           OLED_ShowString(0, 16, (uint8_t*)buffer, 8, 1);
           LOG_Snprintf(buffer, sizeof(buffer), "step: %d\n", Task3_GetStep());
           OLED_ShowString(0, 24, (uint8_t*)buffer, 8, 1);
+          LOG_Snprintf(buffer, sizeof(buffer), "output: %.2f\n", Task3_GetOutput());
+          OLED_ShowString(0, 32, (uint8_t*)buffer, 8, 1);
           break;
         default:
           break;
         }
-      }
       
       OLED_Refresh();
     }
@@ -302,8 +309,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
           switch (App_Menu_GetMode()) 
           {
           case MENU_ZDT_TEST:
-              x_axis_target_angle += 0.5f;
-              if (x_axis_target_angle >= 43.0f)
+              x_axis_target_angle -= 0.1f;
+              if (x_axis_target_angle <= -15.0f)
               {
                 x_axis_target_angle = 0.0f;
               }

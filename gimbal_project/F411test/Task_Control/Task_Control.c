@@ -22,12 +22,12 @@ void Task3_Init(ZDT_Motor_Handle_t* m)
     step  = 0;
     stable_tick = 0;
 
-    PID_Node_Init(&pid_ball, "ball", 0.8f, 0.02f, 0.3f);
+    PID_Node_Init(&pid_ball, "ball", 0.8f, 0.2f, 0.3f);
     PID_Node_SetSetpoint(&pid_ball, targets[0]);
     PID_Node_SetLimit(&pid_ball, (PID_Limit){
         .setpoint_max =   5.0f, .setpoint_min =  -5.0f,
-        .input_max    =   5.0f, .input_min    =  -5.0f,
-        .output_max   =  43.0f, .output_min   =   0.0f,
+        .input_max    =   12.5f, .input_min    =  -12.5f,
+        .output_max   =  25.0f, .output_min   =   -15.0f,
         .integral_max =  10.0f, .derivative_max = 15.0f,
         .deadband     =   0.0f,
     });
@@ -62,7 +62,7 @@ void Task3_Update(float dt)
 
 void Task3_Control_Send(void)
 {
-    ZDT_MoveToAngle(motor, pid_ball.output);
+    ZDT_MoveToClk(motor, ZDT_AngleToClk(-pid_ball.output));
 }
 
 bool Task3_IsDone(void)
@@ -75,12 +75,17 @@ uint32_t Task3_GetStep(void)
     return step;
 }
 
-int16_t Task3_GetTarget(void)
+float Task3_GetTarget(void)
 {
     return targets[step];
 }
 
-int16_t Task3_GetCurrent(void)
+float Task3_GetOutput(void)
+{
+    return pid_ball.output;
+}
+
+float Task3_GetCurrent(void)
 {
     return PxToCm(g_ball_pos);
 }

@@ -4,6 +4,7 @@
 #include "oled.h"
 #include "log.h"
 #include "oled.h"
+#include "ZDT_Motor_Serial.h"
 
 static MenuMode  g_mode     = MENU_ZDT_TEST;
 static bool      g_running  = false;
@@ -12,9 +13,9 @@ static bool      g_running  = false;
 const char* names[] = { "ZDT_TEST", "BALL_PID" };
 
 /* ---- 按键 ---- */
-static uint8_t read_k1(MulitKey_t* k) { (void)k; return HAL_GPIO_ReadPin(KEY1_GPIO_Port, KEY1_Pin) == GPIO_PIN_SET ? 1 : 0; }
 static uint8_t read_k2(MulitKey_t* k) { (void)k; return HAL_GPIO_ReadPin(KEY2_GPIO_Port, KEY2_Pin) == GPIO_PIN_SET ? 1 : 0; }
 static uint8_t read_k3(MulitKey_t* k) { (void)k; return HAL_GPIO_ReadPin(KEY3_GPIO_Port, KEY3_Pin) == GPIO_PIN_SET ? 1 : 0; }
+
 
 static void on_k2(MulitKey_t* k) {
     (void)k;
@@ -33,7 +34,6 @@ static MulitKey_t mk1, mk2, mk3;
 /* ---- 初始化 ---- */
 void App_Menu_Init(void)
 {
-    MulitKey_Init(&mk1, read_k1, NULL, NULL, FALL_BORDER_TRIGGER);
     MulitKey_Init(&mk2, read_k2, on_k2, NULL, FALL_BORDER_TRIGGER);
     MulitKey_Init(&mk3, read_k3, on_k3, NULL, FALL_BORDER_TRIGGER);
 }
@@ -41,7 +41,6 @@ void App_Menu_Init(void)
 /* ---- 每周期调用 ---- */
 void App_Menu_Process(void)
 {
-    MulitKey_Scan(&mk1);
     MulitKey_Scan(&mk2);
     MulitKey_Scan(&mk3);
 }
