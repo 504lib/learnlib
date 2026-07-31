@@ -16,7 +16,7 @@ void ZDT_Init(ZDT_Motor_Handle_t *h, uint8_t addr,
     h->addr = addr;
     h->Tx   = Tx;
     h->vel           = 100;
-    h->acc           = 5;
+    h->acc           = 50;
     h->prev_raw      = 0.0f;
     h->unwrap_inited = false;
     h->acc_clk       = 0;
