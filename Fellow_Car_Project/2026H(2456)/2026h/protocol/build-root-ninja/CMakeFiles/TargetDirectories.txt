@@ -1,0 +1,3 @@
+C:/learnlib/public_lib/protocol/build-root-ninja/CMakeFiles/protocol.dir
+C:/learnlib/public_lib/protocol/build-root-ninja/CMakeFiles/edit_cache.dir
+C:/learnlib/public_lib/protocol/build-root-ninja/CMakeFiles/rebuild_cache.dir

@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2021(new) HSM 层次状态机框架</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --panel: #fff; --border: #dde1e6;
+    --text: #2c3038; --dim: #7a7f8a; --accent: #1a7fbf;
+    --green: #2d8a56; --orange: #c75b1e; --red: #c73e3e;
+    --yellow: #b8860b; --purple: #7b4ea0; --teal: #1a7a7f;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Microsoft YaHei','PingFang SC','Segoe UI',sans-serif;
+    padding: 20px;
+  }
+  .container { max-width: 1400px; margin:0 auto; }
+  .header {
+    background: var(--panel); border:1px solid var(--border);
+    border-radius:6px; padding:18px 24px; margin-bottom:16px;
+    display:flex; align-items:center; gap:16px;
+  }
+  .header h1 { font-size:19px; color:#1a1c22; }
+  .header .sub { font-size:11px; color:var(--dim); margin-top:2px; }
+  .tags { display:flex; gap:6px; margin-top:4px; flex-wrap:wrap; }
+  .tag { font-size:9px; padding:2px 9px; border-radius:9px; font-weight:600; }
+  .tag.hsm { background:#f0e3f5; color:var(--purple); }
+  .tag.fsm { background:#d4e6f5; color:var(--accent); }
+  .tag.arch { background:#ddf0db; color:var(--green); }
+
+  .section {
+    background:var(--panel); border:1px solid var(--border);
+    border-radius:6px; padding:20px 24px; margin-bottom:16px;
+  }
+  .section h2 {
+    font-size:13px; color:var(--accent); margin-bottom:14px;
+    padding-bottom:8px; border-bottom:1px solid var(--border);
+    letter-spacing:0.5px;
+  }
+  .section h3 {
+    font-size:12px; color:#333840; margin:16px 0 8px;
+    padding-left:10px; border-left:3px solid var(--accent);
+  }
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media(max-width:900px){.grid-2{grid-template-columns:1fr;}}
+
+  /* ====== 状态树 ====== */
+  .tree { font-family:'Consolas','Courier New',monospace; font-size:12px; line-height:1.9; }
+  .tree .branch { color:var(--dim); }
+  .tree .node-r { color:var(--dim); font-weight:700; }
+  .tree .node-c { color:var(--accent); font-weight:700; }
+  .tree .node-s { color:var(--text); font-weight:600; }
+  .tree .node-l { color:var(--green); font-weight:600; }
+  .tree .node-w { color:var(--yellow); font-weight:600; }
+  .tree .node-t { color:var(--orange); font-weight:600; }
+  .tree .node-e { color:var(--red); font-weight:600; }
+  .tree .node-p { color:var(--purple); font-weight:600; }
+  .tree .tag-sm {
+    font-size:9px; padding:1px 5px; border-radius:3px; margin-left:4px;
+    font-family:'Microsoft YaHei',sans-serif;
+  }
+  .tree .tag-c { background:#d4e6f5; color:var(--accent); }
+  .tree .tag-s { background:#e8edf2; color:var(--dim); }
+  .tree .tag-a { background:#ddf0db; color:var(--green); }
+
+  /* ====== 表格 ====== */
+  table { width:100%; border-collapse:collapse; font-size:11px; }
+  thead th {
+    text-align:left; font-size:9px; letter-spacing:0.4px;
+    color:var(--dim); padding:8px 10px; border-bottom:2px solid var(--border);
+    background:#fafbfc; white-space:nowrap;
+  }
+  tbody td { padding:7px 10px; border-bottom:1px solid #edf0f4; vertical-align:middle; }
+  tbody tr:hover td { background:#f8f9fb; }
+  .row-hdr td { font-weight:700; color:var(--accent); font-size:11px; padding-top:14px; border-bottom:1px solid var(--border); }
+  .pin { display:inline-block; background:#eef1f5; padding:2px 7px; border-radius:3px; font-family:'Consolas',monospace; font-size:10px; margin:1px 2px; }
+  .badge { display:inline-block; font-size:8px; padding:1px 6px; border-radius:8px; font-weight:600; margin:0 1px; }
+  .badge.af { background:#d4e6f5; color:var(--accent); }
+  .badge.pull { background:#fef3d5; color:#8b6910; }
+  .chip-tag { display:inline-block; font-size:9px; padding:1px 6px; border-radius:3px; font-weight:600; margin:0 2px; font-family:'Consolas',monospace; }
+  .chip-tag.tx { background:#fde8e8; color:var(--red); }
+  .chip-tag.rx { background:#dff0f5; color:var(--teal); }
+  .chip-tag.pwm { background:#fde5d5; color:var(--orange); }
+  .chip-tag.enc { background:#ddf0db; color:var(--green); }
+  .chip-tag.i2c { background:#f0e3f5; color:var(--purple); }
+  .chip-tag.spi { background:#d4e6f5; color:var(--accent); }
+  .chip-tag.gpio { background:#fef3d5; color:#8b6910; }
+
+  /* ====== 回调矩阵 ====== */
+  .cb-yes { color:var(--green); font-weight:700; }
+  .cb-no  { color:var(--dim); }
+
+  /* ====== 事件表 ====== */
+  .ev-box {
+    display:inline-block; padding:3px 8px; border-radius:4px;
+    font-family:'Consolas',monospace; font-size:10px; margin:1px 3px;
+    white-space:nowrap;
+  }
+  .ev-ext { background:#d4e6f5; color:var(--accent); }
+  .ev-int { background:#ddf0db; color:var(--green); }
+  .ev-sys { background:#fde8e8; color:var(--red); }
+
+  /* ====== 流程图 ====== */
+  .flow { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:0; padding:10px 0; }
+  .flow-v { display:flex; flex-direction:column; align-items:center; gap:0; padding:6px 0; }
+  .fn {
+    border:2px solid #c8cdd5; border-radius:8px;
+    padding:8px 16px; text-align:center; min-width:80px;
+    background:#fff; font-size:11px;
+  }
+  .fn .n { font-weight:700; color:#1a1c22; }
+  .fn .d { font-size:9px; color:var(--dim); margin-top:2px; }
+  .fa { color:var(--dim); font-size:15px; padding:0 6px; font-weight:700; flex-shrink:0; }
+  .fa.down { padding:4px 0; font-size:13px; }
+
+  .clk { display:flex; flex-direction:column; gap:5px; font-size:11px; }
+  .clk-n {
+    display:flex; align-items:center; gap:10px;
+    padding:6px 10px; background:#f8f9fb; border-radius:4px;
+    border-left:3px solid transparent;
+  }
+  .clk-n.src { border-left-color:var(--orange); }
+  .clk-n.pll { border-left-color:var(--accent); }
+  .clk-n.sys { border-left-color:var(--green); }
+  .clk-n.bus { border-left-color:var(--dim); }
+  .clk-n.tmr { border-left-color:var(--yellow); }
+  .clk-a { min-width:65px; font-weight:600; }
+  .clk-v { color:var(--accent); font-weight:700; font-family:'Consolas',monospace; }
+  .clk-d { color:var(--dim); font-size:9px; margin-left:auto; }
+
+  .footer { text-align:center; font-size:10px; color:var(--dim); padding:8px; }
+  .tbl-note { font-size:10px; color:var(--dim); margin-top:10px; line-height:1.6; }
+
+  /* ====== HSM 节点详情卡 ====== */
+  .node-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:10px; }
+  .node-card {
+    border:1px solid var(--border); border-radius:6px; padding:10px 14px;
+    background:#fafbfc; font-size:10px;
+  }
+  .node-card .nc-name { font-weight:700; font-size:12px; margin-bottom:4px; }
+  .node-card .nc-parent { color:var(--dim); font-size:9px; }
+  .node-card .nc-cb { margin-top:6px; font-size:10px; display:flex; gap:12px; flex-wrap:wrap; }
+  .node-card .nc-cb span { white-space:nowrap; }
+  .node-card.container { border-style:dashed; background:#f8f8fa; }
+  .node-card.container .nc-name { color:var(--dim); }
+
+  /* ====== 状态树（缩进 + 彩色标签） ====== */
+  .tree-box { font-family: 'Consolas','Courier New',monospace; font-size: 12px; line-height: 2.2; }
+  .t-line { white-space: pre; }
+  .t-branch { color: #bcc4ce; user-select: none; }
+  .t-node {
+    display: inline-block; padding: 1px 8px; border-radius: 4px;
+    font-weight: 700; margin: 0 4px 0 2px;
+  }
+  .t-node.t-green  { background: #e6f5e4; color: #2d6a3e; }
+  .t-node.t-yellow { background: #fef9e7; color: #8b6910; }
+  .t-node.t-orange { background: #fef2e8; color: #a04a1a; }
+  .t-node.t-red    { background: #fdeaea; color: #a03030; }
+  .t-node.t-purple { background: #f5edfa; color: #6b3d8a; }
+  .t-node.t-blue   { background: #e4eff8; color: #1a5f8a; }
+  .t-node.t-gray   { background: #edf0f4; color: #5a5f6a; }
+  .t-cb { font-size: 9px; color: var(--dim); font-family: 'Microsoft YaHei',sans-serif; }
+  .t-dot { display:inline-block; width:10px; height:10px; border-radius:2px; vertical-align:middle; margin-right:2px; }
+  .t-dot-green  { background:#e6f5e4; border:1px solid #7dba7a; }
+  .t-dot-yellow { background:#fef9e7; border:1px solid #d4b84a; }
+  .t-dot-orange { background:#fef2e8; border:1px solid #d4946a; }
+  .t-dot-red    { background:#fdeaea; border:1px solid #d47a7a; }
+  .t-dot-purple { background:#f5edfa; border:1px solid #a87dc2; }
+  .t-dot-blue   { background:#e4eff8; border:1px solid #8ab8d8; }
+  .t-dot-gray   { background:#edf0f4; border:1px solid #bcc4ce; }
+
+  /* ====== 折叠 ====== */
+  .t-toggle { cursor:pointer; user-select:none; display:inline-block; width:12px; font-size:10px; color:var(--accent); }
+  .t-toggle:hover { color:var(--orange); }
+  .t-collapsed { display:none !important; }
+  .t-node { cursor:pointer; transition: box-shadow 0.15s; }
+  .t-node:hover { box-shadow: 0 0 0 2px var(--accent); }
+
+  /* ====== 联动高亮 ====== */
+  .t-node.hl { box-shadow: 0 0 0 3px var(--orange); }
+  tr.hl td { background: #fef5e7 !important; }
+
+  /* ====== 筛选按钮 ====== */
+  .flt-bar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
+  .flt-btn {
+    font-size:10px; padding:4px 12px; border:1px solid var(--border);
+    border-radius:14px; background:#fff; color:var(--text);
+    cursor:pointer; transition: all 0.15s; font-family: inherit;
+  }
+  .flt-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .flt-btn.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .pin-row-hidden { display:none !important; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ═══════════ 标题 ═══════════ -->
+  <div class="header">
+    <div>
+      <h1>2021(new) — HSM 层次状态机框架</h1>
+      <div class="sub">STM32F407VET6 &middot; 基于 HSM_Core 树形状态机引擎 &middot; 4 层嵌套</div>
+      <div class="tags">
+        <span class="tag hsm">HSM 层次状态机</span>
+        <span class="tag fsm">事件冒泡机制</span>
+        <span class="tag arch">ActionStack 返程回放</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ 1. 架构总览 ═══════════ -->
+  <div class="section">
+    <h2>1. 系统架构总览</h2>
+    <div class="flow">
+      <div class="fn" style="border-color:var(--accent)">
+        <div class="n">main() 主循环</div>
+        <div class="d">KeyControl_Scan<br>App_Protocol_Run</div>
+      </div>
+      <div class="fa">→</div>
+      <div class="fn" style="border-color:var(--purple)">
+        <div class="n">App_FSM_Run()</div>
+        <div class="d">事件注入 + HSM_Process<br>CAM/BT 命令 → 事件</div>
+      </div>
+      <div class="fa">→</div>
+      <div class="fn" style="border-color:var(--orange)">
+        <div class="n">HSM 引擎</div>
+        <div class="d">HSM_Process()<br>事件冒泡 + 转换队列<br>+ continuous_action</div>
+      </div>
+      <div class="fa">→</div>
+      <div class="fn" style="border-color:var(--green)">
+        <div class="n">Control_Update()</div>
+        <div class="d">ctrl_mode 分支<br>角度PID / 灰度PID<br>+ 速度PID 级联</div>
+      </div>
+      <div class="fa">→</div>
+      <div class="fn" style="border-color:var(--red)">
+        <div class="n">执行器</div>
+        <div class="d">TIM1 PWM 电机<br>GPIO 方向控制<br>OLED 状态显示</div>
+      </div>
+    </div>
+    <div class="flow-v" style="margin-top:8px">
+      <div class="fa down">↑ 每 10ms 触发（独立通道）</div>
+      <div class="fn" style="border-color:var(--yellow);min-width:500px">
+        <div class="n">TIM4 ISR → MPU6050_Update → gray_byte 读取 → Control_UpdateSpeedFeedback → Control_Update</div>
+        <div class="d">传感器采样 & PID 计算在中断中执行，HSM 事件处理在主循环中执行</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ 2. HSM 核心引擎 ═══════════ -->
+  <div class="grid-2">
+    <div class="section">
+      <h2>2. HSM_Core 数据结构</h2>
+      <table>
+        <thead><tr><th>结构体</th><th>字段</th><th>类型</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td rowspan="7"><b>HSM_Node</b></td><td>is_initialized</td><td>bool</td><td>节点已初始化标志</td></tr>
+          <tr><td><b>handler</b></td><td>bool(*)(HSM_Event_Package)</td><td>事件处理（返回 true=已消费，<b>false=冒泡给父节点</b>）</td></tr>
+          <tr><td><b>entry_action</b></td><td>void(*)(HSM_Event_Package)</td><td>进入状态时调用</td></tr>
+          <tr><td><b>exit_action</b></td><td>void(*)(HSM_Event_Package)</td><td>退出状态时调用</td></tr>
+          <tr><td><b>continuous_action</b></td><td>void(*)(void)</td><td>状态激活期间每帧调用（检测转移条件）</td></tr>
+          <tr><td><b>parent</b></td><td>HSM_Node*</td><td>父节点指针（树结构）</td></tr>
+          <tr><td>first_child / next_sibling / active_child</td><td>HSM_Node*</td><td>子节点链表 + 当前活跃子节点</td></tr>
+          <tr><td rowspan="2"><b>HSM_Event_Package</b></td><td>HSM_Event_ID</td><td>uint8_t</td><td>事件标识（0x01~0xFF）</td></tr>
+          <tr><td>HSM_DataPayload</td><td>union (16B)</td><td>事件载荷（u32/i32/u16/i16/u8/i8/f32/f64）</td></tr>
+        </tbody>
+      </table>
+      <p class="tbl-note">
+        存储配置（编译期可调）：<code>HSM_OBJECT_STORAGE_SIZE=1024B</code> &middot;
+        <code>HSM_NODE_STORAGE_SIZE=80B</code> &middot;
+        <code>HSM_MAX_STACK_DEPTH=16</code> &middot;
+        <code>HSM_EVENT_PAYLOAD_SIZE=16B</code>
+      </p>
+    </div>
+
+    <div class="section">
+      <h2>3. HSM_Core API</h2>
+      <table>
+        <thead><tr><th>API</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td><b>HSM_Create</b>(memory)</td><td>在预分配内存上创建 HSM 实例</td></tr>
+          <tr><td><b>HSM_Node_Create</b>(memory)</td><td>在预分配内存上创建状态节点</td></tr>
+          <tr><td><b>HSM_RegisterChildNodes</b>(hsm, parent, params[], n)</td><td>批量注册子节点到父节点（树构建核心）</td></tr>
+          <tr><td><b>HSM_Start</b>(hsm, initial_state)</td><td>启动状态机，进入初始状态</td></tr>
+          <tr><td><b>HSM_SendEvent</b>(hsm, event)</td><td>从外部注入事件（从当前活跃节点向上冒泡）</td></tr>
+          <tr><td><b>HSM_RequestTransition</b>(hsm, target, event)</td><td>请求状态转换（在回调中调用，延迟到 Process 执行）</td></tr>
+          <tr><td><b>HSM_Process</b>(hsm)</td><td>每帧调用：执行转换队列 + 当前节点 continuous_action</td></tr>
+          <tr><td><b>HSM_SetEnable</b>(hsm, bool)</td><td>启停状态机</td></tr>
+          <tr><td><b>HSM_Destroy</b>(hsm)</td><td>销毁状态机实例</td></tr>
+        </tbody>
+      </table>
+      <p class="tbl-note">
+        关键机制：<b>事件冒泡</b> — handler 返回 false 时事件自动传递给 parent 节点。
+        这允许父节点（如 Mission）捕获子节点未处理的全局事件（如 EV_RESET）。
+      </p>
+    </div>
+  </div>
+
+  <!-- ═══════════ 4. 状态树 ═══════════ -->
+  <div class="section">
+    <h2>4. HSM 状态树（4 层，18 节点）</h2>
+    <div style="font-size:10px;color:var(--dim);margin-bottom:10px">
+      HSM_Node 通过 <code>first_child</code> → <code>next_sibling</code> 链表组织子树。
+      下图以缩进表示父子，同级节点按注册顺序排列。
+    </div>
+    <div class="tree-box" id="treeBox">
+      <!-- 父节点（有子节点）带折叠按钮 [+/−] -->
+      <div class="t-line t-depth0"><span class="t-toggle" data-folds="Root_kids">−</span><span class="t-node t-gray" data-node="Root">Root</span><span class="t-cb">容器</span></div>
+      <div class="t-line t-depth1" data-parent="Root"><span class="t-branch">├─</span><span class="t-node t-green" data-node="Idle">Idle</span><span class="t-cb">H En</span></div>
+      <div class="t-line t-depth1" data-parent="Root"><span class="t-branch">└─</span><span class="t-toggle" data-folds="Mission_kids">−</span><span class="t-node t-blue" data-node="Mission">Mission</span><span class="t-cb">H En Ex</span></div>
+      <div class="t-line t-depth2" data-parent="Mission"><span class="t-branch">&nbsp;&nbsp;&nbsp;&nbsp;├─</span><span class="t-toggle" data-folds="Outbound_kids">−</span><span class="t-node t-blue" data-node="Outbound">Outbound</span><span class="t-cb">H</span></div>
+      <div class="t-line t-depth3" data-parent="Outbound"><span class="t-branch">&nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;├─</span><span class="t-node t-yellow" data-node="WaitKey2">WaitKey2</span><span class="t-cb">H En Co</span></div>
+      <div class="t-line t-depth3" data-parent="Outbound"><span class="t-branch">&nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;├─</span><span class="t-node t-green" data-node="GoToCross">GoToCross</span><span class="t-cb">En Co</span></div>
+      <div class="t-line t-depth3" data-parent="Outbound"><span class="t-branch">&nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;├─</span><span class="t-toggle" data-folds="AtCross_kids">−</span><span class="t-node t-gray" data-node="AtCross">AtCross</span><span class="t-cb">容器</span></div>
+      <div class="t-line t-depth4" data-parent="AtCross"><span class="t-branch">&nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;│&nbsp;&nbsp;├─</span><span class="t-node t-yellow" data-node="WaitTurnCmd">WaitTurnCmd</span><span class="t-cb">H En</span></div>
+      <div class="t-line t-depth4" data-parent="AtCross"><span class="t-branch">&nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;│&nbsp;&nbsp;├─</span><span class="t-node t-orange" data-node="TurnLeft">TurnLeft</span><span class="t-cb">En Ex Co</span></div>
+      <div class="t-line t-depth4" data-parent="AtCross"><span class="t-branch">&nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;│&nbsp;&nbsp;└─</span><span class="t-node t-orange" data-node="TurnRight">TurnRight</span><span class="t-cb">En Ex Co</span></div>
+      <div class="t-line t-depth3" data-parent="Outbound"><span class="t-branch">&nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;├─</span><span class="t-node t-red" data-node="GoToEnd">GoToEnd</span><span class="t-cb">En</span></div>
+      <div class="t-line t-depth3" data-parent="Outbound"><span class="t-branch">&nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;└─</span><span class="t-node t-yellow" data-node="WaitConfirm">WaitConfirm</span><span class="t-cb">H En</span></div>
+      <div class="t-line t-depth2" data-parent="Mission"><span class="t-branch">&nbsp;&nbsp;&nbsp;&nbsp;└─</span><span class="t-toggle" data-folds="ReturnLeg_kids">−</span><span class="t-node t-purple" data-node="ReturnLeg">ReturnLeg</span><span class="t-cb">H</span></div>
+      <div class="t-line t-depth3" data-parent="ReturnLeg"><span class="t-branch">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─</span><span class="t-node t-orange" data-node="TurnAround">TurnAround</span><span class="t-cb">En Ex Co</span></div>
+      <div class="t-line t-depth3" data-parent="ReturnLeg"><span class="t-branch">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─</span><span class="t-toggle" data-folds="Retrace_kids">−</span><span class="t-node t-purple" data-node="Retrace">Retrace</span><span class="t-cb">容器</span></div>
+      <div class="t-line t-depth4" data-parent="Retrace"><span class="t-branch">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─</span><span class="t-node t-purple" data-node="PopAction">PopAction</span><span class="t-cb">En</span></div>
+      <div class="t-line t-depth4" data-parent="Retrace"><span class="t-branch">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─</span><span class="t-node t-green" data-node="ExecStraight">ExecStraight</span><span class="t-cb">En Co</span></div>
+      <div class="t-line t-depth4" data-parent="Retrace"><span class="t-branch">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─</span><span class="t-node t-orange" data-node="ExecTurn">ExecTurn</span><span class="t-cb">En Ex Co</span></div>
+    </div>
+    <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);font-size:10px;color:var(--dim);line-height:2;display:flex;gap:24px;flex-wrap:wrap">
+      <div><b>颜色：</b><span class="t-dot t-dot-green"></span>起始/直行 <span class="t-dot t-dot-yellow"></span>等待 <span class="t-dot t-dot-orange"></span>转弯 <span class="t-dot t-dot-red"></span>终点 <span class="t-dot t-dot-purple"></span>返程 <span class="t-dot t-dot-blue"></span>结构父节点 <span class="t-dot t-dot-gray"></span>容器</div>
+      <div><b>回调：</b>H=handler(事件处理) En=entry(进入) Ex=exit(退出) Co=continuous(持续)</div>
+    </div>
+  </div>
+
+  <!-- ═══════════ 5. 节点回调矩阵 ═══════════ -->
+  <div class="section">
+    <h2>5. 节点回调矩阵 &amp; 功能说明</h2>
+    <table>
+      <thead>
+        <tr><th>节点</th><th>层级</th><th>handler</th><th>entry</th><th>exit</th><th>continuous</th><th>核心功能</th></tr>
+      </thead>
+      <tbody>
+        <tr data-node="Root"><td>Root</td><td>0</td><td class="cb-no">—</td><td class="cb-no">—</td><td class="cb-no">—</td><td class="cb-no">—</td><td>纯容器，持有 Idle + Mission</td></tr>
+        <tr data-node="Idle"><td>Idle</td><td>1</td><td class="cb-yes">✓</td><td class="cb-yes">✓</td><td class="cb-no">—</td><td class="cb-no">—</td><td>接收 EV_CAM_START→WaitKey2、EV_BT_GO→GoToCross；停电机、清栈</td></tr>
+        <tr data-node="Mission"><td>Mission</td><td>1</td><td class="cb-yes">✓</td><td class="cb-yes">✓</td><td class="cb-yes">✓</td><td class="cb-no">—</td><td>捕获 EV_RESET→Idle（全局复位，通过冒泡到达）；进出清理</td></tr>
+        <tr data-node="Outbound"><td>Outbound</td><td>2</td><td class="cb-yes">✓</td><td class="cb-no">—</td><td class="cb-no">—</td><td class="cb-no">—</td><td>EV_CAM_START→WaitKey2（允许在去程任意位置重新触发）</td></tr>
+        <tr data-node="WaitKey2"><td style="color:var(--yellow)">WaitKey2</td><td>3</td><td class="cb-yes">✓</td><td class="cb-yes">✓</td><td class="cb-no">—</td><td class="cb-yes">✓</td><td>等待按键触发→GoToCross</td></tr>
+        <tr data-node="GoToCross"><td style="color:var(--text)">GoToCross</td><td>3</td><td class="cb-no">—</td><td class="cb-yes">✓</td><td class="cb-no">—</td><td class="cb-yes">✓</td><td>循迹到路口；检测十字→WaitTurnCmd；检测终点(0xFF)→GoToEnd</td></tr>
+        <tr data-node="AtCross"><td>AtCross</td><td>3</td><td class="cb-no">—</td><td class="cb-no">—</td><td class="cb-no">—</td><td class="cb-no">—</td><td>纯容器，持有 WaitTurnCmd + TurnLeft + TurnRight</td></tr>
+        <tr data-node="WaitTurnCmd"><td style="color:var(--yellow)">WaitTurnCmd</td><td>4</td><td class="cb-yes">✓</td><td class="cb-yes">✓</td><td class="cb-no">—</td><td class="cb-no">—</td><td>接收 LEFT/RIGHT→转弯节点；CAM_START/BT_GO→GoToCross（重新出发）</td></tr>
+        <tr data-node="TurnLeft"><td style="color:var(--orange)">TurnLeft</td><td>4</td><td class="cb-no">—</td><td class="cb-yes">✓</td><td class="cb-yes">✓</td><td class="cb-yes">✓</td><td>+80°差速左转；Phase0 等角度→Phase1 等离开路口→GoToCross</td></tr>
+        <tr data-node="TurnRight"><td style="color:var(--orange)">TurnRight</td><td>4</td><td class="cb-no">—</td><td class="cb-yes">✓</td><td class="cb-yes">✓</td><td class="cb-yes">✓</td><td>-80°差速右转；Phase0 等角度→Phase1 等离开路口→GoToCross</td></tr>
+        <tr data-node="GoToEnd"><td style="color:var(--red)">GoToEnd</td><td>3</td><td class="cb-no">—</td><td class="cb-yes">✓</td><td class="cb-no">—</td><td class="cb-no">—</td><td>自动转 WaitConfirm（entry 中直接请求转换）</td></tr>
+        <tr data-node="WaitConfirm"><td style="color:var(--yellow)">WaitConfirm</td><td>3</td><td class="cb-yes">✓</td><td class="cb-yes">✓</td><td class="cb-no">—</td><td class="cb-no">—</td><td>等待送药确认 EV_DELIVERY_CONFIRM→TurnAround</td></tr>
+        <tr data-node="ReturnLeg"><td>ReturnLeg</td><td>2</td><td class="cb-yes">✓</td><td class="cb-no">—</td><td class="cb-no">—</td><td class="cb-no">—</td><td>事件直接冒泡（不处理）</td></tr>
+        <tr data-node="TurnAround"><td style="color:var(--orange)">TurnAround</td><td>3</td><td class="cb-no">—</td><td class="cb-yes">✓</td><td class="cb-yes">✓</td><td class="cb-yes">✓</td><td>174°原地调头；等角度+灰度检测→PopAction</td></tr>
+        <tr data-node="Retrace"><td>Retrace</td><td>3</td><td class="cb-no">—</td><td class="cb-no">—</td><td class="cb-no">—</td><td class="cb-no">—</td><td>纯容器，持有 PopAction + ExecStraight + ExecTurn</td></tr>
+        <tr data-node="PopAction"><td style="color:var(--purple)">PopAction</td><td>4</td><td class="cb-no">—</td><td class="cb-yes">✓</td><td class="cb-no">—</td><td class="cb-no">—</td><td>从 ActionStack 弹出动作：空→Idle / STRAIGHT→ExecStraight / LEFT/RIGHT→ExecTurn(反)</td></tr>
+        <tr data-node="ExecStraight"><td style="color:var(--text)">ExecStraight</td><td>4</td><td class="cb-no">—</td><td class="cb-yes">✓</td><td class="cb-no">—</td><td class="cb-yes">✓</td><td>循迹返程；离开当前路口→检测下一个目标→PopAction</td></tr>
+        <tr data-node="ExecTurn"><td style="color:var(--orange)">ExecTurn</td><td>4</td><td class="cb-no">—</td><td class="cb-yes">✓</td><td class="cb-yes">✓</td><td class="cb-yes">✓</td><td>执行反转转弯（LEFT↔RIGHT互换）；等角度到位→ExecStraight</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══════════ 6. 事件系统 ═══════════ -->
+  <div class="grid-2">
+    <div class="section">
+      <h2>6. 事件系统</h2>
+      <table>
+        <thead><tr><th>事件 ID</th><th>名称</th><th>来源</th><th>触发路径</th></tr></thead>
+        <tbody>
+          <tr><td><span class="ev-box ev-ext">0x01</span></td><td>EV_CAM_START</td><td>摄像头</td><td>Idle→WaitKey2 / Outbound→WaitKey2 / WaitTurnCmd→GoToCross</td></tr>
+          <tr><td><span class="ev-box ev-ext">0x02</span></td><td>EV_TURN_LEFT</td><td>摄像头/蓝牙</td><td>WaitTurnCmd→TurnLeft</td></tr>
+          <tr><td><span class="ev-box ev-ext">0x03</span></td><td>EV_TURN_RIGHT</td><td>摄像头/蓝牙</td><td>WaitTurnCmd→TurnRight</td></tr>
+          <tr><td><span class="ev-box ev-ext">0x04</span></td><td>EV_DELIVERY_CONFIRM</td><td>摄像头/蓝牙</td><td>WaitConfirm→TurnAround</td></tr>
+          <tr><td><span class="ev-box ev-int">0x10</span></td><td>EV_TURN_DONE</td><td>内部 (continuous)</td><td>TurnLeft/Right/ExecTurn 完成→下一状态</td></tr>
+          <tr><td><span class="ev-box ev-ext">0x11</span></td><td>EV_BT_GO</td><td>蓝牙</td><td>Idle→GoToCross / WaitTurnCmd→GoToCross</td></tr>
+          <tr><td><span class="ev-box ev-ext">0x12</span></td><td>EV_KEY2_TRIGGER</td><td>按键</td><td>WaitKey2→GoToCross</td></tr>
+          <tr><td><span class="ev-box ev-sys">0xFF</span></td><td>EV_RESET</td><td>按键 (Key3)</td><td>被 Mission 捕获 → Idle（全局复位）</td></tr>
+        </tbody>
+      </table>
+      <p class="tbl-note">
+        <b>事件冒泡规则：</b>handler 返回 <code>true</code> = 事件已消费，停止冒泡；返回 <code>false</code> = 传递给 parent。
+        例如：EV_RESET 在叶子节点返回 false → Outbound 返回 false → <b>Mission 捕获后转 Idle</b>。<br>
+        <b>H+En+Ex+Co = Handler + Entry + Exit + Continuous</b>
+      </p>
+    </div>
+
+    <div class="section">
+      <h2>7. ActionStack 动作栈（返程回放）</h2>
+      <table>
+        <thead><tr><th>操作</th><th>触发节点</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td><b>PUSH STRAIGHT</b></td><td>Idle (EV_CAM_START/BT_GO)</td><td>任务开始时压入第一段直行</td></tr>
+          <tr><td><b>PUSH STRAIGHT</b></td><td>WaitTurnCmd (EV_CAM_START/BT_GO)</td><td>重新出发时压入直行</td></tr>
+          <tr><td><b>PUSH LEFT</b></td><td>WaitTurnCmd (EV_TURN_LEFT)</td><td>左转时压入，返程变为右转</td></tr>
+          <tr><td><b>PUSH RIGHT</b></td><td>WaitTurnCmd (EV_TURN_RIGHT)</td><td>右转时压入，返程变为左转</td></tr>
+          <tr><td><b>PUSH STRAIGHT</b></td><td>GoToCross (终点 0xFF)</td><td>到达终点前最后一段直行</td></tr>
+          <tr><td><b>POP → 空</b></td><td>PopAction</td><td>栈空 = 任务完成 → Idle</td></tr>
+          <tr><td><b>POP → STRAIGHT</b></td><td>PopAction</td><td>直行动作 → ExecStraight</td></tr>
+          <tr><td><b>POP → LEFT/RIGHT</b></td><td>PopAction</td><td>转弯动作取反 → ExecTurn（左变右、右变左）</td></tr>
+        </tbody>
+      </table>
+      <div class="flow" style="margin-top:10px">
+        <div class="fn" style="border-color:var(--accent);font-size:10px">
+          <div class="n">去程</div>
+          <div class="d">S → L → S → R → S → E<br>（5 个动作入栈）</div>
+        </div>
+        <div class="fa">→</div>
+        <div class="fn" style="border-color:var(--purple);font-size:10px">
+          <div class="n">返程（栈回放）</div>
+          <div class="d">POP S → POP R(反=左) → POP S → POP L(反=右) → POP S → 空 → Idle</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ 8. 与传统 FSM 对比 ═══════════ -->
+  <div class="section">
+    <h2>8. HSM vs 传统 FSM 对比</h2>
+    <table>
+      <thead><tr><th>维度</th><th>HSM (app_fsm + HSM_Core)</th><th>传统 FSM (f_sm + Finite_State_Machine)</th></tr></thead>
+      <tbody>
+        <tr><td><b>结构</b></td><td>树形：Root→Mission→Outbound/Return→叶子节点</td><td>扁平链表：IDLE→STRAIGHT→TRACKING→STOP→...</td></tr>
+        <tr><td><b>嵌套深度</b></td><td>4 层（容器节点不占状态位）</td><td>1 层（所有状态平级）</td></tr>
+        <tr><td><b>事件处理</b></td><td>冒泡机制：叶子→父→祖父，handler 返回 false 则上浮</td><td>直接 switch-case，无传播</td></tr>
+        <tr><td><b>转移方式</b></td><td>HSM_RequestTransition(target) 延迟执行 + 转换队列</td><td>Transition_To(state_id) 立即执行</td></tr>
+        <tr><td><b>全局复位</b></td><td>Mission 父节点捕获 EV_RESET，一次性覆盖所有子状态</td><td>每个状态单独判断 / 外部命令 switch</td></tr>
+        <tr><td><b>持续动作</b></td><td>每帧 HSM_Process → 当前状态 continuous_action()</td><td>FSM_App_Run() 大 switch 直接评估转移条件</td></tr>
+        <tr><td><b>进出回调</b></td><td>entry_action / exit_action 自动调用（含事件参数）</td><td>手写 Enter_Xxx() 函数</td></tr>
+        <tr><td><b>返程逻辑</b></td><td>ActionStack (LIFO) 自动回放，转弯方向取反</td><td>独立硬编码的 RETURN_STRAIGHT / RETURN_TRACKING 状态</td></tr>
+        <tr><td><b>实际使用</b></td><td style="color:var(--green);font-weight:700">✓ main.c 中启用</td><td style="color:var(--dim)">✗ FSM_App_Init() 已注释</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══════════ 9. 控制模式 ═══════════ -->
+  <div class="section">
+    <h2>9. 控制模式 (CtrlMode_t)</h2>
+    <table>
+      <thead><tr><th>模式</th><th>枚举值</th><th>PID 控制器</th><th>传感器</th><th>执行器</th><th>设置节点</th></tr></thead>
+      <tbody>
+        <tr><td>CTRL_MODE_IDLE</td><td>0</td><td>无</td><td>—</td><td>电机停止</td><td>Idle, AtCross(停车), GoToEnd</td></tr>
+        <tr><td>CTRL_MODE_STRAIGHT</td><td>1</td><td>角度 PID (kp=0.005 kd=0.04)</td><td>MPU9250 yaw</td><td>差速修正航向</td><td>（未在 HSM 中使用）</td></tr>
+        <tr><td>CTRL_MODE_TRACKING</td><td>2</td><td>灰度 PID (kp=0.045 ki=0.0005 kd=0.5)</td><td>PE[0:7] 并口</td><td>差速沿黑线</td><td>GoToCross, TurnLeft/Right(exit), ExecStraight</td></tr>
+        <tr><td>CTRL_MODE_STOP</td><td>3</td><td>无</td><td>—</td><td>刹车</td><td>（未在 HSM 中使用）</td></tr>
+        <tr><td>CTRL_MODE_MANUAL</td><td>4</td><td>速度 PID 级联</td><td>编码器 TIM2/3</td><td>直接轮速</td><td>TurnLeft/Right(entry), TurnAround, ExecTurn</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══════════ 10. 引脚配置表 ═══════════ -->
+  <div class="section">
+    <h2>10. 引脚配置表</h2>
+    <div class="flt-bar" id="pinFlt">
+      <button class="flt-btn on" data-flt="all">全部</button>
+      <button class="flt-btn" data-flt="usart">USART 串口</button>
+      <button class="flt-btn" data-flt="spi">SPI3 OLED</button>
+      <button class="flt-btn" data-flt="i2c">I2C1 陀螺仪</button>
+      <button class="flt-btn" data-flt="pwm">TIM1 PWM</button>
+      <button class="flt-btn" data-flt="enc">TIM2/3 编码器</button>
+      <button class="flt-btn" data-flt="gpio">GPIO</button>
+      <button class="flt-btn" data-flt="sys">电源/系统</button>
+    </div>
+    <table id="pinTable">
+      <thead><tr><th>引脚</th><th>端口位</th><th>功能</th><th>模式</th><th>上下拉</th><th>速度</th><th>复用</th><th>端口</th></tr></thead>
+      <tbody>
+        <tr class="row-hdr" data-group-hdr="sys"><td colspan="8">电源 / 系统</td></tr>
+        <tr data-group="sys"><td>VBAT / VDD×7 / VSS×5 / VDDA / VSSA / VREF+</td><td>—</td><td>电源域</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr data-group="sys"><td><span class="pin">PH0/PH1</span></td><td>OSC</td><td>HSE 25MHz 晶振</td><td>—</td><td>—</td><td>—</td><td>—</td><td>RCC</td></tr>
+        <tr data-group="sys"><td><span class="pin">NRST</span> / <span class="pin">PB2</span> / <span class="pin">BOOT0</span></td><td>—</td><td>复位 / 启动配置</td><td>—</td><td>—</td><td>—</td><td>—</td><td>SYSCFG</td></tr>
+
+        <tr class="row-hdr" data-group-hdr="sys"><td colspan="8">调试 SWD</td></tr>
+        <tr data-group="sys"><td><span class="pin">PA13</span></td><td>PIN_13</td><td>SWDIO</td><td>AF</td><td>—</td><td>—</td><td><span class="badge af">SYS_AF</span></td><td>SYS</td></tr>
+        <tr data-group="sys"><td><span class="pin">PA14</span></td><td>PIN_14</td><td>SWCLK</td><td>AF</td><td>—</td><td>—</td><td><span class="badge af">SYS_AF</span></td><td>SYS</td></tr>
+
+        <tr class="row-hdr" data-group-hdr="gpio"><td colspan="8">GPIO 输出（推挽、低速）</td></tr>
+        <tr data-group="gpio"><td><span class="chip-tag gpio">PC4</span></td><td>PIN_4</td><td>LED3</td><td>推挽输出</td><td>无</td><td>低速</td><td>—</td><td>GPIOC</td></tr>
+        <tr data-group="gpio"><td><span class="chip-tag gpio">PC5</span></td><td>PIN_5</td><td>LED4</td><td>推挽输出</td><td>无</td><td>低速</td><td>—</td><td>GPIOC</td></tr>
+        <tr data-group="gpio"><td><span class="chip-tag gpio">PE13</span></td><td>PIN_13</td><td>电机1 方向 AIN</td><td>推挽输出</td><td>无</td><td>低速</td><td>—</td><td>GPIOE</td></tr>
+        <tr data-group="gpio"><td><span class="chip-tag gpio">PB10</span></td><td>PIN_10</td><td>电机2 方向 BIN</td><td>推挽输出</td><td>无</td><td>低速</td><td>—</td><td>GPIOB</td></tr>
+        <tr data-group="gpio"><td><span class="chip-tag gpio">PD0</span></td><td>PIN_0</td><td>OLED RES</td><td>推挽输出</td><td>无</td><td>低速</td><td>—</td><td>GPIOD</td></tr>
+        <tr data-group="gpio"><td><span class="chip-tag gpio">PD1</span></td><td>PIN_1</td><td>OLED DC</td><td>推挽输出</td><td>无</td><td>低速</td><td>—</td><td>GPIOD</td></tr>
+        <tr data-group="gpio"><td><span class="chip-tag gpio">PD2</span></td><td>PIN_2</td><td>OLED CS</td><td>推挽输出</td><td>无</td><td>低速</td><td>—</td><td>GPIOD</td></tr>
+
+        <tr class="row-hdr" data-group-hdr="gpio"><td colspan="8">GPIO 输入 — 按键（下拉）</td></tr>
+        <tr data-group="gpio"><td><span class="chip-tag gpio">PB15</span></td><td>PIN_15</td><td>按键1</td><td>输入</td><td><span class="badge pull">下拉</span></td><td>—</td><td>—</td><td>GPIOB</td></tr>
+        <tr data-group="gpio"><td><span class="chip-tag gpio">PB14</span></td><td>PIN_14</td><td>按键2</td><td>输入</td><td><span class="badge pull">下拉</span></td><td>—</td><td>—</td><td>GPIOB</td></tr>
+        <tr data-group="gpio"><td><span class="chip-tag gpio">PD12</span></td><td>PIN_12</td><td>按键3</td><td>输入</td><td><span class="badge pull">下拉</span></td><td>—</td><td>—</td><td>GPIOD</td></tr>
+        <tr data-group="gpio"><td><span class="chip-tag gpio">PD14</span></td><td>PIN_14</td><td>按键4</td><td>输入</td><td><span class="badge pull">下拉</span></td><td>—</td><td>—</td><td>GPIOD</td></tr>
+
+        <tr class="row-hdr" data-group-hdr="gpio"><td colspan="8">GPIO 输入 — 8 位灰度传感器并口（无上下拉）</td></tr>
+        <tr data-group="gpio"><td><span class="chip-tag gpio">PE0</span></td><td>PIN_0</td><td>灰度 D0 LSB</td><td>输入</td><td>无</td><td>—</td><td>—</td><td>GPIOE</td></tr>
+        <tr data-group="gpio"><td><span class="chip-tag gpio">PE1</span></td><td>PIN_1</td><td>灰度 D1</td><td>输入</td><td>无</td><td>—</td><td>—</td><td>GPIOE</td></tr>
+        <tr data-group="gpio"><td><span class="chip-tag gpio">PE2</span></td><td>PIN_2</td><td>灰度 D2</td><td>输入</td><td>无</td><td>—</td><td>—</td><td>GPIOE</td></tr>
+        <tr data-group="gpio"><td><span class="chip-tag gpio">PE3</span></td><td>PIN_3</td><td>灰度 D3</td><td>输入</td><td>无</td><td>—</td><td>—</td><td>GPIOE</td></tr>
+        <tr data-group="gpio"><td><span class="chip-tag gpio">PE4</span></td><td>PIN_4</td><td>灰度 D4</td><td>输入</td><td>无</td><td>—</td><td>—</td><td>GPIOE</td></tr>
+        <tr data-group="gpio"><td><span class="chip-tag gpio">PE5</span></td><td>PIN_5</td><td>灰度 D5</td><td>输入</td><td>无</td><td>—</td><td>—</td><td>GPIOE</td></tr>
+        <tr data-group="gpio"><td><span class="chip-tag gpio">PE6</span></td><td>PIN_6</td><td>灰度 D6</td><td>输入</td><td>无</td><td>—</td><td>—</td><td>GPIOE</td></tr>
+        <tr data-group="gpio"><td><span class="chip-tag gpio">PE7</span></td><td>PIN_7</td><td>灰度 D7 MSB</td><td>输入</td><td>无</td><td>—</td><td>—</td><td>GPIOE</td></tr>
+
+        <tr class="row-hdr" data-group-hdr="usart"><td colspan="8">USART 串口（AF7、推挽、高速、115200-8N1）</td></tr>
+        <tr data-group="usart"><td><span class="chip-tag tx">PA9</span></td><td>PIN_9</td><td>USART1 TX</td><td>AF 推挽</td><td>无</td><td>高速</td><td><span class="badge af">AF7</span></td><td>USART1</td></tr>
+        <tr data-group="usart"><td><span class="chip-tag rx">PA10</span></td><td>PIN_10</td><td>USART1 RX</td><td>AF 推挽</td><td>无</td><td>高速</td><td><span class="badge af">AF7</span></td><td>USART1</td></tr>
+        <tr data-group="usart"><td><span class="chip-tag tx">PA2</span></td><td>PIN_2</td><td>USART2 TX → K210</td><td>AF 推挽</td><td>无</td><td>高速</td><td><span class="badge af">AF7</span></td><td>USART2</td></tr>
+        <tr data-group="usart"><td><span class="chip-tag rx">PA3</span></td><td>PIN_3</td><td>USART2 RX ← K210</td><td>AF 推挽</td><td>无</td><td>高速</td><td><span class="badge af">AF7</span></td><td>USART2</td></tr>
+        <tr data-group="usart"><td><span class="chip-tag rx">PB11</span></td><td>PIN_11</td><td>USART3 RX ← 蓝牙</td><td>AF 推挽</td><td>无</td><td>高速</td><td><span class="badge af">AF7</span></td><td>USART3</td></tr>
+        <tr data-group="usart"><td><span class="chip-tag tx">PD8</span></td><td>PIN_8</td><td>USART3 TX → 蓝牙/printf</td><td>AF 推挽</td><td>无</td><td>高速</td><td><span class="badge af">AF7</span></td><td>USART3</td></tr>
+
+        <tr class="row-hdr" data-group-hdr="spi"><td colspan="8">SPI3 — OLED（AF6、主机、CPOL=0 CPHA=1、2分频）</td></tr>
+        <tr data-group="spi"><td><span class="chip-tag spi">PC10</span></td><td>PIN_10</td><td>SPI3 SCK</td><td>AF 推挽</td><td>无</td><td>高速</td><td><span class="badge af">AF6</span></td><td>SPI3</td></tr>
+        <tr data-group="spi"><td><span class="chip-tag spi">PC11</span></td><td>PIN_11</td><td>SPI3 MISO</td><td>AF 推挽</td><td>无</td><td>高速</td><td><span class="badge af">AF6</span></td><td>SPI3</td></tr>
+        <tr data-group="spi"><td><span class="chip-tag spi">PC12</span></td><td>PIN_12</td><td>SPI3 MOSI</td><td>AF 推挽</td><td>无</td><td>高速</td><td><span class="badge af">AF6</span></td><td>SPI3</td></tr>
+
+        <tr class="row-hdr" data-group-hdr="i2c"><td colspan="8">I2C1 — MPU9250（AF4、开漏、外置上拉、100kHz）</td></tr>
+        <tr data-group="i2c"><td><span class="chip-tag i2c">PB6</span></td><td>PIN_6</td><td>I2C1 SCL</td><td>AF 开漏</td><td>外置上拉</td><td>—</td><td><span class="badge af">AF4</span></td><td>I2C1</td></tr>
+        <tr data-group="i2c"><td><span class="chip-tag i2c">PB7</span></td><td>PIN_7</td><td>I2C1 SDA</td><td>AF 开漏</td><td>外置上拉</td><td>—</td><td><span class="badge af">AF4</span></td><td>I2C1</td></tr>
+
+        <tr class="row-hdr" data-group-hdr="pwm"><td colspan="8">TIM1 — 电机 PWM（AF1、50Hz）</td></tr>
+        <tr data-group="pwm"><td><span class="chip-tag pwm">PE9</span></td><td>PIN_9</td><td>TIM1 CH1 → M1</td><td>AF 推挽</td><td>无</td><td>高速</td><td><span class="badge af">AF1</span></td><td>TIM1</td></tr>
+        <tr data-group="pwm"><td><span class="chip-tag pwm">PE11</span></td><td>PIN_11</td><td>TIM1 CH2 → M2</td><td>AF 推挽</td><td>无</td><td>高速</td><td><span class="badge af">AF1</span></td><td>TIM1</td></tr>
+
+        <tr class="row-hdr" data-group-hdr="enc"><td colspan="8">TIM2 — 编码器A（AF1、TI1、32位） / TIM3 — 编码器B（AF2、TI1、16位）</td></tr>
+        <tr data-group="enc"><td><span class="chip-tag enc">PA0</span></td><td>PIN_0</td><td>TIM2 CH1 编码器A</td><td>AF 推挽</td><td>无</td><td>—</td><td><span class="badge af">AF1</span></td><td>TIM2</td></tr>
+        <tr data-group="enc"><td><span class="chip-tag enc">PA1</span></td><td>PIN_1</td><td>TIM2 CH2 编码器A</td><td>AF 推挽</td><td>无</td><td>—</td><td><span class="badge af">AF1</span></td><td>TIM2</td></tr>
+        <tr data-group="enc"><td><span class="chip-tag enc">PA6</span></td><td>PIN_6</td><td>TIM3 CH1 编码器B</td><td>AF 推挽</td><td>无</td><td>—</td><td><span class="badge af">AF2</span></td><td>TIM3</td></tr>
+        <tr data-group="enc"><td><span class="chip-tag enc">PA7</span></td><td>PIN_7</td><td>TIM3 CH2 编码器B</td><td>AF 推挽</td><td>无</td><td>—</td><td><span class="badge af">AF2</span></td><td>TIM3</td></tr>
+
+        <tr class="row-hdr" data-group-hdr="sys"><td colspan="8">TIM4 — 10ms 控制定时器（仅内部）</td></tr>
+        <tr data-group="sys"><td style="color:var(--dim)">—</td><td style="color:var(--dim)">—</td><td style="color:var(--dim)">PSC=3360 ARR=100</td><td style="color:var(--dim)">—</td><td style="color:var(--dim)">—</td><td style="color:var(--dim)">—</td><td style="color:var(--dim)">—</td><td style="color:var(--dim)">TIM4</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══════════ 11. 外设 + 时钟 ═══════════ -->
+  <div class="grid-2">
+    <div class="section">
+      <h2>11. 外设参数汇总</h2>
+      <table>
+        <thead><tr><th>外设</th><th>模式</th><th>参数</th><th>中断</th></tr></thead>
+        <tbody>
+          <tr><td>USART1</td><td>异步</td><td>115200-8N1</td><td>—</td></tr>
+          <tr><td>USART2</td><td>异步</td><td>115200-8N1 K210</td><td>✓ 0.0</td></tr>
+          <tr><td>USART3</td><td>异步</td><td>115200-8N1 BT</td><td>✓ 0.0</td></tr>
+          <tr><td>SPI3</td><td>全双工主机</td><td>CPOL=0 CPHA=1 /2</td><td>—</td></tr>
+          <tr><td>I2C1</td><td>标准主机</td><td>100kHz MPU9250</td><td>—</td></tr>
+          <tr><td>TIM1</td><td>PWM CH1+2</td><td>PSC=3360 ARR=100 50Hz</td><td>—</td></tr>
+          <tr><td>TIM2</td><td>编码器 TI1</td><td>ARR=2³²-1 电机A</td><td>—</td></tr>
+          <tr><td>TIM3</td><td>编码器 TI1</td><td>ARR=65535 电机B</td><td>—</td></tr>
+          <tr><td>TIM4</td><td>基础定时器</td><td>PSC=3360 ARR=100 10ms</td><td>✓ 4.0</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="section">
+      <h2>12. 时钟树</h2>
+      <div class="clk">
+        <div class="clk-n src"><span class="clk-a">HSE</span><span class="clk-v">25 MHz</span><span class="clk-d">外部晶振</span></div>
+        <div class="clk-n pll"><span class="clk-a">PLL</span><span class="clk-v">168 MHz</span><span class="clk-d">M=25 N=336 P=2</span></div>
+        <div class="clk-n sys"><span class="clk-a">SYSCLK</span><span class="clk-v">168 MHz</span><span class="clk-d">时钟源 = PLLCLK</span></div>
+        <div class="clk-n bus"><span class="clk-a">HCLK</span><span class="clk-v">168 MHz</span><span class="clk-d">AHB / 内核 / DMA</span></div>
+        <div class="clk-n bus"><span class="clk-a">APB1</span><span class="clk-v">42 MHz</span><span class="clk-d">HCLK/4 → TIM2/3/4 I2C1 USART2/3 SPI3</span></div>
+        <div class="clk-n tmr"><span class="clk-a">APB1 TMR</span><span class="clk-v">84 MHz</span><span class="clk-d">×2 (PPRE1≠1)</span></div>
+        <div class="clk-n bus"><span class="clk-a">APB2</span><span class="clk-v">84 MHz</span><span class="clk-d">HCLK/2 → TIM1 USART1</span></div>
+        <div class="clk-n tmr"><span class="clk-a">APB2 TMR</span><span class="clk-v">168 MHz</span><span class="clk-d">×2 (PPRE2≠1)</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    2021(new) HSM 层次状态机框架 &middot; STM32F407VET6 &middot; 数据来源：HSM_Core.h / app_fsm.h / app_fsm.c / control.c / main.c
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// 1. 树节点折叠
+// ═══════════════════════════════════════════
+document.querySelectorAll('.t-toggle').forEach(btn => {
+  btn.addEventListener('click', function(){
+    const foldKey = this.dataset.folds;
+    const kids = document.querySelectorAll(`[data-parent="${foldKey.replace('_kids','')}"]`);
+    const collapsed = this.textContent === '+';
+    kids.forEach(k => k.classList.toggle('t-collapsed', collapsed));
+    this.textContent = collapsed ? '−' : '+';
+  });
+});
+
+// ═══════════════════════════════════════════
+// 2. 树 ↔ 回调矩阵 联动高亮
+// ═══════════════════════════════════════════
+const treeNodes = document.querySelectorAll('#treeBox .t-node');
+const tableRows = document.querySelectorAll('tr[data-node]');
+
+function highlight(name) {
+  treeNodes.forEach(n => n.classList.toggle('hl', n.dataset.node === name));
+  tableRows.forEach(r => r.classList.toggle('hl', r.dataset.node === name));
+}
+function clearHL() { treeNodes.forEach(n => n.classList.remove('hl')); tableRows.forEach(r => r.classList.remove('hl')); }
+
+treeNodes.forEach(n => {
+  n.addEventListener('click', () => {
+    clearHL();
+    highlight(n.dataset.node);
+  });
+  n.addEventListener('mouseenter', () => highlight(n.dataset.node));
+  n.addEventListener('mouseleave', () => clearHL());
+});
+tableRows.forEach(r => {
+  r.addEventListener('mouseenter', () => highlight(r.dataset.node));
+  r.addEventListener('mouseleave', () => clearHL());
+});
+
+// ═══════════════════════════════════════════
+// 3. 引脚表筛选
+// ═══════════════════════════════════════════
+document.querySelectorAll('#pinFlt .flt-btn').forEach(btn => {
+  btn.addEventListener('click', function(){
+    document.querySelectorAll('#pinFlt .flt-btn').forEach(b => b.classList.remove('on'));
+    this.classList.add('on');
+    const grp = this.dataset.flt;
+    document.querySelectorAll('#pinTable tbody tr').forEach(row => {
+      if (row.classList.contains('row-hdr')) {
+        // 分组标题行：该组有可见数据行时才显示
+        row.classList.remove('pin-row-hidden');
+      } else {
+        const match = grp === 'all' || row.dataset.group === grp;
+        row.classList.toggle('pin-row-hidden', !match);
+      }
+    });
+    // 隐藏空分组标题
+    document.querySelectorAll('#pinTable tbody tr.row-hdr').forEach(hdr => {
+      const hdrGrp = hdr.dataset.groupHdr;
+      if (!hdrGrp || grp === 'all') { hdr.classList.remove('pin-row-hidden'); return; }
+      let hasVisible = false;
+      let next = hdr.nextElementSibling;
+      while (next && !next.classList.contains('row-hdr')) {
+        if (!next.classList.contains('pin-row-hidden')) { hasVisible = true; break; }
+        next = next.nextElementSibling;
+      }
+      hdr.classList.toggle('pin-row-hidden', !hasVisible);
+    });
+  });
+});
+</script>
+
+</body>
+</html>
