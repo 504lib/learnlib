@@ -40,8 +40,8 @@ def _boot_screen(status: str, color=image.COLOR_WHITE):
 _boot_screen("Booting...")
 
 # ==== WiFi + WebRTC ====
-SSID = "iQOO800"
-PASS = "Zhaokaiyyds123."
+SSID = "kakakaka"
+PASS = "197845047cao"
 stream_url = "N/A"
 stream_ok = False
 wifi_ok = False

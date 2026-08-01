@@ -9,8 +9,8 @@
 /* ======== 状态机 ======== */
 float last_distance = 0.0f;
 float current_distance = 0.0f;
-const float curve_target_distance = 6.1f;
-const float straight_target_distance = 1.5f;
+const float curve_target_distance = 5.97f;
+const float straight_target_distance = 1.37f;
 /* ---- 状态声明 ---- */
 static bool Root_Handler(HSM_Event_Package ev);
 static void Root_Entry(HSM_Event_Package ev);
