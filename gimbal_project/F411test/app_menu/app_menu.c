@@ -7,7 +7,7 @@
 static MenuMode g_mode     = MENU_ZDT_TEST;
 static bool     g_running[MENU_COUNT] = {0};
 
-static const char* names[] = { "ZDT_TEST", "BALL_PID" };
+static const char* names[] = { "ZDT_TEST", "TASK3", "TASK4" };
 
 /* ---- 按键 ---- */
 static uint8_t read_k2(MulitKey_t* k) { (void)k; return HAL_GPIO_ReadPin(KEY2_GPIO_Port, KEY2_Pin) == GPIO_PIN_SET ? 1 : 0; }

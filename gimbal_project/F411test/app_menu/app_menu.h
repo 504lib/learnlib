@@ -5,7 +5,8 @@
 
 typedef enum {
     MENU_ZDT_TEST = 0,
-    MENU_BALL_PID,
+    MENU_TASK3,
+    MENU_TASK4,
     MENU_COUNT
 } MenuMode;
 
