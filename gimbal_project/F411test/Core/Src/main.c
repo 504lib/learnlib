@@ -91,7 +91,9 @@ static float man_angle = 28.0f;   /* 打表: 按键调节的电机角度 */
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-/* ---- 打表按键: K2 +0.1° / K3 -0.1° ---- */
+/* ---- 打表按键: K2 +0.1° / K3 -0.1° / K1 一键校准偏移 ---- */
+static uint8_t read_k1(MulitKey_t* k) { (void)k; return HAL_GPIO_ReadPin(KEY1_GPIO_Port, KEY1_Pin) == GPIO_PIN_SET ? 1 : 0; }
+static void on_k1(MulitKey_t* k) { (void)k; Table_CalibrateOffset(g_ball_pos * 0.1f, man_angle); }
 static uint8_t read_k2(MulitKey_t* k) { (void)k; return HAL_GPIO_ReadPin(KEY2_GPIO_Port, KEY2_Pin) == GPIO_PIN_SET ? 1 : 0; }
 static void on_k2(MulitKey_t* k) { (void)k; man_angle += 0.1f; }
 static uint8_t read_k3(MulitKey_t* k) { (void)k; return HAL_GPIO_ReadPin(KEY3_GPIO_Port, KEY3_Pin) == GPIO_PIN_SET ? 1 : 0; }
@@ -184,7 +186,8 @@ int main(void)
   // /* PID初始化: kp=角度→RPM, ki=消除静差, kd=微分预判减速 */
    App_Protocol_Init();
    App_Menu_Init();
-  MulitKey_t mk2, mk3;
+  MulitKey_t mk1, mk2, mk3;
+  MulitKey_Init(&mk1, read_k1, on_k1, on_k1, FALL_BORDER_TRIGGER);
   MulitKey_Init(&mk2, read_k2, on_k2, on_k2, FALL_BORDER_TRIGGER);
   MulitKey_Init(&mk3, read_k3, on_k3, on_k3, FALL_BORDER_TRIGGER);
 	HAL_UART_Receive_IT(&huart6, (uint8_t*)&rx_byte, 1);
@@ -203,8 +206,6 @@ int main(void)
     }
 
     App_Menu_Process();
-    // MulitKey_Scan(&mk2);
-    // MulitKey_Scan(&mk3);
   
 			
 		
@@ -223,6 +224,8 @@ int main(void)
           OLED_ShowString(0, 8, (uint8_t*)buffer, 8, 1);
           LOG_Snprintf(buffer, sizeof(buffer), "ANG:%.1f", man_angle);
           OLED_ShowString(0, 16, (uint8_t*)buffer, 8, 1);
+          LOG_Snprintf(buffer, sizeof(buffer), "OFF:%.1f cm", g_pos_offset);
+          OLED_ShowString(0, 24, (uint8_t*)buffer, 8, 1);
             break;
         case MENU_TASK3:
           LOG_Snprintf(buffer, sizeof(buffer), "P:%.2f S:%u O:%.2f",
@@ -319,7 +322,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
           switch (App_Menu_GetMode()) 
           {
           case MENU_ZDT_TEST:
-            ZDT_Pulse_MoveToClk(ZDT_Pulse_AngleToClk(28.8f));
+            ZDT_Pulse_MoveToClk(ZDT_Pulse_AngleToClk(man_angle));
             break;
           case MENU_TASK3:
               if (!Task3_IsRunning() && !Task3_IsDone()) Task3_Start();

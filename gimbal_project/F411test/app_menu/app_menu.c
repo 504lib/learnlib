@@ -3,6 +3,7 @@
 #include "multikey.h"
 #include "oled.h"
 #include "log.h"
+#include "Task_Control.h"
 
 static MenuMode g_mode     = MENU_ZDT_TEST;
 static bool     g_running[MENU_COUNT] = {0};
@@ -18,30 +19,37 @@ static void on_k2(MulitKey_t* k) {
     OLED_Clear();
     g_mode = (g_mode + 1) % MENU_COUNT;
 }
+static void on_k2_long(MulitKey_t* k) {
+    (void)k;
+    g_pos_offset += 0.1f;   /* 长按K2: offset +0.1 */
+}
 
 static void on_k3(MulitKey_t* k) {
     (void)k;
     OLED_Clear();
     g_running[g_mode] = !g_running[g_mode];
 }
+static void on_k3_long(MulitKey_t* k) {
+    (void)k;
+    g_pos_offset -= 0.1f;   /* 长按K3: offset -0.1 */
+}
 
 static MulitKey_t mk2, mk3;
 
-/* ---- 初始化 ---- */
 void App_Menu_Init(void)
 {
-    MulitKey_Init(&mk2, read_k2, on_k2, NULL, FALL_BORDER_TRIGGER);
-    MulitKey_Init(&mk3, read_k3, on_k3, NULL, FALL_BORDER_TRIGGER);
+    MulitKey_Init(&mk2, read_k2, on_k2, on_k2_long, FALL_BORDER_TRIGGER);
+    MulitKey_Init(&mk3, read_k3, on_k3, on_k3_long, FALL_BORDER_TRIGGER);
+    MulitKey_SetLongPressTime(&mk2, 1000);    /* 长按1秒才触发 */
+    MulitKey_SetLongPressTime(&mk3, 1000);
 }
 
-/* ---- 每周期调用 ---- */
 void App_Menu_Process(void)
 {
     MulitKey_Scan(&mk2);
     MulitKey_Scan(&mk3);
 }
 
-/* ---- 状态 ---- */
 MenuMode App_Menu_GetMode(void)  { return g_mode; }
 bool     App_Menu_IsRunning(void){ return g_running[g_mode]; }
 void     App_Menu_Start(void)    { g_running[g_mode] = true; }

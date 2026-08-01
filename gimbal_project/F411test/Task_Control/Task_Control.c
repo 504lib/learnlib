@@ -19,7 +19,11 @@ static const float tbl_pos[] = { 4.5f, 6.5f, 8.5f, 10.5f, 12.5f, 14.5f, 16.5f, 1
 static const float tbl_ang[] = { 31.75f, 31.60f, 30.10f, 28.80f, 28.10f, 27.40f, 26.50f, 25.10f };
 #define TBL_N (sizeof(tbl_pos)/sizeof(tbl_pos[0]))
 
-static float lookup_angle(float pos_cm) {
+float g_pos_offset = 0.0f;   /* 摄像头位置偏移(cm), 按键一键校准 */
+
+/* 查表: 先修正摄像头偏移, 再查平衡角 */
+float lookup_angle(float cam_cm) {
+    float pos_cm = cam_cm + g_pos_offset;
     if (pos_cm <= tbl_pos[0]) return tbl_ang[0];
     if (pos_cm >= tbl_pos[TBL_N-1]) return tbl_ang[TBL_N-1];
     for (int i = 0; i < TBL_N-1; i++) {
@@ -29,6 +33,12 @@ static float lookup_angle(float pos_cm) {
         }
     }
     return tbl_ang[TBL_N/2];
+}
+
+/* 一键校准: 球放在梁中点(12.5cm), 按下即算偏移 */
+void Table_CalibrateOffset(float cam_cm, float unused) {
+    (void)unused;
+    g_pos_offset = CENTER_CM - cam_cm;
 }
 
 typedef struct { float P, D; } Gains;
@@ -97,16 +107,18 @@ void Task3_Update(float dt)
     PID_Node_UpdateMeasurement(&pid, ball_cm);
     PID_ExecuteNode(&pid, dt);
 
-    /* 第二段: 每次穿越目标线 P 降至 40%(=1/(1+1.5)) */
+    /* 第二段: 每次穿越目标线减P, 接近目标停计数, P不低于30% */
     if (step == 1) {
         static float  last_sign = 0;
         static int    osc_cnt   = 0;
         static int    prev_step = -1;
         if (step != prev_step) { osc_cnt = 0; last_sign = 0; prev_step = step; }
         float sign = (target - ball_cm > 0) ? 1.0f : -1.0f;
-        if (last_sign != 0 && sign != last_sign) osc_cnt++;
+        if (last_sign != 0 && sign != last_sign && fabsf(target - ball_cm) > 1.5f)
+            osc_cnt++;
         last_sign = sign;
         float scale = 1.0f / (1.0f + osc_cnt * 2.0f);
+        if (scale < 0.3f) scale = 0.3f;
         PID_Node_SetKp(&pid, g_step[1].P * 0.2f * scale);
     }
 

@@ -7,6 +7,11 @@
 
 #define CENTER_CM  12.5f   /* 梁几何中点 */
 
+float lookup_angle(float pos_cm);   /* 查表: 位置→平衡角(含偏移) */
+
+extern float g_pos_offset;         /* 摄像头位置偏移(cm), 按键一键校准 */
+void   Table_CalibrateOffset(float cam_cm, float unused);
+
 void Task3_Init(void);
 void Task3_Update(float dt);
 void Task3_Control_Send(void);
