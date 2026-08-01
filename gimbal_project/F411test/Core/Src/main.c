@@ -201,9 +201,9 @@ int main(void)
       App_Protocol_Loop();
     }
 
-    //App_Menu_Process();
-    MulitKey_Scan(&mk2);
-    MulitKey_Scan(&mk3);
+    App_Menu_Process();
+//    MulitKey_Scan(&mk2);
+//    MulitKey_Scan(&mk3);
     if (HAL_GetTick() - last_tick >= 50)   // 20ms→50ms, 减OLED负担
     {
       last_tick = HAL_GetTick();
@@ -313,7 +313,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
           switch (App_Menu_GetMode()) 
           {
           case MENU_ZDT_TEST:
-            ZDT_Pulse_MoveToClk(ZDT_Pulse_AngleToClk(man_angle));
+            // ZDT_Pulse_MoveToClk(ZDT_Pulse_AngleToClk(man_angle));
+            ZDT_Pulse_MoveToClk(ZDT_Pulse_AngleToClk(25.0f));
             break;
           case MENU_TASK3:
               if (!Task3_IsRunning() && !Task3_IsDone()) Task3_Start();

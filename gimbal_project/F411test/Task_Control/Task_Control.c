@@ -2,7 +2,7 @@
 #include <math.h>
 
 #define STEP_COUNT   2
-#define STABLE_CM    1.0f
+#define STABLE_CM    0.7f
 #define STABLE_MS    1000
 
 static PID_Node pid;
@@ -12,8 +12,8 @@ static bool     started     = false;
 static const float targets[STEP_COUNT] = { 17.5f, 7.5f };
 
 /* 查表: 球位置(cm) → 平衡角(°)  实测填入 */
-static const float tbl_pos[]  = { 7.5f, 10.0f, 12.5f, 15.0f, 17.5f };
-static const float tbl_ang[]  = { 31.0f, 30.0f, 28.0f, 26.0f, 24.0f };
+static const float tbl_pos[]  = { 2.5f, 6.5f, 8.5f, 10.5f, 12.5f, 14.5f, 16.5f, 20.5f };
+static const float tbl_ang[]  = { 28.8f, 30.8f, 28.2f, 27.2f, 25.9f, 25.7f, 25.2f, 26.0f };
 #define TBL_N (sizeof(tbl_pos)/sizeof(tbl_pos[0]))
 
 static float lookup_angle(float pos_cm) {
@@ -30,8 +30,8 @@ static float lookup_angle(float pos_cm) {
 
 typedef struct { float P, D; } Gains;
 static const Gains g_step[STEP_COUNT] = {
-    { 3.0f, 15.0f },  // O->+5
-    { 7.0f, 15.0f },  // +5->-5
+    { 4.0f, 15.0f },  // O->+5
+    { 3.0f, 30.0f },  // +5->-5 (小P+D压震荡)
 };
 
 static float output      = 0.0f;
@@ -101,13 +101,13 @@ void Task3_Update(float dt)
         float sign = (target - ball_cm > 0) ? 1.0f : -1.0f;
         if (last_sign != 0 && sign != last_sign) osc_cnt++;
         last_sign = sign;
-        float scale = 1.0f / (1.0f + osc_cnt * 0.5f);
+        float scale = 1.0f / (1.0f + osc_cnt * 1.0f);  // 每震一次减半
         PID_Node_SetKp(&pid, g_step[1].P * 0.2f * scale);
     }
 
     /* 稳态检测 */
     static uint32_t stable_since = 0;
-    if (fabsf(target - ball_cm) <= STABLE_CM) {
+    if (fabsf(target - ball_cm) <= STABLE_CM && (step == 0 || fabsf(dead_vel) < 0.3f)) {
         if (stable_since == 0) stable_since = now;
         else if (now - stable_since >= STABLE_MS) {
             step++;
@@ -123,7 +123,7 @@ void Task3_Update(float dt)
 
     /* 输出 */
     float out = pid.output;
-    out -= (step == 0 ? 0.5f : 1.5f) * dead_vel;  // 第二段强刹
+    out -= (step == 0 ? 0.5f : 2.0f) * dead_vel;  // 左侧强刹
     if (out > 15.0f)  out = 15.0f;
     if (out < -15.0f) out = -15.0f;
     output      = out;
@@ -140,7 +140,7 @@ void Task3_Control_Send(void)
 
 void Task3_Start(void) {
     step = 0; started = true;
-    ZDT_Pulse_SetPos(ZDT_Pulse_AngleToClk(FF_BASE));
+    ZDT_Pulse_SetPos(ZDT_Pulse_AngleToClk(lookup_angle(12.5f)));
     PID_Node_SetSetpoint(&pid, targets[0]);
     PID_Node_ResetIntegral(&pid);
 }
