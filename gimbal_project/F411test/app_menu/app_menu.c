@@ -3,19 +3,15 @@
 #include "multikey.h"
 #include "oled.h"
 #include "log.h"
-#include "oled.h"
-#include "ZDT_Motor_Serial.h"
 
-static MenuMode  g_mode     = MENU_ZDT_TEST;
-static bool      g_running  = false;
+static MenuMode g_mode     = MENU_ZDT_TEST;
+static bool     g_running[MENU_COUNT] = {0};
 
-
-const char* names[] = { "ZDT_TEST", "BALL_PID" };
+static const char* names[] = { "ZDT_TEST", "BALL_PID" };
 
 /* ---- 按键 ---- */
 static uint8_t read_k2(MulitKey_t* k) { (void)k; return HAL_GPIO_ReadPin(KEY2_GPIO_Port, KEY2_Pin) == GPIO_PIN_SET ? 1 : 0; }
 static uint8_t read_k3(MulitKey_t* k) { (void)k; return HAL_GPIO_ReadPin(KEY3_GPIO_Port, KEY3_Pin) == GPIO_PIN_SET ? 1 : 0; }
-
 
 static void on_k2(MulitKey_t* k) {
     (void)k;
@@ -26,10 +22,10 @@ static void on_k2(MulitKey_t* k) {
 static void on_k3(MulitKey_t* k) {
     (void)k;
     OLED_Clear();
-    g_running = !g_running;
+    g_running[g_mode] = !g_running[g_mode];
 }
 
-static MulitKey_t mk1, mk2, mk3;
+static MulitKey_t mk2, mk3;
 
 /* ---- 初始化 ---- */
 void App_Menu_Init(void)
@@ -45,10 +41,13 @@ void App_Menu_Process(void)
     MulitKey_Scan(&mk3);
 }
 
-/* ---- 获取状态 ---- */
+/* ---- 状态 ---- */
 MenuMode App_Menu_GetMode(void)  { return g_mode; }
-bool     App_Menu_IsRunning(void) { return g_running; }
-void     App_Menu_GetModeNameAndStatus(char* name,size_t buffer_size)
+bool     App_Menu_IsRunning(void){ return g_running[g_mode]; }
+void     App_Menu_Start(void)    { g_running[g_mode] = true; }
+void     App_Menu_Stop(void)     { g_running[g_mode] = false; }
+
+void App_Menu_GetModeNameAndStatus(char* name, size_t buffer_size)
 {
-    LOG_Snprintf(name, buffer_size, "%s %s", names[g_mode], g_running ? "RUN" : "STOP");
+    LOG_Snprintf(name, buffer_size, "%s %s", names[g_mode], g_running[g_mode] ? "RUN" : "STOP");
 }
