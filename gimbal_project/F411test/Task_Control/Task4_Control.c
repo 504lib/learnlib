@@ -10,7 +10,7 @@
 
 /* PID */
 #define KP   0.5f
-#define KI   0.02f
+#define KI   0.0f
 #define KD   10.0f
 
 /* 前馈 */
@@ -80,13 +80,16 @@ void Task4_Update(float dt)
     PID_Node_UpdateMeasurement(&pid, ball_cm);
     PID_ExecuteNode(&pid, dt);
 
-    /* 前馈: IMU X轴加速度 — 高频分离(车加速) / 低频滤除(梁倾斜) */
-    short ax, ay, az;
-    MPU_Get_Accelerometer(&ax, &ay, &az);
-    static float ax_baseline = 0;
-    ax_baseline += 0.005f * (ax - ax_baseline);  // 极慢低通, 只跟踪梁倾斜
-    float car_accel = ax - ax_baseline;           // 快变=车加速
-    float ff_angle  = K_FF * car_accel;
+    /* 前馈: IMU 只在视觉帧更新时读一次 (~60Hz) */
+    static float car_accel = 0;
+    if (g_ball_updated) {
+        short ax, ay, az;
+        MPU_Get_Accelerometer(&ax, &ay, &az);
+        static float ax_baseline = 0;
+        ax_baseline += 0.01f * (ax - ax_baseline);
+        car_accel = ax - ax_baseline;
+    }
+    float ff_angle = K_FF * car_accel;
 
     /* 合成 + 限幅 + 输出 */
     float out = pid.output + ff_angle;

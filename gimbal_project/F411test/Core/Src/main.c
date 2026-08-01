@@ -85,16 +85,16 @@ volatile float x_axis_target_angle = 0.0f;  // 目标角度，单位：度
 static uint8_t Oled_page_index = 0;
 static bool Enter_Oled_page = false;
 static bool Task3_excuting = false;
+static float man_angle = 28.0f;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-// static uint8_t read_key2(MulitKey_t* k) { (void)k; return HAL_GPIO_ReadPin(KEY2_GPIO_Port, KEY2_Pin) == GPIO_PIN_SET ? 1 : 0; }
-// static void on_key2(MulitKey_t* k) {
-//     (void)k;
-//     x_axis_target_angle -= 10.0f;
-// }
+static uint8_t read_k2(MulitKey_t* k) { (void)k; return HAL_GPIO_ReadPin(KEY2_GPIO_Port, KEY2_Pin) == GPIO_PIN_SET ? 1 : 0; }
+static void on_k2(MulitKey_t* k) { (void)k; man_angle += 0.1f; }
+static uint8_t read_k3(MulitKey_t* k) { (void)k; return HAL_GPIO_ReadPin(KEY3_GPIO_Port, KEY3_Pin) == GPIO_PIN_SET ? 1 : 0; }
+static void on_k3(MulitKey_t* k) { (void)k; man_angle -= 0.1f; }
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -178,10 +178,14 @@ int main(void)
   HAL_TIM_Base_Start_IT(&htim2);
   ZDT_Pulse_Init();
   ZDT_Pulse_Enable();
+  App_Menu_Start();  // 默认 RUN
 
   // /* PID初始化: kp=角度→RPM, ki=消除静差, kd=微分预判减速 */
    App_Protocol_Init();
    App_Menu_Init();
+  MulitKey_t mk2, mk3;
+  MulitKey_Init(&mk2, read_k2, on_k2, on_k2, FALL_BORDER_TRIGGER);
+  MulitKey_Init(&mk3, read_k3, on_k3, on_k3, FALL_BORDER_TRIGGER);
 	HAL_UART_Receive_IT(&huart6, (uint8_t*)&rx_byte, 1);
   HAL_UART_Receive_IT(&huart1, (uint8_t*)&rx_byte_uart1, 1);
   
@@ -197,7 +201,9 @@ int main(void)
       App_Protocol_Loop();
     }
 
-    App_Menu_Process();
+    //App_Menu_Process();
+    MulitKey_Scan(&mk2);
+    MulitKey_Scan(&mk3);
     if (HAL_GetTick() - last_tick >= 50)   // 20ms→50ms, 减OLED负担
     {
       last_tick = HAL_GetTick();
@@ -209,6 +215,8 @@ int main(void)
         case MENU_ZDT_TEST:
           LOG_Snprintf(buffer, sizeof(buffer), "PUL %ld D%d", (int32_t)ZDT_Pulse_GetPos(), ZDT_Pulse_IsDone()?1:0);
           OLED_ShowString(0, 8, (uint8_t*)buffer, 8, 1);
+          LOG_Snprintf(buffer, sizeof(buffer), "A:%.1f", man_angle);
+          OLED_ShowString(0, 16, (uint8_t*)buffer, 8, 1);
             break;
         case MENU_TASK3:
           LOG_Snprintf(buffer, sizeof(buffer), "P:%.2f S:%u O:%.2f",
@@ -220,6 +228,8 @@ int main(void)
         case MENU_TASK4:
           LOG_Snprintf(buffer, sizeof(buffer), "P:%.2f ff:%.2f", Task4_GetCurrent(), Task4_GetOutput());
           OLED_ShowString(0, 8, (uint8_t*)buffer, 8, 1);
+          LOG_Snprintf(buffer, sizeof(buffer), "ax:%.2f ay:%.2f az:%.2f", mpu_data->phys.ax, mpu_data->phys.ay, mpu_data->phys.az);
+          OLED_ShowString(0, 16, (uint8_t*)buffer, 8, 1);
             break;
         default:
           break;
@@ -303,28 +313,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
           switch (App_Menu_GetMode()) 
           {
           case MENU_ZDT_TEST:
-          {
-            if (!App_Menu_IsRunning())
-            {
-              App_Menu_Start();
-            }
-            
-              if (!ZDT_Pulse_IsDone())
-              {
-                return;	
-              }
-              else
-              {
-                App_Menu_Stop();
-              }
-              ZDT_Pulse_MoveToClk(ZDT_Pulse_AngleToClk(25.5f));
-           }
-          break;
+            ZDT_Pulse_MoveToClk(ZDT_Pulse_AngleToClk(man_angle));
+            break;
           case MENU_TASK3:
               if (!Task3_IsRunning() && !Task3_IsDone()) Task3_Start();
               Task3_Control_Send();
               break;
-          case MENU_TASK4:
+          case MENU_TASK4: 
               if (!Task4_IsRunning()) Task4_Start();
               Task4_Control_Send();
             break;
