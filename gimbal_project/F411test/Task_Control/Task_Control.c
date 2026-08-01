@@ -1,8 +1,8 @@
 #include "Task_Control.h"
 #include <math.h>
 
-#define STEP_COUNT   3
-#define FF_BASE      27.0f  // 实测中心水平角
+#define STEP_COUNT   4
+#define FF_BASE      27.0f
 #define STABLE_CM    1.0f
 #define STABLE_MS    1000
 
@@ -10,12 +10,12 @@ static PID_Node pid;
 static int      step        = 0;
 static bool     started     = false;
 
-static const float targets[STEP_COUNT] = { 17.5f, 1.0f };   // +5cm, -6.5cm(预期偏1.5)
+static const float targets[STEP_COUNT] = { 17.5f, 1.0f };
 
 typedef struct { float P, D; } Gains;
 static const Gains g_step[STEP_COUNT] = {
-    { 1.7f, 15.0f },  // O->+5
-    { 2.0f, 15.0f },  // +5->-5
+    { 1.7f, 15.0f },
+    { 2.0f, 15.0f },
 };
 
 static float  output      = 0.0f;
@@ -30,7 +30,7 @@ void Task3_Init(void)
     PID_Node_SetSetpoint(&pid, targets[0]);
     PID_Node_SetLimit(&pid, (PID_Limit){
         .setpoint_max = 25.0f, .setpoint_min =  0.0f,
-        .input_max    = 25.0f, .input_min    =  -25.0f,
+        .input_max    = 25.0f, .input_min    = -25.0f,
         .output_max   = 100.0f, .output_min   = -100.0f,
         .integral_max =  3.0f, .derivative_max = 50.0f,
         .deadband     =  0.0f,
@@ -49,7 +49,7 @@ void Task3_Update(float dt)
 {
     if (!started || step >= STEP_COUNT) return;
 
-    float target   = targets[step];
+    float target   = targets[0];
     float ball_cm;
     uint32_t now = HAL_GetTick();
 
@@ -69,34 +69,37 @@ void Task3_Update(float dt)
         return;
     }
 
-    /* 当前段 PD */
-    /* 当前段 PD */
-    PID_Node_SetKp(&pid, g_step[step].P * 0.2f);
-    PID_Node_SetKd(&pid, g_step[step].D);
-    PID_Node_SetSetpoint(&pid, target);
-    PID_Node_UpdateMeasurement(&pid, ball_cm);
-    PID_ExecuteNode(&pid, dt);
+    if (step == 0) {
+        PID_Node_SetKp(&pid, g_step[0].P * 0.2f);
+        PID_Node_SetKd(&pid, g_step[0].D);
+        PID_Node_SetSetpoint(&pid, target);
+        PID_Node_UpdateMeasurement(&pid, ball_cm);
+        PID_ExecuteNode(&pid, dt);
+    }
 
     /* 稳态检测 */
     static uint32_t stable_since = 0;
     static int      last_step    = -1;
     if (step != last_step) { stable_since = 0; last_step = step; }
     switch (step) {
-    case 0:  // PID 稳在 +5
+    case 0:
         if (fabsf(target - ball_cm) <= STABLE_CM) {
             if (stable_since == 0) stable_since = now;
             else if (now - stable_since >= STABLE_MS) step++;
         } else stable_since = 0;
         break;
-    case 1:  // 定时倾斜推球
+    case 1:
         if (stable_since == 0) stable_since = now;
-        else if (now - stable_since >= 800) step++;  // 800ms 后切段
+        else if (now - stable_since >= 800) step++;
         break;
-    case 2:  // 等球停下
+    case 2:
         if (fabsf(dead_vel) < 0.1f) {
             if (stable_since == 0) stable_since = now;
             else if (now - stable_since >= 500) step++;
         } else stable_since = 0;
+        break;
+    case 3:
+        if (fabsf(7.5f - ball_cm) <= 0.5f && fabsf(dead_vel) < 0.05f) step++;
         break;
     }
 
@@ -110,8 +113,9 @@ void Task3_Update(float dt)
           output = out;
           motor_angle = FF_BASE - out; }
         break;
-    case 1: motor_angle = 32.0f; output = 0.0f; break;  // 右倾推球
-    case 2: motor_angle = 29.5f; output = 0.0f; break;  // 到位锁平
+    case 1: motor_angle = 32.0f; output = 0.0f; break;
+    case 2: motor_angle = 29.5f; output = 0.0f; break;
+    case 3: output = 0.3f * dead_vel; motor_angle = 29.5f - output; break;
     }
     ZDT_Pulse_MoveToClk(ZDT_Pulse_AngleToClk(motor_angle));
 }
@@ -133,7 +137,7 @@ void Task3_Stop(void)  { step = 0; started = false; }
 bool Task3_IsRunning(void) { return started && step < STEP_COUNT; }
 bool Task3_IsDone(void)    { return step >= STEP_COUNT; }
 uint32_t Task3_GetStep(void)   { return step; }
-float    Task3_GetTarget(void) { return (step < STEP_COUNT) ? targets[step] : 0.0f; }
+float    Task3_GetTarget(void) { return targets[0]; }
 float    Task3_GetCurrent(void){ return PxToCm(g_ball_pos); }
 float    Task3_GetOutput(void) { return output; }
 float    Task3_GetAngle(void)  { return motor_angle; }
