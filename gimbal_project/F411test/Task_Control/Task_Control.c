@@ -66,9 +66,11 @@ static bool     data_lost    = false;
 
 void Task3_Update(float dt)
 {
-    if (!started || step >= STEP_COUNT) return;
+    if (!started) return;
 
-    float target   = targets[step];
+    /* 全部完成则保持最终目标 */
+    int active = (step < STEP_COUNT) ? step : STEP_COUNT-1;
+    float target = targets[active];
     float ball_cm;
     uint32_t now = HAL_GetTick();
 
@@ -89,8 +91,8 @@ void Task3_Update(float dt)
     }
 
     /* 当前段 PD */
-    PID_Node_SetKp(&pid, g_step[step].P * 0.2);
-    PID_Node_SetKd(&pid, g_step[step].D);
+    PID_Node_SetKp(&pid, g_step[active].P * 0.2);
+    PID_Node_SetKd(&pid, g_step[active].D);
     PID_Node_SetSetpoint(&pid, target);
     PID_Node_UpdateMeasurement(&pid, ball_cm);
     PID_ExecuteNode(&pid, dt);
