@@ -175,6 +175,7 @@ int main(void)
   ZDT_Enable(&x_asix_motor);
   Task3_Init();
   Task4_Init();
+  Task4_Simple_Init();
   // ZDT_SetHomeOrigin(&x_asix_motor, true);
   ZDT_TriggerHome(&x_asix_motor, ZDT_HOME_NEAREST);
   HAL_Delay(1000);
@@ -237,8 +238,8 @@ int main(void)
         case MENU_TASK4:
           LOG_Snprintf(buffer, sizeof(buffer), "P:%.2f ff:%.2f", Task4_GetCurrent(), Task4_GetOutput());
           OLED_ShowString(0, 8, (uint8_t*)buffer, 8, 1);
-          LOG_Snprintf(buffer, sizeof(buffer), "ax:%.2f ay:%.2f az:%.2f", mpu_data->phys.ax, mpu_data->phys.ay, mpu_data->phys.az);
-          OLED_ShowString(0, 16, (uint8_t*)buffer, 8, 1);
+          // LOG_Snprintf(buffer, sizeof(buffer), "ax:%.2f ay:%.2f az:%.2f", mpu_data->phys.ax, mpu_data->phys.ay, mpu_data->phys.az);
+          // OLED_ShowString(0, 16, (uint8_t*)buffer, 8, 1);
             break;
         default:
           break;
@@ -305,43 +306,32 @@ void SystemClock_Config(void)
 /* USER CODE BEGIN 4 */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-  static uint32_t counter = 0;
-  if (htim->Instance == TIM2) 
-	{
+  if (htim->Instance == TIM2)
+  {
     MPU6050_Update();
 
-		/* 角度误差 → PID算目标速率 */
+    MenuMode mode = App_Menu_GetMode();
+    bool     run  = App_Menu_IsRunning();
 
-    Task3_Update(2.0f);
-    Task4_Update(2.0f);
-		/* 发速度指令 */
-		if (counter % 1 == 0)
-		{
-      if (App_Menu_IsRunning()) 
-      {
-          switch (App_Menu_GetMode()) 
-          {
-          case MENU_ZDT_TEST:
-            ZDT_Pulse_MoveToClk(ZDT_Pulse_AngleToClk(man_angle));
-            break;
-          case MENU_TASK3:
-              if (!Task3_IsRunning() && !Task3_IsDone()) Task3_Start();
-              Task3_Control_Send();
-              break;
-          case MENU_TASK4: 
-              if (!Task4_IsRunning()) Task4_Start();
-              Task4_Control_Send();
-            break;
-          }
-      } 
-      else if (Task3_IsRunning() || Task4_IsRunning() || Task3_IsDone()) {
-          Task3_Stop();
-          if (Task4_IsRunning()) Task4_Stop();
-      }
-		}
-    counter++;
-	}
-
+    if (run && mode == MENU_TASK3) {
+      if (Task4_Simple_IsRunning()) Task4_Simple_Stop();
+      if (!Task3_IsRunning() && !Task3_IsDone()) Task3_Start();
+      Task3_Update(2.0f);
+      Task3_Control_Send();
+    } else if (run && mode == MENU_TASK4) {
+      if (Task3_IsRunning() || Task3_IsDone()) Task3_Stop();
+      if (!Task4_Simple_IsRunning()) Task4_Simple_Start();
+      Task4_Simple_Update(2.0f);
+      Task4_Simple_Control_Send();
+    } else if (run && mode == MENU_ZDT_TEST) {
+      if (Task3_IsRunning() || Task3_IsDone()) Task3_Stop();
+      if (Task4_Simple_IsRunning()) Task4_Simple_Stop();
+      ZDT_Pulse_MoveToClk(ZDT_Pulse_AngleToClk(28.0f));
+    } else {
+      if (Task3_IsRunning() || Task3_IsDone()) Task3_Stop();
+      if (Task4_Simple_IsRunning()) Task4_Simple_Stop();
+    }
+  }
 }
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
 {

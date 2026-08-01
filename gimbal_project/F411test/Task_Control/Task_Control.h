@@ -24,3 +24,11 @@ float Task3_GetTarget(void);
 float Task3_GetCurrent(void);
 float Task3_GetOutput(void);
 float Task3_GetAngle(void);
+
+/* Task4 简化版: 和Task3同文件, 单目标CENTER_CM */
+void Task4_Simple_Init(void);
+void Task4_Simple_Update(float dt);
+void Task4_Simple_Control_Send(void);
+void Task4_Simple_Start(void);
+void Task4_Simple_Stop(void);
+bool Task4_Simple_IsRunning(void);

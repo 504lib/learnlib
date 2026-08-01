@@ -1,18 +1,22 @@
 #include "Task4_Control.h"
 #include "Task_Control.h"
+#include "mpu6050_user.h"
 #include <math.h>
 
 /* ================================================================
-   Task4: 车载平衡 — 查表基准 + PD(球位置) + IMU前馈(车加速)
-   查表给出目标位置的平衡角, PD修正偏差, IMU抵消车加速惯性
+   Task4: 车载平衡 — 查表基准 + PD(球位置) + IMU前馈
    ================================================================ */
-#define TARGET_CM  CENTER_CM   /* 球目标: 中点 */
-#define KP         0.5f
-#define KD         10.0f
-#define K_FF       0.05f       /* 加速度→角度系数(需实车标定) */
+#define TARGET_CM  CENTER_CM
+#define KP         3.0f
+#define KD         15.0f
+#define K_FF       0.05f
 
 static PID_Node pid;
 static bool     started = false;
+
+static float  output      = 0.0f;
+static float  motor_angle = 28.0f;
+static bool   force_cmd   = true;    /* Start后强制发一次指令 */
 
 static float PxToCm(int32_t px) { return px * 0.1f; }
 
@@ -27,7 +31,7 @@ void Task4_Init(void)
         .integral_max =  3.0f, .derivative_max = 30.0f,
         .deadband     =  0.0f,
     });
-    ZDT_Pulse_SetRamp(500, 1500, 3);
+    ZDT_Pulse_SetRamp(500, 1500, 3);   /* 起步500 + 巡航8k + 100步斜坡 */
     ZDT_Pulse_Enable();
 }
 
@@ -61,31 +65,34 @@ void Task4_Update(float dt)
         return;
     }
 
-    /* PD: 球位置 → 角度修正 */
+    PID_Node_SetKp(&pid, KP * 0.2f);
+    PID_Node_SetKd(&pid, KD);
     PID_Node_SetSetpoint(&pid, TARGET_CM);
     PID_Node_UpdateMeasurement(&pid, ball_cm);
     PID_ExecuteNode(&pid, dt);
 
-    /* IMU前馈: 只在视觉帧更新时读数 (~60Hz) */
-    static float car_accel = 0;
-    if (g_ball_updated) {
-        short ax, ay, az;
-        MPU_Get_Accelerometer(&ax, &ay, &az);
-        static float ax_baseline = 0;
-        ax_baseline += 0.01f * (ax - ax_baseline);
-        car_accel = ax - ax_baseline;
-    }
-    float ff_angle = K_FF * car_accel;
+    // MPU6050_Data_t* imu = MPU6050_GetHandle();
+    float ff_angle = 0; // 暂时为0
 
-    /* 合成: 查表基准角 - (PD + 前馈) */
     float out = pid.output + ff_angle;
+    out -= 0.5f * dead_vel;
     if (out > 10.0f)  out = 10.0f;
     if (out < -10.0f) out = -10.0f;
 
-    float angle = lookup_angle(TARGET_CM) - out;
-    ZDT_Pulse_MoveToClk(ZDT_Pulse_AngleToClk(angle));
+    output      = out;
+    motor_angle = lookup_angle(TARGET_CM) - out;
+
+    /* 只在目标角变化超过阈值时才发新指令, 避免每2ms重置梯形斜坡 */
+    // static int32_t last_cmd_clk = 0;
+    // int32_t new_clk = ZDT_Pulse_AngleToClk(motor_angle);
+    // if (force_cmd || abs(new_clk - last_cmd_clk) >= 3) {
+    //     force_cmd = false;
+    //     last_cmd_clk = new_clk;
+        ZDT_Pulse_MoveToClk(ZDT_Pulse_AngleToClk(motor_angle));
+    // }
 }
 
+/* 断联兜底 */
 void Task4_Control_Send(void)
 {
     if (data_lost) {
@@ -96,7 +103,7 @@ void Task4_Control_Send(void)
 /* ---- API ---- */
 void Task4_Start(void) {
     started = true;
-    ZDT_Pulse_SetPos(ZDT_Pulse_AngleToClk(lookup_angle(CENTER_CM)));
+    force_cmd = true;
     PID_Node_SetSetpoint(&pid, TARGET_CM);
     PID_Node_ResetIntegral(&pid);
 }
@@ -106,4 +113,4 @@ bool Task4_IsDone(void)    { return false; }
 uint32_t Task4_GetStep(void)   { return 0; }
 float    Task4_GetTarget(void) { return TARGET_CM; }
 float    Task4_GetCurrent(void){ return PxToCm(g_ball_pos); }
-float    Task4_GetOutput(void) { return pid.output; }
+float    Task4_GetOutput(void) { return output; }

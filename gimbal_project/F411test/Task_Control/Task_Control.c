@@ -1,4 +1,5 @@
 #include "Task_Control.h"
+#include "mpu6050_user.h"
 #include <math.h>
 
 #define STEP_COUNT   2
@@ -44,7 +45,7 @@ void Table_CalibrateOffset(float cam_cm, float unused) {
 typedef struct { float P, D; } Gains;
 static const Gains g_step[STEP_COUNT] = {
     { 1.0f, 15.0f },  // O->+5
-    { 3.0f, 15.0f },  // +5->-5
+    { 1.0f, 5.0f },  // +5->-5
 };
 
 static float output      = 0.0f;
@@ -107,35 +108,37 @@ void Task3_Update(float dt)
     PID_Node_UpdateMeasurement(&pid, ball_cm);
     PID_ExecuteNode(&pid, dt);
 
-    /* 第二段: 每次穿越目标线减P, 接近目标停计数, P不低于30% */
+    /* 第二段: 每次穿越目标线减P, 接近目标停计数, P不低于20% */
     if (step == 1) {
         static float  last_sign = 0;
         static int    osc_cnt   = 0;
         static int    prev_step = -1;
         if (step != prev_step) { osc_cnt = 0; last_sign = 0; prev_step = step; }
         float sign = (target - ball_cm > 0) ? 1.0f : -1.0f;
-        if (last_sign != 0 && sign != last_sign && fabsf(target - ball_cm) > 1.5f)
+        if (last_sign != 0 && sign != last_sign && fabsf(target - ball_cm) > 1.0f)
             osc_cnt++;
         last_sign = sign;
-        float scale = 1.0f / (1.0f + osc_cnt * 2.0f);
-        if (scale < 0.3f) scale = 0.3f;
+        float scale = 1.0f / (1.0f + osc_cnt * 4.0f);
+        if (scale < 0.15f) scale = 0.15f;
         PID_Node_SetKp(&pid, g_step[1].P * 0.2f * scale);
     }
 
-    /* 稳态检测 */
-    static uint32_t stable_since = 0;
-    if (fabsf(target - ball_cm) <= STABLE_CM) {
-        if (stable_since == 0) stable_since = now;
-        else if (now - stable_since >= STABLE_MS) {
-            step++;
-            stable_since = 0;
-            if (step < STEP_COUNT) {
-                PID_Node_SetSetpoint(&pid, targets[step]);
-                PID_Node_ResetIntegral(&pid);
+    /* 稳态检测: 只在未完成时计数 */
+    if (step < STEP_COUNT) {
+        static uint32_t stable_since = 0;
+        if (fabsf(target - ball_cm) <= STABLE_CM) {
+            if (stable_since == 0) stable_since = now;
+            else if (now - stable_since >= STABLE_MS) {
+                step++;
+                stable_since = 0;
+                if (step < STEP_COUNT) {
+                    PID_Node_SetSetpoint(&pid, targets[step]);
+                    PID_Node_ResetIntegral(&pid);
+                }
             }
+        } else {
+            stable_since = 0;
         }
-    } else {
-        stable_since = 0;
     }
 
     /* 输出 */
@@ -157,7 +160,6 @@ void Task3_Control_Send(void)
 
 void Task3_Start(void) {
     step = 0; started = true;
-    ZDT_Pulse_SetPos(ZDT_Pulse_AngleToClk(lookup_angle(12.5f)));
     PID_Node_SetSetpoint(&pid, targets[0]);
     PID_Node_ResetIntegral(&pid);
 }
@@ -169,3 +171,92 @@ float    Task3_GetTarget(void) { return (step < STEP_COUNT) ? targets[step] : 0.
 float    Task3_GetCurrent(void){ return PxToCm(g_ball_pos); }
 float    Task3_GetOutput(void) { return output; }
 float    Task3_GetAngle(void)  { return motor_angle; }
+
+/* ================================================================
+   Task4_Simple: 和Task3同构, 单目标CENTER_CM, PD + IMU前馈
+   ================================================================ */
+#define T4_K_FF  0.05f   /* IMU加速度→角度前馈系数 */
+static PID_Node pid4;
+static bool     t4_started  = false;
+static float    t4_output   = 0.0f;
+static float    t4_angle    = 28.0f;
+
+static uint32_t t4_last_ms  = 0;
+static float    t4_dead_cm  = CENTER_CM;
+static float    t4_dead_vel  = 0.0f;
+static bool     t4_lost      = false;
+
+void Task4_Simple_Init(void)
+{
+    PID_Node_Init(&pid4, "t4s", 1.0f, 0.0f, 15.0f);
+    PID_Node_SetSetpoint(&pid4, CENTER_CM);
+    PID_Node_SetLimit(&pid4, (PID_Limit){
+        .setpoint_max = 25.0f, .setpoint_min =  0.0f,
+        .input_max    = 25.0f, .input_min    =  0.0f,
+        .output_max   = 10.0f, .output_min   = -10.0f,
+        .integral_max =  3.0f, .derivative_max = 30.0f,
+        .deadband     =  0.0f,
+    });
+}
+
+void Task4_Simple_Update(float dt)
+{
+    if (!t4_started) return;
+
+    float ball_cm;
+    uint32_t now = HAL_GetTick();
+
+    if (g_ball_updated) {
+        g_ball_updated = false;
+        t4_last_ms = now;
+        if (t4_lost) { PID_Node_ResetIntegral(&pid4); t4_lost = false; }
+        ball_cm   = g_ball_pos * 0.1f;
+        t4_dead_cm = ball_cm;
+        t4_dead_vel = g_ball_vel * 0.1f;
+    } else if (now - t4_last_ms < 150) {
+        t4_dead_vel *= 0.95f;
+        t4_dead_cm  += t4_dead_vel * dt / 1000.0f;
+        ball_cm = t4_dead_cm;
+    } else {
+        t4_lost = true;
+        return;
+    }
+
+    PID_Node_SetKp(&pid4, 1.0f * 0.2f);
+    PID_Node_SetKd(&pid4, 15.0f);
+    PID_Node_SetSetpoint(&pid4, CENTER_CM);
+    PID_Node_UpdateMeasurement(&pid4, ball_cm);
+    PID_ExecuteNode(&pid4, dt);
+
+    MPU6050_Data_t* imu = MPU6050_GetHandle();
+
+    /* 一阶低通: ax滤波, 去振动噪声, alpha越小越滞后 */
+    static float ax_filt = 0;
+    float alpha = (dt < 0.01f) ? 0.95f : 0.8f;  /* 2ms→α=0.95, 截止~16Hz */
+    ax_filt = alpha * ax_filt + (1.0f - alpha) * imu->phys.ax;
+    float ff = T4_K_FF * ax_filt;
+
+    float out = pid4.output + ff;
+    out -= 0.5f * t4_dead_vel;
+    if (out > 10.0f)  out = 10.0f;
+    if (out < -10.0f) out = -10.0f;
+
+    t4_output = out;
+    t4_angle  = lookup_angle(CENTER_CM) - out;
+    ZDT_Pulse_MoveToClk(ZDT_Pulse_AngleToClk(t4_angle));
+}
+
+void Task4_Simple_Control_Send(void)
+{
+    if (t4_lost) {
+        ZDT_Pulse_MoveToClk(ZDT_Pulse_AngleToClk(lookup_angle(CENTER_CM)));
+    }
+}
+
+void Task4_Simple_Start(void) {
+    t4_started = true;
+    PID_Node_SetSetpoint(&pid4, CENTER_CM);
+    PID_Node_ResetIntegral(&pid4);
+}
+void Task4_Simple_Stop(void)  { t4_started = false; }
+bool Task4_Simple_IsRunning(void) { return t4_started; }
