@@ -143,7 +143,7 @@ void Task3_Update(float dt)
 
     /* 输出 */
     float out = pid.output;
-    out -= (step == 0 ? 0.5f : 1.0f) * dead_vel;  // 第二段强刹
+    out -= (step == 0 ? 0.5f : 0.8f) * dead_vel;  // 第二段强刹
     if (out > 15.0f)  out = 15.0f;
     if (out < -15.0f) out = -15.0f;
     output      = out;
@@ -175,7 +175,7 @@ float    Task3_GetAngle(void)  { return motor_angle; }
 /* ================================================================
    Task4_Simple: 和Task3同构, 单目标CENTER_CM, PD + IMU前馈
    ================================================================ */
-#define T4_K_FF  0.05f   /* IMU加速度→角度前馈系数 */
+#define T4_K_FF  0.09f   /* IMU加速度→角度前馈系数 */
 static PID_Node pid4;
 static bool     t4_started  = false;
 static float    t4_output   = 0.0f;
@@ -245,6 +245,9 @@ void Task4_Simple_Update(float dt)
     t4_angle  = lookup_angle(CENTER_CM) - out;
     ZDT_Pulse_MoveToClk(ZDT_Pulse_AngleToClk(t4_angle));
 }
+
+float task4_simple_output(void) { return t4_output; }
+
 
 void Task4_Simple_Control_Send(void)
 {

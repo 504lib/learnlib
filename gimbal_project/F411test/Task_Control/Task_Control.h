@@ -32,3 +32,4 @@ void Task4_Simple_Control_Send(void);
 void Task4_Simple_Start(void);
 void Task4_Simple_Stop(void);
 bool Task4_Simple_IsRunning(void);
+float task4_simple_output(void);

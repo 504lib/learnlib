@@ -236,7 +236,7 @@ int main(void)
           OLED_ShowString(0, 16, (uint8_t*)buffer, 8, 1);
           break;
         case MENU_TASK4:
-          LOG_Snprintf(buffer, sizeof(buffer), "P:%.2f ff:%.2f", Task4_GetCurrent(), Task4_GetOutput());
+          LOG_Snprintf(buffer, sizeof(buffer), "P:%.2f ff:%.2f", Task4_GetCurrent(), task4_simple_output());
           OLED_ShowString(0, 8, (uint8_t*)buffer, 8, 1);
           // LOG_Snprintf(buffer, sizeof(buffer), "ax:%.2f ay:%.2f az:%.2f", mpu_data->phys.ax, mpu_data->phys.ay, mpu_data->phys.az);
           // OLED_ShowString(0, 16, (uint8_t*)buffer, 8, 1);
