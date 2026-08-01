@@ -40,6 +40,7 @@
 #include "app_protocol.h"
 #include "app_menu.h"
 #include "Task_Control.h"
+#include "Task4_Control.h"
 #include "ZDT_Pulse_Control.h"
 /* USER CODE END Includes */
 
@@ -170,6 +171,7 @@ int main(void)
   ZDT_Init(&x_asix_motor,0x00,ZDT_Send_Tx_callback);
   ZDT_Enable(&x_asix_motor);
   Task3_Init();
+  Task4_Init();
   // ZDT_SetHomeOrigin(&x_asix_motor, true);
   ZDT_TriggerHome(&x_asix_motor, ZDT_HOME_NEAREST);
   HAL_Delay(1000);
@@ -208,11 +210,17 @@ int main(void)
           LOG_Snprintf(buffer, sizeof(buffer), "PUL %ld D%d", (int32_t)ZDT_Pulse_GetPos(), ZDT_Pulse_IsDone()?1:0);
           OLED_ShowString(0, 8, (uint8_t*)buffer, 8, 1);
             break;
-        case MENU_BALL_PID:
+        case MENU_TASK3:
           LOG_Snprintf(buffer, sizeof(buffer), "P:%.2f S:%u O:%.2f",
             Task3_GetCurrent(),Task3_GetStep(), Task3_GetOutput());
           OLED_ShowString(0, 8, (uint8_t*)buffer, 8, 1);
+          LOG_Snprintf(buffer, sizeof(buffer), "A:%.2f", Task3_GetAngle());
+          OLED_ShowString(0, 16, (uint8_t*)buffer, 8, 1);
           break;
+        case MENU_TASK4:
+          LOG_Snprintf(buffer, sizeof(buffer), "P:%.2f ff:%.2f", Task4_GetCurrent(), Task4_GetOutput());
+          OLED_ShowString(0, 8, (uint8_t*)buffer, 8, 1);
+            break;
         default:
           break;
         }
@@ -286,6 +294,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		/* 角度误差 → PID算目标速率 */
 
     Task3_Update(2.0f);
+    Task4_Update(2.0f);
 		/* 发速度指令 */
 		if (counter % 1 == 0)
 		{
@@ -308,22 +317,22 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
               {
                 App_Menu_Stop();
               }
-              ZDT_Pulse_MoveToClk(ZDT_Pulse_AngleToClk(25.0f));
+              ZDT_Pulse_MoveToClk(ZDT_Pulse_AngleToClk(25.5f));
            }
           break;
-          case MENU_BALL_PID:
+          case MENU_TASK3:
               if (!Task3_IsRunning() && !Task3_IsDone()) Task3_Start();
               Task3_Control_Send();
-              if (Task3_IsDone())
-              {
-                App_Menu_Stop();
-              }
-              
               break;
+          case MENU_TASK4:
+              if (!Task4_IsRunning()) Task4_Start();
+              Task4_Control_Send();
+            break;
           }
       } 
-      else if (Task3_IsRunning() || Task3_IsDone()) {
+      else if (Task3_IsRunning() || Task4_IsRunning() || Task3_IsDone()) {
           Task3_Stop();
+          if (Task4_IsRunning()) Task4_Stop();
       }
 		}
     counter++;

@@ -16,8 +16,8 @@
         <TargetCommonOption>
           <Device>STM32F411CEUx</Device>
           <Vendor>STMicroelectronics</Vendor>
-          <PackID>Keil.STM32F4xx_DFP.2.17.1</PackID>
-          <PackURL>https://www.keil.com/pack/</PackURL>
+          <PackID>Keil.STM32F4xx_DFP.2.16.0</PackID>
+          <PackURL>http://www.keil.com/pack/</PackURL>
           <Cpu>IRAM(0x20000000-0x2001FFFF) IROM(0x8000000-0x807FFFF)  CLOCK(25000000) FPU2 CPUTYPE("Cortex-M4") TZ</Cpu>
           <FlashUtilSpec></FlashUtilSpec>
           <StartupFile></StartupFile>
@@ -859,6 +859,16 @@
               <FileName>ZDT_Pulse_Control.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\ZDT_Pulse_Control\ZDT_Pulse_Control.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>TASK4</GroupName>
+          <Files>
+            <File>
+              <FileName>Task4_Control.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Task_Control\Task4_Control.c</FilePath>
             </File>
           </Files>
         </Group>

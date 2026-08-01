@@ -16,3 +16,4 @@ uint32_t Task3_GetStep(void);
 float Task3_GetTarget(void);
 float Task3_GetCurrent(void);
 float Task3_GetOutput(void);
+float Task3_GetAngle(void);
