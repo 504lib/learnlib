@@ -16,7 +16,7 @@ AXIS_START_CM = 0
 AXIS_END_CM = 25
 DETECTION_CONFIDENCE = 0.4
 
-model_path = "model_224/model_315364.mud"
+model_path = "/model_315364.mud"
 detector = nn.YOLOv5(model=model_path)
 
 AXIS_START_PX = (5, detector.input_height() // 2 - 25)

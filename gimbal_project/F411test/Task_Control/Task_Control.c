@@ -97,7 +97,7 @@ void Task3_Update(float dt)
     PID_Node_UpdateMeasurement(&pid, ball_cm);
     PID_ExecuteNode(&pid, dt);
 
-    /* 第二段: 震荡一次就减 P */
+    /* 第二段: 每次穿越目标线 P 降至 40%(=1/(1+1.5)) */
     if (step == 1) {
         static float  last_sign = 0;
         static int    osc_cnt   = 0;
@@ -106,8 +106,8 @@ void Task3_Update(float dt)
         float sign = (target - ball_cm > 0) ? 1.0f : -1.0f;
         if (last_sign != 0 && sign != last_sign) osc_cnt++;
         last_sign = sign;
-        float scale = 1.0f / (1.0f + osc_cnt * 0.5f);
-        PID_Node_SetKp(&pid, g_step[1].P * 0.35f * scale);
+        float scale = 1.0f / (1.0f + osc_cnt * 2.0f);
+        PID_Node_SetKp(&pid, g_step[1].P * 0.2f * scale);
     }
 
     /* 稳态检测 */
