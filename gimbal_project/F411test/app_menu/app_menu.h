@@ -19,4 +19,4 @@ bool     App_Menu_IsRunning(void);             // 当前选中模式是否在跑
 void     App_Menu_Start(void);                 // 启动当前模式
 void     App_Menu_Stop(void);                  // 停止当前模式
 
-void     App_Menu_GetModeNameAndStatus(char* name, size_t buffer_size);
+void     App_Menu_GetModeNameAndStatus(char* name, size_t buffer_size);	

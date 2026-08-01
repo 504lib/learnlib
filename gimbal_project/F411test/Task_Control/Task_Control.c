@@ -1,8 +1,8 @@
 #include "Task_Control.h"
 #include <math.h>
 
-#define STEP_COUNT   2
-#define FF_BASE      25.5f
+#define STEP_COUNT   3
+#define FF_BASE      27.0f  // 实测中心水平角
 #define STABLE_CM    1.0f
 #define STABLE_MS    1000
 
@@ -10,12 +10,12 @@ static PID_Node pid;
 static int      step        = 0;
 static bool     started     = false;
 
-static const float targets[STEP_COUNT] = { 17.5f, 7.5f };   // +5cm, -5cm
+static const float targets[STEP_COUNT] = { 17.5f, 1.0f };   // +5cm, -6.5cm(预期偏1.5)
 
 typedef struct { float P, D; } Gains;
 static const Gains g_step[STEP_COUNT] = {
-    { 0.4f, 15.0f },  // O->+5
-    { 0.7f, 100.0f },  // +5->-5
+    { 1.7f, 15.0f },  // O->+5
+    { 2.0f, 15.0f },  // +5->-5
 };
 
 static float  output      = 0.0f;
@@ -30,7 +30,7 @@ void Task3_Init(void)
     PID_Node_SetSetpoint(&pid, targets[0]);
     PID_Node_SetLimit(&pid, (PID_Limit){
         .setpoint_max = 25.0f, .setpoint_min =  0.0f,
-        .input_max    = 25.0f, .input_min    =  0.0f,
+        .input_max    = 25.0f, .input_min    =  -25.0f,
         .output_max   = 100.0f, .output_min   = -100.0f,
         .integral_max =  3.0f, .derivative_max = 50.0f,
         .deadband     =  0.0f,
@@ -70,7 +70,8 @@ void Task3_Update(float dt)
     }
 
     /* 当前段 PD */
-    PID_Node_SetKp(&pid, g_step[step].P);
+    /* 当前段 PD */
+    PID_Node_SetKp(&pid, g_step[step].P * 0.2f);
     PID_Node_SetKd(&pid, g_step[step].D);
     PID_Node_SetSetpoint(&pid, target);
     PID_Node_UpdateMeasurement(&pid, ball_cm);
@@ -78,30 +79,40 @@ void Task3_Update(float dt)
 
     /* 稳态检测 */
     static uint32_t stable_since = 0;
-    if (fabsf(target - ball_cm) <= STABLE_CM) {
+    static int      last_step    = -1;
+    if (step != last_step) { stable_since = 0; last_step = step; }
+    switch (step) {
+    case 0:  // PID 稳在 +5
+        if (fabsf(target - ball_cm) <= STABLE_CM) {
+            if (stable_since == 0) stable_since = now;
+            else if (now - stable_since >= STABLE_MS) step++;
+        } else stable_since = 0;
+        break;
+    case 1:  // 定时倾斜推球
         if (stable_since == 0) stable_since = now;
-        else if (now - stable_since >= STABLE_MS) {
-            step++;
-            stable_since = 0;
-            if (step < STEP_COUNT) {
-                PID_Node_SetSetpoint(&pid, targets[step]);
-                PID_Node_ResetIntegral(&pid);
-            }
-        }
-    } else {
-        stable_since = 0;
+        else if (now - stable_since >= 800) step++;  // 800ms 后切段
+        break;
+    case 2:  // 等球停下
+        if (fabsf(dead_vel) < 0.1f) {
+            if (stable_since == 0) stable_since = now;
+            else if (now - stable_since >= 500) step++;
+        } else stable_since = 0;
+        break;
     }
 
     /* 输出 */
-    float out = pid.output;
-    /* 方向刹车: 只刹离开目标的, 不刹滚向目标的 */
-    float err = target - ball_cm;
-     out -= 0.5f * dead_vel;  // 远离目标才刹
-    if (out > 45.0f)  out = 45.0f;
-    if (out < -45.0f) out = -45.0f;
-
-    output      = out;
-    motor_angle = FF_BASE - out;
+    switch (step) {
+    case 0:
+        { float out = pid.output;
+          out -= 0.5f * dead_vel;
+          if (out > 45.0f)  out = 45.0f;
+          if (out < -45.0f) out = -45.0f;
+          output = out;
+          motor_angle = FF_BASE - out; }
+        break;
+    case 1: motor_angle = 32.0f; output = 0.0f; break;  // 右倾推球
+    case 2: motor_angle = 29.5f; output = 0.0f; break;  // 到位锁平
+    }
     ZDT_Pulse_MoveToClk(ZDT_Pulse_AngleToClk(motor_angle));
 }
 
