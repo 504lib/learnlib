@@ -1,12 +1,17 @@
-id: diansai2026_h
-name: diansai2026 h
+id: final
+name: final
 name[zh]: 钢珠位置
 version: 0.1.0
 icon: app.png
-author: liuargo
+author: whyP762
 desc: Detect and display the calibrated position of a steel ball.
 desc[zh]: 检测并显示钢珠在摆杆上的标定位置。
 files:
+  - model_224\app.yaml
+  - model_224\main.py
+  - model_224\model_314555.cvimodel
+  - model_224\model_314555.mud
+  - model_224\report.json
   - app.png
   - app.yaml
   - ball_position.py

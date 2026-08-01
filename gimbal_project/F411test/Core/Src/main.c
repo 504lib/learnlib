@@ -40,6 +40,7 @@
 #include "app_protocol.h"
 #include "app_menu.h"
 #include "Task_Control.h"
+#include "ZDT_Pulse_Control.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -145,9 +146,9 @@ int main(void)
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
   MX_USART6_UART_Init();
-  MX_I2C3_Init();
   MX_SPI3_Init();
   MX_TIM2_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
   LOG_Init(__uart2_tx);
   LOG_Set_Level(LOG_LEVEL_INFO);
@@ -168,11 +169,13 @@ int main(void)
   MadgwickAHRSsetSampleFreq(1000.0f / IMU_UPDATE_PERIOD_MS);
   ZDT_Init(&x_asix_motor,0x00,ZDT_Send_Tx_callback);
   ZDT_Enable(&x_asix_motor);
-  Task3_Init(&x_asix_motor);
+  Task3_Init();
   // ZDT_SetHomeOrigin(&x_asix_motor, true);
   ZDT_TriggerHome(&x_asix_motor, ZDT_HOME_NEAREST);
   HAL_Delay(1000);
   HAL_TIM_Base_Start_IT(&htim2);
+  ZDT_Pulse_Init();
+  ZDT_Pulse_Enable();
 
   // /* PID初始化: kp=角度→RPM, ki=消除静差, kd=微分预判减速 */
    App_Protocol_Init();
@@ -186,8 +189,14 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    /* 协议优先: OLED之前处理, 降低延迟 */
+    for (size_t i = 0; i < 8; i++)
+    {
+      App_Protocol_Loop();
+    }
+
     App_Menu_Process();
-    if (HAL_GetTick() - last_tick >= 20)
+    if (HAL_GetTick() - last_tick >= 50)   // 20ms→50ms, 减OLED负担
     {
       last_tick = HAL_GetTick();
       char buf[32] = {0};
@@ -196,45 +205,18 @@ int main(void)
         switch (App_Menu_GetMode())
         {
         case MENU_ZDT_TEST:
-          LOG_Snprintf(buffer, sizeof(buffer), "tar_angle: %.2f", x_axis_target_angle);
+          LOG_Snprintf(buffer, sizeof(buffer), "PUL %ld D%d", (int32_t)ZDT_Pulse_GetPos(), ZDT_Pulse_IsDone()?1:0);
           OLED_ShowString(0, 8, (uint8_t*)buffer, 8, 1);
-          LOG_Snprintf(buffer, sizeof(buffer), "vel: %.2f", g_vel_value);
-          OLED_ShowString(0, 16, (uint8_t*)buffer, 8, 1);
-          LOG_Snprintf(buffer, sizeof(buffer), "zero: %u", g_zero_px);
-          OLED_ShowString(0, 24, (uint8_t*)buffer, 8, 1);
-          LOG_Snprintf(buffer, sizeof(buffer), "cur_px: %d", g_ball_pos);
-          OLED_ShowString(0, 32, (uint8_t*)buffer, 8, 1);
-          LOG_Snprintf(buffer, sizeof(buffer), "ball_vel: %.2f", g_ball_vel);
-          OLED_ShowString(0, 40, (uint8_t*)buffer, 8, 1);
-          break;
+            break;
         case MENU_BALL_PID:
-          LOG_Snprintf(buffer, sizeof(buffer), "target: %.2f\n", Task3_GetTarget());
+          LOG_Snprintf(buffer, sizeof(buffer), "P:%.2f S:%u O:%.2f",
+            Task3_GetCurrent(),Task3_GetStep(), Task3_GetOutput());
           OLED_ShowString(0, 8, (uint8_t*)buffer, 8, 1);
-          LOG_Snprintf(buffer, sizeof(buffer), "current: %.2f\n", Task3_GetCurrent());
-          OLED_ShowString(0, 16, (uint8_t*)buffer, 8, 1);
-          LOG_Snprintf(buffer, sizeof(buffer), "step: %d\n", Task3_GetStep());
-          OLED_ShowString(0, 24, (uint8_t*)buffer, 8, 1);
-          LOG_Snprintf(buffer, sizeof(buffer), "output: %.2f\n", Task3_GetOutput());
-          OLED_ShowString(0, 32, (uint8_t*)buffer, 8, 1);
-          LOG_Snprintf(buffer, sizeof(buffer), "ball_vel: %.2f", g_ball_vel);
-          OLED_ShowString(0, 40, (uint8_t*)buffer, 8, 1);
           break;
         default:
           break;
         }
-      
       OLED_Refresh();
-    }
-    // {
-    //   uint8_t b;
-    //   while (RxQ_POP(&rx_queue, &b))
-    //     App_Protocol_FeedByte(b);
-    // }
-    // HAL_UART_Transmit(&huart6, (uint8_t*)"test\n", sizeof("test\n"), HAL_MAX_DELAY);
-		// HAL_Delay(200);
-    for (size_t i = 0; i < 16; i++)
-    {
-      App_Protocol_Loop();
     }
     #if LOG_USE_QUEUE == 1
    LOG_Process();
@@ -305,31 +287,58 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
     Task3_Update(2.0f);
 		/* 发速度指令 */
-		if (counter % 10 == 0)
+		if (counter % 1 == 0)
 		{
       if (App_Menu_IsRunning()) 
       {
           switch (App_Menu_GetMode()) 
           {
           case MENU_ZDT_TEST:
-              x_axis_target_angle += 1.0f;
-              if (x_axis_target_angle >= 26.0f)
+          {
+            if (!App_Menu_IsRunning())
+            {
+              App_Menu_Start();
+            }
+            
+              if (!ZDT_Pulse_IsDone())
               {
-                x_axis_target_angle = 26.0f;
+                return;	
               }
-              ZDT_MoveToAngle(&x_asix_motor, x_axis_target_angle);
-              break;
-          case MENU_BALL_PID:
-              Task3_Control_Send();
-              break;
-          default: 
+              else
+              {
+                App_Menu_Stop();
+              }
+              ZDT_Pulse_MoveToClk(ZDT_Pulse_AngleToClk(25.0f));
+           }
           break;
+          case MENU_BALL_PID:
+              if (!Task3_IsRunning() && !Task3_IsDone()) Task3_Start();
+              Task3_Control_Send();
+              if (Task3_IsDone())
+              {
+                App_Menu_Stop();
+              }
+              
+              break;
           }
+      } 
+      else if (Task3_IsRunning() || Task3_IsDone()) {
+          Task3_Stop();
       }
 		}
     counter++;
 	}
 
+}
+void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
+{
+    if (htim->Instance == TIM4) {
+        ZDT_Pulse_PeriodElapsedCallback(htim);
+    }
+}
+void HAL_GPIO_EXTI_Callback(uint16_t pin)
+{
+    ZDT_Pulse_EXTI_Callback(pin);
 }
 
 

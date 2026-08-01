@@ -71,6 +71,8 @@ void Error_Handler(void);
 #define DC_OLED_GPIO_Port GPIOB
 #define CS_OLED_Pin GPIO_PIN_2
 #define CS_OLED_GPIO_Port GPIOB
+#define DIR_Pin GPIO_PIN_9
+#define DIR_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

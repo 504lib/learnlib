@@ -26,12 +26,10 @@ static void __on_frame(uint8_t type, const uint8_t* payload, uint16_t len)
     if (type == APP_FRAME_BALL_POS && len >= 8) {
         g_ball_pos     = (int32_t)rd_u32_be(payload);
         g_ball_vel     = (int32_t)rd_u32_be(payload + 4);
-        LOG_INFO("BALL %d mm, %d mm/s", g_ball_pos, g_ball_vel);
         g_ball_updated = true;
     }
     if (type == APP_FRAME_CALIB && len >= 4) {
         g_zero_px = rd_u32_be(payload);
-        LOG_INFO("CAL OK zero=%lu", g_zero_px);
     }
 }
 
