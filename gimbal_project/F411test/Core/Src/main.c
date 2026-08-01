@@ -85,12 +85,13 @@ volatile float x_axis_target_angle = 0.0f;  // 目标角度，单位：度
 static uint8_t Oled_page_index = 0;
 static bool Enter_Oled_page = false;
 static bool Task3_excuting = false;
-static float man_angle = 28.0f;
+static float man_angle = 28.0f;   /* 打表: 按键调节的电机角度 */
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
+/* ---- 打表按键: K2 +0.1° / K3 -0.1° ---- */
 static uint8_t read_k2(MulitKey_t* k) { (void)k; return HAL_GPIO_ReadPin(KEY2_GPIO_Port, KEY2_Pin) == GPIO_PIN_SET ? 1 : 0; }
 static void on_k2(MulitKey_t* k) { (void)k; man_angle += 0.1f; }
 static uint8_t read_k3(MulitKey_t* k) { (void)k; return HAL_GPIO_ReadPin(KEY3_GPIO_Port, KEY3_Pin) == GPIO_PIN_SET ? 1 : 0; }
@@ -202,9 +203,13 @@ int main(void)
     }
 
     App_Menu_Process();
-//    MulitKey_Scan(&mk2);
-//    MulitKey_Scan(&mk3);
-    if (HAL_GetTick() - last_tick >= 50)   // 20ms→50ms, 减OLED负担
+    // MulitKey_Scan(&mk2);
+    // MulitKey_Scan(&mk3);
+  
+			
+		
+		
+		if (HAL_GetTick() - last_tick >= 50)   // 20ms→50ms, 减OLED负担
     {
       last_tick = HAL_GetTick();
       char buf[32] = {0};
@@ -213,9 +218,10 @@ int main(void)
         switch (App_Menu_GetMode())
         {
         case MENU_ZDT_TEST:
-          LOG_Snprintf(buffer, sizeof(buffer), "PUL %ld D%d", (int32_t)ZDT_Pulse_GetPos(), ZDT_Pulse_IsDone()?1:0);
+          /* 打表模式: 上排=球位置(cm), 下排=当前角度 */
+          LOG_Snprintf(buffer, sizeof(buffer), "BALL:%.1f cm", g_ball_pos * 0.1f);
           OLED_ShowString(0, 8, (uint8_t*)buffer, 8, 1);
-          LOG_Snprintf(buffer, sizeof(buffer), "A:%.1f", man_angle);
+          LOG_Snprintf(buffer, sizeof(buffer), "ANG:%.1f", man_angle);
           OLED_ShowString(0, 16, (uint8_t*)buffer, 8, 1);
             break;
         case MENU_TASK3:
@@ -313,8 +319,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
           switch (App_Menu_GetMode()) 
           {
           case MENU_ZDT_TEST:
-            // ZDT_Pulse_MoveToClk(ZDT_Pulse_AngleToClk(man_angle));
-            ZDT_Pulse_MoveToClk(ZDT_Pulse_AngleToClk(25.0f));
+            ZDT_Pulse_MoveToClk(ZDT_Pulse_AngleToClk(28.8f));
             break;
           case MENU_TASK3:
               if (!Task3_IsRunning() && !Task3_IsDone()) Task3_Start();

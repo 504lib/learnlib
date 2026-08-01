@@ -5,6 +5,8 @@
 #include "app_protocol.h"
 #include "main.h"
 
+#define CENTER_CM  12.5f   /* 梁几何中点 */
+
 void Task3_Init(void);
 void Task3_Update(float dt);
 void Task3_Control_Send(void);

@@ -1,4 +1,5 @@
 #include "Task4_Control.h"
+#include "Task_Control.h"
 #include <math.h>
 
 /* ================================================================
@@ -6,7 +7,7 @@
    车加减速 → 前馈预倾梁抵消惯性 → PID 微调残差
    ================================================================ */
 #define FF_BASE        25.0f    // 梁水平基准角
-#define TARGET_CM      12.5f    // 球目标 (0cm)
+#define TARGET_CM      CENTER_CM    // 球目标 (0cm)
 
 /* PID */
 #define KP   0.5f
@@ -43,7 +44,7 @@ void Task4_Init(void)
    死推算
    ================================================================ */
 static uint32_t last_data_ms = 0;
-static float    dead_pos_cm  = 12.5f;
+static float    dead_pos_cm  = CENTER_CM;
 static float    dead_vel     = 0.0f;
 static bool     data_lost    = false;
 #define DATA_TIMEOUT_MS  150

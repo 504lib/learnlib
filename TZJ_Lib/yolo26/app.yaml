@@ -16,5 +16,8 @@ files:
   - app.yaml
   - ball_position.py
   - main.py
+  - model_313145.cvimodel
+  - model_313145.mud
   - protocol.py
   - README.md
+  - report.json

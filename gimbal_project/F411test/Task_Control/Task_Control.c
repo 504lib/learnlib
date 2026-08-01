@@ -2,7 +2,7 @@
 #include <math.h>
 
 #define STEP_COUNT   2
-#define STABLE_CM    0.7f
+#define STABLE_CM    1.0f
 #define STABLE_MS    1000
 
 static PID_Node pid;
@@ -11,13 +11,16 @@ static bool     started     = false;
 
 static const float targets[STEP_COUNT] = { 17.5f, 7.5f };
 
-/* 查表: 球位置(cm) → 平衡角(°)  实测填入 */
-static const float tbl_pos[]  = { 2.5f, 6.5f, 8.5f, 10.5f, 12.5f, 14.5f, 16.5f, 20.5f };
-static const float tbl_ang[]  = { 28.8f, 30.8f, 28.2f, 27.2f, 25.9f, 25.7f, 25.2f, 26.0f };
+/* ================================================================
+   查表: 球位置(cm) → 平衡角(°)
+   双向逼近取平均, 12.5cm手工平滑
+   ================================================================ */
+static const float tbl_pos[] = { 4.5f, 6.5f, 8.5f, 10.5f, 12.5f, 14.5f, 16.5f, 18.5f };
+static const float tbl_ang[] = { 31.75f, 31.60f, 30.10f, 28.80f, 28.10f, 27.40f, 26.50f, 25.10f };
 #define TBL_N (sizeof(tbl_pos)/sizeof(tbl_pos[0]))
 
 static float lookup_angle(float pos_cm) {
-    if (pos_cm <= tbl_pos[0])       return tbl_ang[0];
+    if (pos_cm <= tbl_pos[0]) return tbl_ang[0];
     if (pos_cm >= tbl_pos[TBL_N-1]) return tbl_ang[TBL_N-1];
     for (int i = 0; i < TBL_N-1; i++) {
         if (pos_cm >= tbl_pos[i] && pos_cm <= tbl_pos[i+1]) {
@@ -30,8 +33,8 @@ static float lookup_angle(float pos_cm) {
 
 typedef struct { float P, D; } Gains;
 static const Gains g_step[STEP_COUNT] = {
-    { 4.0f, 15.0f },  // O->+5
-    { 3.0f, 30.0f },  // +5->-5 (小P+D压震荡)
+    { 1.0f, 15.0f },  // O->+5
+    { 3.0f, 15.0f },  // +5->-5
 };
 
 static float output      = 0.0f;
@@ -86,7 +89,7 @@ void Task3_Update(float dt)
     }
 
     /* 当前段 PD */
-    PID_Node_SetKp(&pid, g_step[step].P * 0.2f);
+    PID_Node_SetKp(&pid, g_step[step].P * 0.2);
     PID_Node_SetKd(&pid, g_step[step].D);
     PID_Node_SetSetpoint(&pid, target);
     PID_Node_UpdateMeasurement(&pid, ball_cm);
@@ -101,13 +104,13 @@ void Task3_Update(float dt)
         float sign = (target - ball_cm > 0) ? 1.0f : -1.0f;
         if (last_sign != 0 && sign != last_sign) osc_cnt++;
         last_sign = sign;
-        float scale = 1.0f / (1.0f + osc_cnt * 1.0f);  // 每震一次减半
-        PID_Node_SetKp(&pid, g_step[1].P * 0.2f * scale);
+        float scale = 1.0f / (1.0f + osc_cnt * 0.5f);
+        PID_Node_SetKp(&pid, g_step[1].P * 0.35f * scale);
     }
 
     /* 稳态检测 */
     static uint32_t stable_since = 0;
-    if (fabsf(target - ball_cm) <= STABLE_CM && (step == 0 || fabsf(dead_vel) < 0.3f)) {
+    if (fabsf(target - ball_cm) <= STABLE_CM) {
         if (stable_since == 0) stable_since = now;
         else if (now - stable_since >= STABLE_MS) {
             step++;
@@ -123,7 +126,7 @@ void Task3_Update(float dt)
 
     /* 输出 */
     float out = pid.output;
-    out -= (step == 0 ? 0.5f : 2.0f) * dead_vel;  // 左侧强刹
+    out -= (step == 0 ? 0.5f : 1.0f) * dead_vel;  // 第二段强刹
     if (out > 15.0f)  out = 15.0f;
     if (out < -15.0f) out = -15.0f;
     output      = out;

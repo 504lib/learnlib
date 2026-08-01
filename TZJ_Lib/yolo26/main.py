@@ -43,6 +43,7 @@ _boot_screen("Booting...")
 SSID = "kakakaka"
 PASS = "197845047cao"
 stream_url = "N/A"
+display_url = "N/A"
 stream_ok = False
 wifi_ok = False
 stream_start_ms = 0
@@ -76,9 +77,10 @@ try:
         ws.start()
         raw_url = ws.get_url()
         stream_url = raw_url.replace("0.0.0.0", ip)
+        display_url = stream_url.replace("http://", "").replace("https://", "")
         stream_ok = True
         stream_start_ms = time.ticks_ms()
-        _boot_screen(f"Stream ready\n{stream_url}", image.COLOR_GREEN)
+        _boot_screen(f"Stream ready\n{display_url}", image.COLOR_GREEN)
         print(stream_url)
         time.sleep(2)
 
@@ -129,10 +131,10 @@ def draw_status_bar(img):
 
     if stream_ok:
         elapsed = time.ticks_ms() - stream_start_ms
-        if elapsed < 60000:  # 2分钟内显示连接中
-            status = f"{stream_url}"
+        if elapsed < 60000:
+            status = f"{display_url}"
         else:
-            status = f"{stream_url} [>2min]"
+            status = f"{display_url} [>2min]"
         img.draw_string(2, bar_y + 1, status, green_c, 1.2, 1)
     elif wifi_ok:
         img.draw_string(2, bar_y + 1, "STREAM: wait...", yellow_c, 1.2, 1)
