@@ -173,12 +173,16 @@ int main(void)
   HAL_TIM_Base_Start_IT(&htim4);  
 	Control_Stop();
   /* USER CODE END 2 */
-
+	uint32_t last_time = 0;
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
     App_FSM_Process();
+		if (HAL_GetTick() - last_time >= 20) {
+        App_Protocol_SendVel(Control_GetAverageSpeed());
+        last_time = HAL_GetTick();
+    }
      /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

@@ -1,5 +1,4 @@
 #include "Task_Control.h"
-#include "mpu6050_user.h"
 #include <math.h>
 
 #define STEP_COUNT   2
@@ -44,8 +43,8 @@ void Table_CalibrateOffset(float cam_cm, float unused) {
 
 typedef struct { float P, D; } Gains;
 static const Gains g_step[STEP_COUNT] = {
-    { 1.0f, 15.0f },  // O->+5
-    { 1.0f, 5.0f },  // +5->-5
+    { 3.0f, 30.0f },  // O->+5
+    { 2.0f, 15.0f },  // +5->-5
 };
 
 static float output      = 0.0f;
@@ -102,13 +101,13 @@ void Task3_Update(float dt)
     }
 
     /* 当前段 PD */
-    PID_Node_SetKp(&pid, g_step[active].P * 0.2);
+    PID_Node_SetKp(&pid, g_step[active].P * 0.2f);
     PID_Node_SetKd(&pid, g_step[active].D);
     PID_Node_SetSetpoint(&pid, target);
     PID_Node_UpdateMeasurement(&pid, ball_cm);
     PID_ExecuteNode(&pid, dt);
 
-    /* 第二段: 每次穿越目标线减P, 接近目标停计数, P不低于20% */
+    /* 第二段: 每次穿越目标线减P, 接近目标停计数, P不低于15% */
     if (step == 1) {
         static float  last_sign = 0;
         static int    osc_cnt   = 0;
@@ -143,7 +142,7 @@ void Task3_Update(float dt)
 
     /* 输出 */
     float out = pid.output;
-    out -= (step == 0 ? 0.5f : 0.8f) * dead_vel;  // 第二段强刹
+    out -= (step == 0 ? 0.5f : 0.7f) * dead_vel;
     if (out > 15.0f)  out = 15.0f;
     if (out < -15.0f) out = -15.0f;
     output      = out;
@@ -175,7 +174,7 @@ float    Task3_GetAngle(void)  { return motor_angle; }
 /* ================================================================
    Task4_Simple: 和Task3同构, 单目标CENTER_CM, PD + IMU前馈
    ================================================================ */
-#define T4_K_FF  0.09f   /* IMU加速度→角度前馈系数 */
+#define T4_K_VEL_FF  0.00f   /* 车速加速度→角度前馈系数 */
 static PID_Node pid4;
 static bool     t4_started  = false;
 static float    t4_output   = 0.0f;
@@ -188,7 +187,7 @@ static bool     t4_lost      = false;
 
 void Task4_Simple_Init(void)
 {
-    PID_Node_Init(&pid4, "t4s", 1.0f, 0.0f, 15.0f);
+    PID_Node_Init(&pid4, "t4s", 8.0f, 0.0f, 15.0f);
     PID_Node_SetSetpoint(&pid4, CENTER_CM);
     PID_Node_SetLimit(&pid4, (PID_Limit){
         .setpoint_max = 25.0f, .setpoint_min =  0.0f,
@@ -223,21 +222,17 @@ void Task4_Simple_Update(float dt)
     }
 
     PID_Node_SetKp(&pid4, 1.0f * 0.2f);
-    PID_Node_SetKd(&pid4, 15.0f);
+    PID_Node_SetKd(&pid4, 0.0f);                    /* D=0, 速度直接反馈 */
     PID_Node_SetSetpoint(&pid4, CENTER_CM);
     PID_Node_UpdateMeasurement(&pid4, ball_cm);
     PID_ExecuteNode(&pid4, dt);
 
-    MPU6050_Data_t* imu = MPU6050_GetHandle();
+    /* 车速前馈: 车速微分 → 加速度 → 角度补偿 */
+    static float prev_vel = 0;
+    float car_accel = (g_vel_value - prev_vel) / (dt / 1000.0f);   /* cm/s → cm/s² */
+    prev_vel = g_vel_value;
 
-    /* 一阶低通: ax滤波, 去振动噪声, alpha越小越滞后 */
-    static float ax_filt = 0;
-    float alpha = (dt < 0.01f) ? 0.95f : 0.8f;  /* 2ms→α=0.95, 截止~16Hz */
-    ax_filt = alpha * ax_filt + (1.0f - alpha) * imu->phys.ax;
-    float ff = T4_K_FF * ax_filt;
-
-    float out = pid4.output + ff;
-    out -= 0.5f * t4_dead_vel;
+    float out = pid4.output + T4_K_VEL_FF * car_accel;
     if (out > 10.0f)  out = 10.0f;
     if (out < -10.0f) out = -10.0f;
 

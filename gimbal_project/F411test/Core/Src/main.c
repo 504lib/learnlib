@@ -227,6 +227,8 @@ int main(void)
           OLED_ShowString(0, 16, (uint8_t*)buffer, 8, 1);
           LOG_Snprintf(buffer, sizeof(buffer), "OFF:%.1f cm", g_pos_offset);
           OLED_ShowString(0, 24, (uint8_t*)buffer, 8, 1);
+          LOG_Snprintf(buffer, sizeof(buffer), "vel:%.1f m/s",  g_vel_value);
+				OLED_ShowString(0, 32, (uint8_t*)buffer, 8, 1);
             break;
         case MENU_TASK3:
           LOG_Snprintf(buffer, sizeof(buffer), "P:%.2f S:%u O:%.2f",

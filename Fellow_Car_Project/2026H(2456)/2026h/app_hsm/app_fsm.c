@@ -154,7 +154,7 @@ static void Straight_Entry(HSM_Event_Package ev) {
     LOG_DEBUG("-> Straight %s", t.name);
 }
 
-static void Straight_Exit(HSM_Event_Package ev) { (void)ev; LOG_DEBUG("<- Straight"); }
+static void Straight_Exit(HSM_Event_Package ev) { (void)ev;App_Protocol_SendVel(0.0f); LOG_DEBUG("<- Straight"); }
 
 static void Straight_Continuous(void) {
     static uint8_t last_time = 0;
@@ -172,10 +172,10 @@ static void Straight_Continuous(void) {
         return;
     }
 
-    if (HAL_GetTick() - last_time >= 20) {
-        App_Protocol_SendVel(Control_GetAverageSpeed());
-        last_time = HAL_GetTick();
-    }
+//    if (HAL_GetTick() - last_time >= 20) {
+//        App_Protocol_SendVel(Control_GetAverageSpeed());
+//        last_time = HAL_GetTick();
+//    }
 
     LOG_Snprintf(buffer, sizeof(buffer), "%s:%.2fm", t.name, current_distance);
     OLED_ShowString(0, 0, (uint8_t*)buffer, 16, 1);
@@ -204,7 +204,7 @@ static void Curve_Entry(HSM_Event_Package ev) {
     LOG_DEBUG("-> Curve %s", t.name);
 }
 
-static void Curve_Exit(HSM_Event_Package ev) { (void)ev; LOG_DEBUG("<- Curve"); }
+static void Curve_Exit(HSM_Event_Package ev) { (void)ev;App_Protocol_SendVel(0.0f); LOG_DEBUG("<- Curve"); }
 
 static void Curve_Continuous(void) {
     static uint8_t last_time = 0;
@@ -212,6 +212,7 @@ static void Curve_Continuous(void) {
     TaskDef_t t = tasks[task_index];
 
     current_distance = Control_GetCurrentDistance() - last_distance;
+		
     Control_CheckDecel(current_distance);
 
     if (current_distance >= t.distance) {
@@ -221,10 +222,10 @@ static void Curve_Continuous(void) {
         return;
     }
 
-    if (HAL_GetTick() - last_time >= 100) {
-        App_Protocol_SendVel(Control_GetAverageSpeed());
-        last_time = HAL_GetTick();
-    }
+//    if (HAL_GetTick() - last_time >= 100) {
+//        App_Protocol_SendVel(Control_GetAverageSpeed());
+//        last_time = HAL_GetTick();
+//    }
 
     LOG_Snprintf(buffer, sizeof(buffer), "%s:%.2fm", t.name, current_distance);
     OLED_ShowString(0, 0, (uint8_t*)buffer, 16, 1);
