@@ -88,3 +88,8 @@ void App_Protocol_FeedByte_UART1(uint8_t data)
 {
     Uart_Protocol_ProcessReceivedData8bit(&g_proto_u1, data);
 }
+
+void App_Protocol_FeedBuffer_UART1(const uint8_t* data, uint16_t len)
+{
+    Uart_Protocol_ProcessReceivedDataBuffer(&g_proto_u1, data, len);
+}

@@ -172,9 +172,9 @@ float    Task3_GetOutput(void) { return output; }
 float    Task3_GetAngle(void)  { return motor_angle; }
 
 /* ================================================================
-   Task4_Simple: 和Task3同构, 单目标CENTER_CM, PD + IMU前馈
+   Task4_Simple: 和Task3同构, 单目标CENTER_CM, PD + 车速前馈
    ================================================================ */
-#define T4_K_VEL_FF  0.00f   /* 车速加速度→角度前馈系数 */
+#define T4_K_VEL_FF  5.0f    /* 车速加速度→角度前馈系数, 上车标定 */
 static PID_Node pid4;
 static bool     t4_started  = false;
 static float    t4_output   = 0.0f;
@@ -221,18 +221,24 @@ void Task4_Simple_Update(float dt)
         return;
     }
 
-    PID_Node_SetKp(&pid4, 1.0f * 0.2f);
-    PID_Node_SetKd(&pid4, 0.0f);                    /* D=0, 速度直接反馈 */
+    PID_Node_SetKp(&pid4, 3.0f * 0.2f);
+    PID_Node_SetKd(&pid4, 30.0f);
     PID_Node_SetSetpoint(&pid4, CENTER_CM);
     PID_Node_UpdateMeasurement(&pid4, ball_cm);
     PID_ExecuteNode(&pid4, dt);
 
-    /* 车速前馈: 车速微分 → 加速度 → 角度补偿 */
-    static float prev_vel = 0;
-    float car_accel = (g_vel_value - prev_vel) / (dt / 1000.0f);   /* cm/s → cm/s² */
-    prev_vel = g_vel_value;
+    /* 车速前馈: 微分速度得加速度, 首次调用跳过 */
+    static float prev_vel    = 0;
+    static bool  prev_valid  = false;
+    float car_accel = 0;
+    if (prev_valid) {
+        car_accel = (g_vel_value - prev_vel) / (dt * 0.001f);   /* dv / dt(秒) */
+    }
+    prev_vel   = g_vel_value;
+    prev_valid = true;
 
     float out = pid4.output + T4_K_VEL_FF * car_accel;
+    out -= 0.5f * t4_dead_vel;
     if (out > 10.0f)  out = 10.0f;
     if (out < -10.0f) out = -10.0f;
 
