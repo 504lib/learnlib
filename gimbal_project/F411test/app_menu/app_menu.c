@@ -21,7 +21,10 @@ static void on_k2(MulitKey_t* k) {
 }
 static void on_k2_long(MulitKey_t* k) {
     (void)k;
-    g_pos_offset += 0.1f;   /* 长按K2: offset +0.1 */
+    if (g_mode == MENU_TASK4)
+        g_ball_target += 0.5f;   /* TASK4模式: 目标位置+0.5cm */
+    else
+        g_pos_offset  += 0.1f;   /* 其他模式: 校准偏移+0.1cm */
 }
 
 static void on_k3(MulitKey_t* k) {
@@ -31,7 +34,10 @@ static void on_k3(MulitKey_t* k) {
 }
 static void on_k3_long(MulitKey_t* k) {
     (void)k;
-    g_pos_offset -= 0.1f;   /* 长按K3: offset -0.1 */
+    if (g_mode == MENU_TASK4)
+        g_ball_target -= 0.5f;   /* TASK4模式: 目标位置-0.5cm */
+    else
+        g_pos_offset  -= 0.1f;   /* 其他模式: 校准偏移-0.1cm */
 }
 
 static MulitKey_t mk2, mk3;

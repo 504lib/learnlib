@@ -111,14 +111,7 @@ void Control_Update(float dt)
     /* 斜坡速度规划 */
     switch (ctrl_mode) {
     case CTRL_MODE_RUN:
-        if (ramp_enabled) {
-            if (ramp_speed < base_speed) {
-                ramp_speed += RAMP_ACCEL * dt_s;
-                if (ramp_speed > base_speed) ramp_speed = base_speed;
-            }
-        } else {
-            ramp_speed = base_speed;
-        }
+        ramp_speed = base_speed;    /* 无缓启动, 直接给全速 */
         break;
     case CTRL_MODE_DECEL:
         if (ramp_enabled) {

@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "dma.h"
 #include "i2c.h"
 #include "spi.h"
 #include "tim.h"
@@ -68,9 +69,11 @@ void __uart2_tx(const char* buffer, size_t buffer_size)
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-volatile uint8_t rx_byte = 0;
-volatile uint8_t rx_byte_uart1 = 0;
-
+/* DMA 接收缓冲 */
+#define U6_BUF  256
+#define U1_BUF  128
+static uint8_t u6_buf[U6_BUF];
+static uint8_t u1_buf[U1_BUF];
 
 size_t text_len = 0;
 bool text_buffer_updated = false;
@@ -143,6 +146,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_I2C1_Init();
   MX_I2C2_Init();
   MX_SPI1_Init();
@@ -191,8 +195,8 @@ int main(void)
   MulitKey_Init(&mk1, read_k1, on_k1, on_k1, FALL_BORDER_TRIGGER);
   MulitKey_Init(&mk2, read_k2, on_k2, on_k2, FALL_BORDER_TRIGGER);
   MulitKey_Init(&mk3, read_k3, on_k3, on_k3, FALL_BORDER_TRIGGER);
-	HAL_UART_Receive_IT(&huart6, (uint8_t*)&rx_byte, 1);
-  HAL_UART_Receive_IT(&huart1, (uint8_t*)&rx_byte_uart1, 1);
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart6, u6_buf, U6_BUF);
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart1, u1_buf, U1_BUF);
   
   /* USER CODE END 2 */
 
@@ -238,10 +242,10 @@ int main(void)
           OLED_ShowString(0, 16, (uint8_t*)buffer, 8, 1);
           break;
         case MENU_TASK4:
-          LOG_Snprintf(buffer, sizeof(buffer), "P:%.2f ff:%.2f", Task4_GetCurrent(), task4_simple_output());
+          LOG_Snprintf(buffer, sizeof(buffer), "T:%.1f P:%.2f", g_ball_target, Task4_GetCurrent());
           OLED_ShowString(0, 8, (uint8_t*)buffer, 8, 1);
-          // LOG_Snprintf(buffer, sizeof(buffer), "ax:%.2f ay:%.2f az:%.2f", mpu_data->phys.ax, mpu_data->phys.ay, mpu_data->phys.az);
-          // OLED_ShowString(0, 16, (uint8_t*)buffer, 8, 1);
+          LOG_Snprintf(buffer, sizeof(buffer), "O:%.2f V:%.2f", task4_simple_output(), g_vel_value);
+          OLED_ShowString(0, 16, (uint8_t*)buffer, 8, 1);
             break;
         default:
           break;
@@ -356,24 +360,18 @@ void HAL_GPIO_EXTI_Callback(uint16_t pin)
 //   }
 // }
 
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+/* DMA+IDLE: 收完一帧才回调, 一次喂整帧 */
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
-  char buffer[32];
-  if (huart->Instance == USART6)
-  {
-    // LOG_Snprintf(buffer, sizeof(buffer), "rcv:0x%02x\n",rx_byte);
-    // HAL_UART_Transmit(&huart6, (uint8_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
-		// LOG_INFO("rcv:0x%02x",rx_byte);
+  if (huart->Instance == USART6 && Size > 0) {
     HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
-    App_Protocol_FeedByte(rx_byte);
-    HAL_UART_Receive_IT(&huart6, (uint8_t*)&rx_byte, 1);
+    APP_Protocol_FeedBuffer(u6_buf, Size);
+    HAL_UARTEx_ReceiveToIdle_DMA(&huart6, u6_buf, U6_BUF);
   }
-  if (huart->Instance == USART1)
-  {
-    App_Protocol_FeedByte_UART1(rx_byte_uart1);
-    HAL_UART_Receive_IT(&huart1, (uint8_t*)&rx_byte_uart1, 1);
+  if (huart->Instance == USART1 && Size > 0) {
+    App_Protocol_FeedBuffer_UART1(u1_buf, Size);
+    HAL_UARTEx_ReceiveToIdle_DMA(&huart1, u1_buf, U1_BUF);
   }
-  
 }
 /* USER CODE END 4 */
 

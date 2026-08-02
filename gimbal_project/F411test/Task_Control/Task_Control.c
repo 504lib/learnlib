@@ -19,7 +19,8 @@ static const float tbl_pos[] = { 4.5f, 6.5f, 8.5f, 10.5f, 12.5f, 14.5f, 16.5f, 1
 static const float tbl_ang[] = { 31.75f, 31.60f, 30.10f, 28.80f, 28.10f, 27.40f, 26.50f, 25.10f };
 #define TBL_N (sizeof(tbl_pos)/sizeof(tbl_pos[0]))
 
-float g_pos_offset = 0.0f;   /* 摄像头位置偏移(cm), 按键一键校准 */
+float g_pos_offset = 0.0f;    /* 摄像头位置偏移(cm), 按键一键校准 */
+float g_ball_target = CENTER_CM; /* 车载模式目标位置(cm), 协议可改 */
 
 /* 查表: 先修正摄像头偏移, 再查平衡角 */
 float lookup_angle(float cam_cm) {
@@ -172,23 +173,23 @@ float    Task3_GetOutput(void) { return output; }
 float    Task3_GetAngle(void)  { return motor_angle; }
 
 /* ================================================================
-   Task4_Simple: 和Task3同构, 单目标CENTER_CM, PD + IMU前馈
+   Task4_Simple: 和Task3同构, 单目标CENTER_CM, PD + 车速前馈
    ================================================================ */
-#define T4_K_VEL_FF  0.00f   /* 车速加速度→角度前馈系数 */
+#define T4_K_VEL_FF  12.0f    /* 车速加速度→角度前馈系数, 上车标定 */
 static PID_Node pid4;
 static bool     t4_started  = false;
 static float    t4_output   = 0.0f;
 static float    t4_angle    = 28.0f;
 
 static uint32_t t4_last_ms  = 0;
-static float    t4_dead_cm  = CENTER_CM;
+static float    t4_dead_cm   = CENTER_CM;   /* 启动时用 g_ball_target 覆盖 */
 static float    t4_dead_vel  = 0.0f;
 static bool     t4_lost      = false;
 
 void Task4_Simple_Init(void)
 {
     PID_Node_Init(&pid4, "t4s", 8.0f, 0.0f, 15.0f);
-    PID_Node_SetSetpoint(&pid4, CENTER_CM);
+    PID_Node_SetSetpoint(&pid4, g_ball_target);
     PID_Node_SetLimit(&pid4, (PID_Limit){
         .setpoint_max = 25.0f, .setpoint_min =  0.0f,
         .input_max    = 25.0f, .input_min    =  0.0f,
@@ -221,23 +222,29 @@ void Task4_Simple_Update(float dt)
         return;
     }
 
-    PID_Node_SetKp(&pid4, 1.0f * 0.2f);
-    PID_Node_SetKd(&pid4, 0.0f);                    /* D=0, 速度直接反馈 */
-    PID_Node_SetSetpoint(&pid4, CENTER_CM);
+    PID_Node_SetKp(&pid4, 3.0f * 0.2f);
+    PID_Node_SetKd(&pid4, 30.0f);
+    PID_Node_SetSetpoint(&pid4, g_ball_target);
     PID_Node_UpdateMeasurement(&pid4, ball_cm);
     PID_ExecuteNode(&pid4, dt);
 
-    /* 车速前馈: 车速微分 → 加速度 → 角度补偿 */
-    static float prev_vel = 0;
-    float car_accel = (g_vel_value - prev_vel) / (dt / 1000.0f);   /* cm/s → cm/s² */
-    prev_vel = g_vel_value;
+    /* 车速前馈: 微分速度得加速度, 首次调用跳过 */
+    static float prev_vel    = 0;
+    static bool  prev_valid  = false;
+    float car_accel = 0;
+    if (prev_valid) {
+        car_accel = (g_vel_value - prev_vel) / (dt * 0.001f);   /* dv / dt(秒) */
+    }
+    prev_vel   = g_vel_value;
+    prev_valid = true;
 
     float out = pid4.output + T4_K_VEL_FF * car_accel;
+    out -= 0.5f * t4_dead_vel;
     if (out > 10.0f)  out = 10.0f;
     if (out < -10.0f) out = -10.0f;
 
     t4_output = out;
-    t4_angle  = lookup_angle(CENTER_CM) - out;
+    t4_angle  = lookup_angle(g_ball_target) - out;
     ZDT_Pulse_MoveToClk(ZDT_Pulse_AngleToClk(t4_angle));
 }
 
@@ -247,13 +254,14 @@ float task4_simple_output(void) { return t4_output; }
 void Task4_Simple_Control_Send(void)
 {
     if (t4_lost) {
-        ZDT_Pulse_MoveToClk(ZDT_Pulse_AngleToClk(lookup_angle(CENTER_CM)));
+        ZDT_Pulse_MoveToClk(ZDT_Pulse_AngleToClk(lookup_angle(g_ball_target)));
     }
 }
 
 void Task4_Simple_Start(void) {
     t4_started = true;
-    PID_Node_SetSetpoint(&pid4, CENTER_CM);
+    t4_dead_cm = g_ball_target;   /* 死推起点跟随目标 */
+    PID_Node_SetSetpoint(&pid4, g_ball_target);
     PID_Node_ResetIntegral(&pid4);
 }
 void Task4_Simple_Stop(void)  { t4_started = false; }

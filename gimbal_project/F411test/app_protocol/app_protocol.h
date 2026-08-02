@@ -21,6 +21,6 @@ int32_t App_Protocol_GetBallPos(void);
 void APP_Protocol_FeedBuffer( uint8_t* data, uint16_t len);
 bool App_Protocol_IsBallPosUpdated(void);
 void App_Protocol_FeedByte_UART1(uint8_t data);
-
+void App_Protocol_FeedBuffer_UART1(const uint8_t* data, uint16_t len);
 
 #endif

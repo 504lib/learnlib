@@ -179,7 +179,8 @@ int main(void)
   while (1)
   {
     App_FSM_Process();
-		if (HAL_GetTick() - last_time >= 20) {
+		if (HAL_GetTick() - last_time >= 20
+			) {
         App_Protocol_SendVel(Control_GetAverageSpeed());
         last_time = HAL_GetTick();
     }

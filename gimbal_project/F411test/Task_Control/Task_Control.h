@@ -9,7 +9,8 @@
 
 float lookup_angle(float pos_cm);   /* 查表: 位置→平衡角(含偏移) */
 
-extern float g_pos_offset;         /* 摄像头位置偏移(cm), 按键一键校准 */
+extern float g_pos_offset;          /* 摄像头位置偏移(cm), 按键一键校准 */
+extern float g_ball_target;         /* 车载模式目标位置(cm), 默认12.5 */
 void   Table_CalibrateOffset(float cam_cm, float unused);
 
 void Task3_Init(void);
