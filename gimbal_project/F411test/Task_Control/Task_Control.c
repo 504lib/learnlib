@@ -174,6 +174,7 @@ float    Task3_GetAngle(void)  { return motor_angle; }
 
 /* ================================================================
    Task4_Simple: 和Task3同构, 单目标CENTER_CM, PD + 车速前馈
+   Task4_Simple: 和Task3同构, 单目标CENTER_CM, PD + 车速前馈
    ================================================================ */
 #define T4_K_VEL_FF  12.0f    /* 车速加速度→角度前馈系数, 上车标定 */
 static PID_Node pid4;
