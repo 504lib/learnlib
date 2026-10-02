@@ -60,8 +60,8 @@ typedef struct PID_Limit
     float setpoint_max;              // 设定值最大值
     float input_min;                // 输入最小值
     float input_max;                // 输入最大值
-    float output_min;               // 输出最小值
-    float output_max;               // 输出最大值
+    float output_min;               // 输出最小值/
+    float output_max;               // 输出最大值/
     float integral_max;             // 积分最小值
     float derivative_max;           // 微分最大值
     float deadband;                 // 死区范围
